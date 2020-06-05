@@ -1,20 +1,24 @@
 cmake_minimum_required(VERSION 3.5)
 project (Robustness)
 
-# Libraries
+
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD_REQUIRED True)
+
+
 include_directories(eigen)
-
-#set(PROJECT_LINK_LIBS networkit/libnetworkit.so)
 #link_directories(networkit/build)
-include_directories(networkit/include)
-
+#include_directories(networkit/include)
 find_package(OpenMP)
 
 add_subdirectory(networkit)
 
-add_compile_options(-Wno-deprecated)
 
-add_executable(robustness main)
-#target_link_libraries(robustness ${PROJECT_LINK_LIBS} )
-target_link_libraries(robustness networkit)
-target_link_libraries(robustness OpenMP::OpenMP_CXX)
+add_executable(robustness main cpp/greedy.cpp cpp/laplacian.cpp cpp/robustnessGreedy.cpp)
+
+target_compile_options(robustness PUBLIC -Wno-deprecated-declarations PUBLIC -g)
+
+target_include_directories(robustness PUBLIC "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(robustness INTERFACE )
+target_link_libraries(robustness PUBLIC networkit)
+target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX)
