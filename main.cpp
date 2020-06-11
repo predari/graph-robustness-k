@@ -19,13 +19,14 @@
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/algebraic/Vector.hpp>
 
+
 #include <greedy.hpp>
 #include <laplacian.hpp>
 #include <robustnessGreedy.hpp>
 
 
 
-void test()
+void testLaplacian()
 {
 	// Create Example Graphs
 	Aux::Random::setSeed(42, false);
@@ -66,7 +67,7 @@ void test()
 	auto col0 = computeLaplacianPseudoinverseColumn(Lmat, 0);
 	auto col3 = computeLaplacianPseudoinverseColumn(Lmat, 3);
 	assert(std::abs(laplacianPseudoinverseTraceDifference(col0, 0, col3, 3) + 0.25) < 0.001);
-	auto diffvec = laplacianPseudoinverseColummDifference(col0, 0, col3, 3, 0);
+	auto diffvec = laplacianPseudoinverseColumnDifference(col0, 0, col3, 3, 0);
 	std::vector<double> exp{-0.125, 0.0, 0.0, 0.125};
 	for (int i = 0; i < 4; i++)
 	{
@@ -87,20 +88,21 @@ void test()
 }
 
 void testRobustnessGreedy() {
-	Graph G;
-	G.addNodes(4);
-	G.addEdge(0, 1);
-	G.addEdge(0, 2);
-	G.addEdge(1, 2);
-	G.addEdge(1, 3);
-	G.addEdge(2, 3);
+	/*
+	Graph G1;
+	G1.addNodes(4);
+	G1.addEdge(0, 1);
+	G1.addEdge(0, 2);
+	G1.addEdge(1, 2);
+	G1.addEdge(1, 3);
+	G1.addEdge(2, 3);
 	
-	RobustnessGreedy rg;
-	rg.init(G, 1, 2);
-	rg.run();
+	RobustnessDiagonalGreedy rgd1;
+	rgd1.init(G1, 1, 2);
+	rgd1.run();
 	//rg.summarize();
-	assert(std::abs(rg.getTotalValue() - 1.0) < 0.001);
-	assert(rg.getResultSize() == 1);
+	assert(std::abs(rgd1.getTotalValue() - 1.0) < 0.001);
+	assert(rgd1.getResultSize() == 1);
 
 	Graph G2;
 	G2.addNodes(6);
@@ -108,16 +110,46 @@ void testRobustnessGreedy() {
 	for (auto p: edges) {
 		G2.addEdge(p.first, p.second);
 	}
-	RobustnessGreedy rg2;
-	rg2.init(G2, 2, 3);
-	rg2.run();
-	assert(rg2.getResultSize() == 2);
-	assert(std::abs(rg2.getTotalValue() - 4.35172) < 0.001);
+	RobustnessDiagonalGreedy rgd2;
+	rgd2.init(G2, 2, 3);
+	rgd2.run();
+	assert(rgd2.getResultSize() == 2);
+	assert(std::abs(rgd2.getTotalValue() - 4.35172) < 0.01);
 	//rg2.summarize();
+
+	RobustnessGreedy rg2;
+	rg2.init(G2, 2);
+	rg2.run();
+	rg2.summarize();
+	*/
+
+	Graph G3;
+	G3.addNodes(14);
+	for (size_t i = 0; i < 14; i++)
+	{
+		G3.addEdge(i, (i+1) % 14);
+	}
+	G3.addEdge(4, 13);
+	G3.addEdge(5, 10);
+
+	RobustnessGreedy rg3;
+	rg3.init(G3, 4);
+	rg3.run();
+	rg3.summarize();
+	RobustnessDiagonalGreedy rgd3;
+	rgd3.init(G3, 4, 7);
+	rgd3.run();
+	rgd3.summarize();
+}
+
+void experiment() {
+	Graph smallworld = NetworKit::ErdosRenyiGenerator(10, 0.15, false).generate();
+
 }
 
 int main()
 {
-	//test();
+	//testLaplacian();
 	testRobustnessGreedy();
+
 }

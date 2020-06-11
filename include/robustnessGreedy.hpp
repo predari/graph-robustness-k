@@ -14,10 +14,78 @@ typedef std::pair<int, int> R_Edge;
 using namespace NetworKit;
 
 
-// Attempt to increase robustness i.e. reduce total effective resistance
 class RobustnessGreedy : public SubmodularGreedy<R_Edge> {
 public:
-        virtual double objectiveDifference(R_Edge e) override {
+    virtual double objectiveDifference(R_Edge e) override {
+        auto i = e.first;
+        auto j = e.second;
+        return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv[i], i, lpinv[j], j) * n;
+    }
+
+    virtual void useItem(R_Edge e) override {
+        auto i = e.first;
+        auto j = e.second;
+        Vector col_i = lpinv[i];
+        Vector col_j = lpinv[j];
+
+        for (auto l = 0; l<n; l++) {
+            lpinv[l] += laplacianPseudoinverseColumnDifference(col_i, i, col_j, j, l);
+        }
+        this->G.addEdge(e.first, e.second);
+    }
+
+    virtual void initRound() override {
+        if (this->round == 0) {
+            // Compute pseudoinverse of laplacian
+            auto laplacian = CSRMatrix::laplacianMatrix(this->G);
+            NetworKit::Lamg<CSRMatrix> solver;
+            solver.setupConnected(laplacian);
+            for (int i = 0; i < this->n; i++) {
+                Vector ePivot(n, 0);
+                ePivot[i] = 1;
+                ePivot -= 1.0/n;
+                
+                Vector lpinvCol (n, 0);
+                solver.solve(ePivot, lpinvCol);
+                this->lpinv.push_back(lpinvCol);
+            }
+
+            // Add edges to items of greedy
+            std::vector<R_Edge> items;
+            for (size_t i = 0; i < this->n; i++)
+            {
+                for (size_t j = 0; j < i; j++)
+                {
+                    if (i != j) {
+                        items.push_back(R_Edge(i,j));
+                    }
+                }
+            }
+            
+            this->addItems(items);
+        }
+    }
+
+    virtual bool checkSolution() override {
+        return (this->round+1 == this->k);
+    }
+
+    void init(Graph G, int k) {
+        this->G = G;
+        this->n = G.numberOfNodes();
+        this->k = k;
+    }
+private:
+    std::vector<Vector> lpinv;
+
+    Graph G;
+    int n;
+    int k;
+};
+
+class RobustnessDiagonalGreedy : public SubmodularGreedy<R_Edge> {
+public:
+    virtual double objectiveDifference(R_Edge e) override {
         auto i = e.first;
         auto j = e.second;
         auto column_i = this->getColumn(i);
@@ -59,7 +127,7 @@ public:
 
         // Determine the r elements with maximal diagonal entry
         std::vector<int> nodes;
-        auto approxDiag = approxLaplacianPseudoinverseDiagonal(this->G);
+        auto approxDiag = approxLaplacianPseudoinverseDiagonal(this->G, 0.01);
         std::priority_queue<std::pair<double, int>> q;
         for (int i = 0; i < this->n; i++) {
             q.push(std::pair<double, int>(approxDiag[i], i));

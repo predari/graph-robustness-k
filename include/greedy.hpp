@@ -90,6 +90,7 @@ void SubmodularGreedy<Item>::run() {
     while (candidatesLeft)
     {
 		this->initRound();
+
         // Get top updated entry from queue
         ItemWrapper c;
         while (true) {
@@ -116,6 +117,7 @@ void SubmodularGreedy<Item>::run() {
             this->results.push_back(c.item);
             this->totalValue += c.value;
             this->useItem(c.item);
+            
             if (this->checkSolution())
             {
                 this->validSolution = true;

@@ -41,12 +41,12 @@ Vector computeLaplacianPseudoinverseColumn(CSRMatrix const &laplacian, int index
 // Add edge (i, j) and compute difference between the k-th column of the pseudoinverse.
 // Takes the columns of the pseudoinverse that correspond to the vertices i and j.
 // Add this to the old to get the new.
-Vector laplacianPseudoinverseColummDifference(Vector column_i, int i, Vector column_j, int j, int k, double conductance)
+Vector laplacianPseudoinverseColumnDifference(Vector column_i, int i, Vector column_j, int j, int k, double conductance)
 {
 	double R_ij = column_i[i] + column_j[j] - 2 * column_i[j];
 	double w = 1.0 / (1.0 / conductance + R_ij);
-	Vector m_e = column_i - column_j;
-	return m_e * m_e[k] * w * (-1.0);
+	Vector v = column_i - column_j;
+	return v * v[k] * w * (-1.0);
 }
 
 // Update formula for the trace of the lap pinv as an edge is added to the graph.
@@ -56,8 +56,8 @@ double laplacianPseudoinverseTraceDifference(Vector column_i, int i, Vector colu
 {
 	double R_ij = column_i[i] + column_j[j] - 2 * column_i[j];
 	double w = 1.0 / (1.0 / conductance + R_ij);
-	Vector m_e = column_i - column_j;
-	return Vector::innerProduct(m_e, m_e) * w * (-1.0);
+	Vector v = column_i - column_j;
+	return Vector::innerProduct(v, v) * w * (-1.0);
 }
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
