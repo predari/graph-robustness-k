@@ -1,8 +1,16 @@
 
 #include <vector>
 #include <queue>
+#include <set>
 #include <limits>
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
+#include <numeric>
+#include <algorithm>
+#include <random>
+#include <cassert>
+#include <initializer_list>
 
 #ifndef GREEDY_H
 #define GREEDY_H
@@ -10,27 +18,22 @@
 #include <networkit/base/Algorithm.hpp>
 
 template <class Item>
-struct ItemWrapperType {
+struct _ItemWrapperType {
 	Item item;
 	double value;
 	int lastUpdated;
 };
 
 template <class Item>
-bool operator<(const ItemWrapperType<Item> &left, const ItemWrapperType<Item> &right) {
-	return left.value < right.value;
+bool operator<(const _ItemWrapperType<Item> &left, const _ItemWrapperType<Item> &right) {
+	return left.value < right.value || (right.value == left.value && left.item < right.item);
 }
 
 template <class Item>
 class SubmodularGreedy : public NetworKit::Algorithm {
 public:
-	using ItemWrapper=ItemWrapperType<Item>;
 	virtual void run() override;
-	virtual double objectiveDifference(Item c) = 0;
-	virtual void useItem(Item i) = 0;
-	virtual bool checkSolution() = 0;
-	virtual bool isItemAcceptable(Item c) { return true; }
-	virtual void initRound() {}
+    void set_k(int k) { this->k = k; }
 	
 	// To obtain results
 	int getResultSize() { return round+1; }
@@ -51,6 +54,14 @@ public:
 	}
 
 protected:
+	using ItemWrapper=_ItemWrapperType<Item>;
+
+   	virtual double objectiveDifference(Item c) = 0;
+	virtual void useItem(Item i) = 0;
+	virtual bool checkSolution() { return this->round == this->k - 1; };
+	virtual bool isItemAcceptable(Item c) { return true; }
+	virtual void initRound() {}
+
 	void addItems(std::vector<Item> items);
 	void resetItems();
 
@@ -61,6 +72,7 @@ protected:
 	int round=0;
 	std::vector<Item> results;
 	double totalValue;
+    int k;
 };
 
 
@@ -112,7 +124,6 @@ void SubmodularGreedy<Item>::run() {
                 }
             } // Else: dont put it back
         }
-
         if (candidatesLeft) {
             this->results.push_back(c.item);
             this->totalValue += c.value;
@@ -130,6 +141,195 @@ void SubmodularGreedy<Item>::run() {
 }
 
 
+
+
+
+
+
+
+
+// Stochastic Greedy
+// Implementation of 
+// Baharan Mirzasoleiman, Ashwinkumar Badanidiyuru, Amin Karbasi, Jan Vondrak, Andreas Krause:  Lazier Than Lazy Greedy. https://arxiv.org/abs/1409.7938
+
+
+
+
+template <class Item>
+struct _ItemWrapperType2 {
+	Item item;
+	double value;
+	int lastUpdated;
+    unsigned int index;
+    bool selected;
+};
+
+
+template <class Item>
+bool operator<(const _ItemWrapperType2<Item> &left, const _ItemWrapperType2<Item> &right) {
+	return left.value < right.value || (right.value == left.value && left.item < right.item);
+}
+
+
+
+
+template <class Item>
+class StochasticGreedy : public NetworKit::Algorithm {
+public:
+	using ItemWrapper=_ItemWrapperType2<Item>;
+    void set_k(int k) { this->k = k; }
+    void set_epsilon(double epsilon) { assert(0.0 <= epsilon && epsilon <= 1.0); this->epsilon = epsilon; }
+
+	virtual void run() override;
+	
+	// To obtain results
+	int getResultSize() { return round+1; }
+	std::vector<Item> getResultItems() { return results; }
+	double getTotalValue() { return totalValue; }
+	bool isSolution() { return validSolution; }
+	void summarize() {
+		std::cout << "Stochastic Submodular Greedy Results Summary. ";
+		if (!this->hasRun) {
+			std::cout << "Not executed yet!";
+            return;
+		}
+		std::cout << "Result Size: " << this->getResultSize() << std::endl;
+		for (auto e: this->getResultItems()) {
+			std::cout << "(" << e.first << ", " << e.second << "), "; 
+		}
+		std::cout << std::endl;
+		std::cout << "Marginal Gain: " << this->getTotalValue() << std::endl;
+	}
+
+protected:
+	virtual double objectiveDifference(Item c) = 0;
+	virtual void useItem(Item i) = 0;
+	virtual bool checkSolution() { return this->round + 1 == this->k; };
+	virtual bool isItemAcceptable(Item c) { return true; }
+	virtual void initRound() {}
+
+	void addItems(std::vector<Item> items);
+	void resetItems();
+
+
+	std::vector<ItemWrapper> items;
+
+    int N;
+	bool validSolution = false;
+	int round=0;
+	std::vector<Item> results;
+	double totalValue;
+    int k;
+    double epsilon=0.1;
+};
+
+template <class Item>
+void StochasticGreedy<Item>::addItems(std::vector<Item> items_) {
+    auto size = this->items.size();
+    for (auto i = 0; i < items_.size(); i++) {
+        auto it = items_[i];
+        ItemWrapper qe {it, std::numeric_limits<double>::infinity(), -1, (unsigned int)size + (unsigned int)i, false};
+        items.push_back(qe);
+    }
+    this->N = items.size();
+}
+
+template <class Item>
+void StochasticGreedy<Item>::resetItems() {
+	this->items = std::vector<ItemWrapper>();
+}
+
+template <class Item>
+void StochasticGreedy<Item>::run() {
+    this->round = 0;
+    this->totalValue = 0;
+    this->validSolution = false;
+    this->results.clear();
+
+    bool candidatesLeft = true;
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    while (candidatesLeft)
+    {
+		this->initRound();
+
+        std::priority_queue<ItemWrapper> R;
+        unsigned int s = (unsigned int)(1.0 * this->N / k * std::log(1.0/epsilon)) + 1;
+        s = std::min(s, (unsigned int) this->items.size());
+
+        // Get a random subset of the items of size s.
+        if (s > N/4) { // This is not a theoretically sound estimate
+            std::vector <unsigned int> allIndices = std::vector<unsigned int> (N);
+            std::iota(allIndices.begin(), allIndices.end(), 0);
+            std::shuffle(allIndices.begin(), allIndices.end(), g);
+
+            auto itemCount = items.size();
+            for (auto i = 0; i < itemCount; i++) 
+            {
+                auto item = this->items[allIndices[i]];
+                if (!item.selected) {
+                    R.push(item);
+                    if (R.size() >= s) {
+                        break;
+                    }
+                }
+            }
+        } else {
+            std::set<unsigned int> indicesSet;
+            while (R.size() < s) {
+                unsigned int v = std::rand() % N;
+                if (indicesSet.count(v) == 0) {
+                    indicesSet.insert(v);
+                    auto item = this->items[v];
+                    if (!item.selected) {
+                        R.push(item);
+                    }
+                }
+            }
+        }
+
+
+        // Get top updated entry from R
+        ItemWrapper c;
+        while (true) {
+            if (R.empty()) {
+                candidatesLeft = false;
+                break;
+            } else {
+                c = R.top();
+				R.pop();
+            }
+
+            if (this->isItemAcceptable(c.item)) {
+                if (c.lastUpdated == this->round) {
+                    break; // top updated entry found.
+                } else {
+                    auto &item = this->items[c.index];
+                    c.value = this->objectiveDifference(c.item);
+                    item.value = c.value;
+                    c.lastUpdated = this->round;
+                    item.lastUpdated = this->round;
+                    R.push(c);
+                }
+            } // Else: dont put it back
+        }
+        if (candidatesLeft) {
+            this->results.push_back(c.item);
+            this->totalValue += c.value;
+            this->useItem(c.item);
+            this->items[c.index].selected = true;
+            
+            if (this->checkSolution())
+            {
+                this->validSolution = true;
+                break;
+            }
+            this->round++;
+        }
+    }
+    this->hasRun = true;
+}
 
 
 #endif // GREEDY_H

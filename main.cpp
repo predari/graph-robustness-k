@@ -24,6 +24,8 @@
 #include <laplacian.hpp>
 #include <robustnessGreedy.hpp>
 
+#include <chrono>
+
 
 
 void testLaplacian()
@@ -88,7 +90,7 @@ void testLaplacian()
 }
 
 void testRobustnessGreedy() {
-	/*
+	
 	Graph G1;
 	G1.addNodes(4);
 	G1.addEdge(0, 1);
@@ -120,8 +122,10 @@ void testRobustnessGreedy() {
 	RobustnessGreedy rg2;
 	rg2.init(G2, 2);
 	rg2.run();
-	rg2.summarize();
-	*/
+	assert(std::abs(rg2.getTotalValue() - 4.351) < 0.01);
+
+	//rg2.summarize();
+	
 
 	Graph G3;
 	G3.addNodes(14);
@@ -135,21 +139,38 @@ void testRobustnessGreedy() {
 	RobustnessGreedy rg3;
 	rg3.init(G3, 4);
 	rg3.run();
-	rg3.summarize();
+	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
+	//rg3.summarize();
 	RobustnessDiagonalGreedy rgd3;
 	rgd3.init(G3, 4, 7);
 	rgd3.run();
-	rgd3.summarize();
+	assert(std::abs(rgd3.getTotalValue() - 76.789) < 0.01);
+
+	//rgd3.summarize();
 }
 
 void experiment() {
-	Graph smallworld = NetworKit::ErdosRenyiGenerator(10, 0.15, false).generate();
-
+	Graph smallworld = NetworKit::ErdosRenyiGenerator(500, 0.1, false).generate();
+	int k = 1000;
+	RobustnessGreedy rg;
+	auto t1 = std::chrono::high_resolution_clock::now();
+	rg.init(smallworld, k);
+	rg.run();
+	auto t2 = std::chrono::high_resolution_clock::now();
+	std::cout << "Duration: " << std::chrono::duration_cast<std::chrono::seconds>(t2-t1).count() << std::endl;
+	rg.summarize();
+	RobustnessStochasticGreedy rgd;
+	auto t3 = std::chrono::high_resolution_clock::now();
+	rgd.init(smallworld, k);
+	rgd.run();
+	auto t4 = std::chrono::high_resolution_clock::now();
+	std::cout << "Duration: " << std::chrono::duration_cast<std::chrono::seconds>(t4-t3).count() << std::endl;
+	rgd.summarize();
 }
 
 int main()
 {
 	//testLaplacian();
-	testRobustnessGreedy();
-
+	//testRobustnessGreedy();
+	experiment();
 }
