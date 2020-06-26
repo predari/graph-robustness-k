@@ -46,11 +46,13 @@ public:
 			std::cout << "Not executed yet!";
 		}
 		std::cout << "Result Size: " << this->getResultSize() << std::endl;
-		for (auto e: this->getResultItems()) {
-			std::cout << "(" << e.first << ", " << e.second << "), "; 
-		}
+        if (this->getResultSize() < 1000) {
+            for (auto e: this->getResultItems()) {
+                std::cout << "(" << e.u << ", " << e.v << "), "; 
+            }
+        }
 		std::cout << std::endl;
-		std::cout << "Marginal Gain: " << this->getTotalValue() << std::endl;
+		std::cout << "Total Value: " << this->getTotalValue() << std::endl;
 	}
 
 protected:
@@ -195,10 +197,10 @@ public:
 		}
 		std::cout << "Result Size: " << this->getResultSize() << std::endl;
 		for (auto e: this->getResultItems()) {
-			std::cout << "(" << e.first << ", " << e.second << "), "; 
+			std::cout << "(" << e.u << ", " << e.v << "), "; 
 		}
 		std::cout << std::endl;
-		std::cout << "Marginal Gain: " << this->getTotalValue() << std::endl;
+		std::cout << "Total Value: " << this->getTotalValue() << std::endl;
 	}
 
 protected:
@@ -218,7 +220,7 @@ protected:
 	bool validSolution = false;
 	int round=0;
 	std::vector<Item> results;
-	double totalValue;
+	double totalValue=0.0;
     int k;
     double epsilon=0.1;
 };
@@ -242,7 +244,7 @@ void StochasticGreedy<Item>::resetItems() {
 template <class Item>
 void StochasticGreedy<Item>::run() {
     this->round = 0;
-    this->totalValue = 0;
+    //this->totalValue = 0;
     this->validSolution = false;
     this->results.clear();
 
@@ -259,13 +261,13 @@ void StochasticGreedy<Item>::run() {
         s = std::min(s, (unsigned int) this->items.size());
 
         // Get a random subset of the items of size s.
-        if (s > N/4) { // This is not a theoretically sound estimate
+        if (s > N/4) { // This is not a theoretically justified estimate
             std::vector <unsigned int> allIndices = std::vector<unsigned int> (N);
             std::iota(allIndices.begin(), allIndices.end(), 0);
             std::shuffle(allIndices.begin(), allIndices.end(), g);
 
             auto itemCount = items.size();
-            for (auto i = 0; i < itemCount; i++) 
+            for (auto i = 0; i < itemCount; i++)
             {
                 auto item = this->items[allIndices[i]];
                 if (!item.selected) {
@@ -276,8 +278,9 @@ void StochasticGreedy<Item>::run() {
                 }
             }
         } else {
-            std::set<unsigned int> indicesSet;
             while (R.size() < s) {
+                std::set<unsigned int> indicesSet;
+                // TODO: Look into making this deterministic
                 unsigned int v = std::rand() % N;
                 if (indicesSet.count(v) == 0) {
                     indicesSet.insert(v);
@@ -287,6 +290,7 @@ void StochasticGreedy<Item>::run() {
                     }
                 }
             }
+
         }
 
 

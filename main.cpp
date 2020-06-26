@@ -3,6 +3,9 @@
 #include <optional>
 #include <queue>
 #include <vector>
+#include <set>
+#include <chrono>
+#include <utility>
 
 #include <cassert>
 #include <cmath>
@@ -18,13 +21,14 @@
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/algebraic/Vector.hpp>
+#include <networkit/auxiliary/Random.hpp>
+
 
 
 #include <greedy.hpp>
 #include <laplacian.hpp>
 #include <robustnessGreedy.hpp>
-
-#include <chrono>
+#include <robustnessSimulatedAnnealing.hpp>
 
 
 
@@ -99,25 +103,12 @@ void testRobustnessGreedy() {
 	G1.addEdge(1, 3);
 	G1.addEdge(2, 3);
 	
-	RobustnessDiagonalGreedy rgd1;
-	rgd1.init(G1, 1, 2);
-	rgd1.run();
-	//rg.summarize();
-	assert(std::abs(rgd1.getTotalValue() - 1.0) < 0.001);
-	assert(rgd1.getResultSize() == 1);
-
 	Graph G2;
 	G2.addNodes(6);
 	std::vector<std::pair<unsigned long, unsigned long>> edges = {{0, 1}, {0,2}, {1,3}, {2,3}, {1,2}, {1,4}, {3,5}, {4,5}};
 	for (auto p: edges) {
 		G2.addEdge(p.first, p.second);
 	}
-	RobustnessDiagonalGreedy rgd2;
-	rgd2.init(G2, 2, 3);
-	rgd2.run();
-	assert(rgd2.getResultSize() == 2);
-	assert(std::abs(rgd2.getTotalValue() - 4.35172) < 0.01);
-	//rg2.summarize();
 
 	RobustnessGreedy rg2;
 	rg2.init(G2, 2);
@@ -141,17 +132,40 @@ void testRobustnessGreedy() {
 	rg3.run();
 	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
 	//rg3.summarize();
-	RobustnessDiagonalGreedy rgd3;
-	rgd3.init(G3, 4, 7);
-	rgd3.run();
-	assert(std::abs(rgd3.getTotalValue() - 76.789) < 0.01);
 
 	//rgd3.summarize();
 }
 
+std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int n, int k) {
+	std::vector<NetworKit::Edge> result;
+	result.clear();
+	std::set<std::pair<unsigned int, unsigned int>> es;
+	for (int i = 0; i < k; i++) {
+		do {
+			int u = std::rand() % n;
+			int v = std::rand() % n;
+			if (u > v) {
+				std::swap(u, v);
+			}
+			auto e = std::pair<unsigned int, unsigned int> (u, v);
+			if (!G.hasEdge(u,v) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
+				es.insert(e);
+				result.push_back(NetworKit::Edge(u, v));
+				break;
+			}
+		} while (true);
+	}
+	return result;
+}
+
 void experiment() {
-	Graph smallworld = NetworKit::ErdosRenyiGenerator(500, 0.1, false).generate();
-	int k = 1000;
+    Aux::Random::setSeed(1, true);
+	int n = 300;
+	int k = 20;
+	Graph smallworld = NetworKit::ErdosRenyiGenerator(n, 0.3, false).generate();
+	smallworld.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
+	std::cout << "\n";
+	
 	RobustnessGreedy rg;
 	auto t1 = std::chrono::high_resolution_clock::now();
 	rg.init(smallworld, k);
@@ -159,13 +173,34 @@ void experiment() {
 	auto t2 = std::chrono::high_resolution_clock::now();
 	std::cout << "Duration: " << std::chrono::duration_cast<std::chrono::seconds>(t2-t1).count() << std::endl;
 	rg.summarize();
+	
+    Aux::Random::setSeed(1, true);
+	
+	
 	RobustnessStochasticGreedy rgd;
 	auto t3 = std::chrono::high_resolution_clock::now();
-	rgd.init(smallworld, k);
+	rgd.init(smallworld, k, 0.8);
+	rgd.addAllEdges();
 	rgd.run();
 	auto t4 = std::chrono::high_resolution_clock::now();
 	std::cout << "Duration: " << std::chrono::duration_cast<std::chrono::seconds>(t4-t3).count() << std::endl;
 	rgd.summarize();
+	
+
+	auto t5 = std::chrono::high_resolution_clock::now();
+	RobustnessSimulatedAnnealing rsa;
+	rsa.init(smallworld, k);
+	rsa.setInitialTemperature();
+	State s;
+	s.edges = randomEdges(smallworld, n, k);
+	//s.edges = rgd.getResultItems();
+	rsa.setInitialState(s);
+	rsa.setInitialTemperature();
+	rsa.summarize();
+	rsa.run();
+	auto t6 = std::chrono::high_resolution_clock::now();
+	rsa.summarize();
+	std::cout << "Duration: " << std::chrono::duration_cast<std::chrono::seconds>(t6-t5).count() << std::endl;
 }
 
 int main()

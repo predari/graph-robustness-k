@@ -15,6 +15,9 @@ std::vector<double> approxEffectiveResistances(Graph const & G, int &pivot)
 	return resistances;
 }
 
+
+// Compute the column of the pseudoinverse from scratch. 
+// If multiple of this are needed then the solver should be reused for better performance.
 Vector computeLaplacianPseudoinverseColumn(CSRMatrix const &laplacian, int index, bool connected)
 {
 	NetworKit::Lamg<CSRMatrix> solver;
@@ -59,6 +62,20 @@ double laplacianPseudoinverseTraceDifference(Vector const &column_i, int i, Vect
 	Vector v = column_i - column_j;
 	return Vector::innerProduct(v, v) * w * (-1.0);
 }
+
+void updateLaplacianPseudoinverse(std::vector<Vector> & columns, Edge e, double conductance) {
+	auto i = e.u;
+	auto j = e.v;
+	int n = columns.size();
+	std::vector<Vector> changes(n);
+	for (int k = 0; k < n; k++) {
+		changes[k] = laplacianPseudoinverseColumnDifference(columns[i], i, columns[j], j, k, conductance);
+	}
+	for (int k = 0; k < n; k++) {
+		columns[k] += changes[k];
+	}
+}
+
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
 std::vector<double> approxLaplacianPseudoinverseDiagonal(Graph const &G, double epsilon)
