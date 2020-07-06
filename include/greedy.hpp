@@ -73,7 +73,7 @@ protected:
 	bool validSolution = false;
 	int round=0;
 	std::vector<Item> results;
-	double totalValue;
+	double totalValue = 0.0;
     int k;
 };
 
@@ -95,7 +95,7 @@ void SubmodularGreedy<Item>::resetItems() {
 template <class Item>
 void SubmodularGreedy<Item>::run() {
     this->round = 0;
-    this->totalValue = 0;
+    // this->totalValue = 0;
     this->validSolution = false;
     this->results.clear();
 

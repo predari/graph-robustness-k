@@ -28,6 +28,10 @@ Vector laplacianPseudoinverseColumnDifference(Vector const & column_i, int i, Ve
 // Add this to the old to get the new.
 double laplacianPseudoinverseTraceDifference(Vector const & column_i, int i, Vector const &column_j, int j, double conductance = 1.0);
 
+// Update formula for the trace of the lpinv as two edges are added to the graph.
+double laplacianPseudoinverseTraceDifference2(std::vector<Vector> const & columns, Edge e1, Edge e2, double conductance1=1.0, double conductance2=1.0);
+
+
 void updateLaplacianPseudoinverse(std::vector<Vector> & columns, Edge e, double conductance = 1.0);
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.

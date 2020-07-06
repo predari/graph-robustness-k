@@ -15,6 +15,7 @@
 
 // TODO make random stuff deterministic
 // TODO fix edge adding logic. Need to ensure that the number of edges that we add stays constant, probably better to preserve the original graph.
+// TODO Some methods could be made static.
 
 struct State {
     std::vector<NetworKit::Edge> edges;
@@ -102,13 +103,15 @@ protected:
     // Add and remove a random edge.
     virtual StateTransition randomTransition(State const &state) override {
         StateTransition update;
+        update.lpinv.clear();
+        update.energyCalculated = false;
 
         int edge_index = -1;
         Edge added;
 
         // Pick a random edge and move one of its nodes to a neighbor such that we obtain a valid edge.
         // Can produce endless loops so if we don't find anything after a bit, we back away.
-        /*
+        #ifdef ROBUSTNESS_SIMULATED_ANNEALING_PREFER_NEIGHBORS
         for (int i = 0; i < 50; i++) {
             int edge_index = dis2(gen);
             auto edge = state.edges[edge_index];
@@ -138,10 +141,11 @@ protected:
             }
             edge_index = -1;
         }
-        */
+
 
         // If we didn't find anything, replace a random edge with another random edge
-        //if (edge_index == -1) {
+        if (edge_index == -1) {
+        #endif
             while (true) {
                 int a = dis(gen);
                 int b = dis(gen);
@@ -157,7 +161,9 @@ protected:
                 }
             }
             edge_index = dis2(gen);
-        //}
+        #ifdef ROBUSTNESS_SIMULATED_ANNEALING_PREFER_NEIGHBORS
+        }
+        #endif
 
         update.removedEdges.push_back(edge_index);
         update.addedEdges.push_back(added);
@@ -167,50 +173,50 @@ protected:
 
     virtual double getEnergy(State & s) override { return s.energy; };
 
+    virtual void computeLpinv(State const &s, StateTransition & update) {
+        update.lpinv = s.lpinv;
+
+        for (auto l: update.removedEdges) {
+            updateLaplacianPseudoinverse(update.lpinv, s.edges[l], -1.0);
+        }
+        for (auto e: update.addedEdges) {
+            updateLaplacianPseudoinverse(update.lpinv, e);
+        }
+    }
+
     virtual double getUpdatedEnergy(State const & s, StateTransition & update) override{
         //update.lpinv = std::vector<Vector>(currentState.lpinv);
         
         if (!update.energyCalculated)
         {
-            update.lpinv.clear();
-            update.lpinv.resize(this->n);
-            for (int i = 0; i < this->n; i++) {
-                update.lpinv[i] = Vector(n);
-                for (int j = 0; j < this->n; j++) {
-                    update.lpinv[i][j] = s.lpinv[i][j];
+            if (update.addedEdges.size() == 1 && update.removedEdges.size() == 1) {
+                update.energy = s.energy + laplacianPseudoinverseTraceDifference2(s.lpinv, update.addedEdges[0], s.edges[update.removedEdges[0]], 1.0, -1.0);
+                update.energyCalculated = true;
+                //std::cout << "Resistance: " << update.energy << std::endl;
+            } else {
+                this->computeLpinv(s, update);
+                double tr;
+                for (int i = 0; i < this->n; i++) {
+                    tr += update.lpinv[i][i];
                 }
-            }
 
-            for (auto l: update.removedEdges) {
-                updateLaplacianPseudoinverse(update.lpinv, s.edges[l], -1.0);
-            }
-            for (auto e: update.addedEdges) {
-                updateLaplacianPseudoinverse(update.lpinv, e);
-            }
-            double tr;
-            for (int i = 0; i < this->n; i++) {
-                tr += update.lpinv[i][i];
-            }
 
-            //std::cout << "Candidate total resistance: " << tr * this->n << std::endl;
-            update.energy = 1.0 * tr * this->n;
+                //std::cout << "Candidate total resistance: " << tr * this->n << std::endl;
+                update.energy = 1.0 * tr * this->n;
 
-            update.energyCalculated = true;
+                update.energyCalculated = true;
+            }
         }
         return update.energy;
     }
 
     virtual void transition(State & state, StateTransition & update) override {
         state.energy = this->getUpdatedEnergy(state, update);
-        //this->lpinv = update.lpinv;
-        state.lpinv.clear();
-        state.lpinv.resize(this->n);
-        for (int i = 0; i < this->n; i++) {
-            state.lpinv[i] = Vector(n);
-            for (int j = 0; j < this->n; j++) {
-                state.lpinv[i][j] = update.lpinv[i][j];
-            }
+        if (update.lpinv.size() == 0) {
+            this->computeLpinv(state, update);
         }
+
+        state.lpinv = update.lpinv;
 
         // Remove in descending order
         std::sort(update.removedEdges.begin(), update.removedEdges.end(), std::greater<int>());

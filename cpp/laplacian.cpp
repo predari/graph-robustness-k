@@ -63,6 +63,19 @@ double laplacianPseudoinverseTraceDifference(Vector const &column_i, int i, Vect
 	return Vector::innerProduct(v, v) * w * (-1.0);
 }
 
+// Update formula for the trace of the lap pinv as two edges are added to the graph.
+// Based on Sherman-Morrison-Woodbury formula.
+double laplacianPseudoinverseTraceDifference2(std::vector<Vector> const & columns, Edge e1, Edge e2, double conductance1, double conductance2) 
+{
+	auto e1_vec = columns[e1.u] - columns[e1.v];
+	auto e2_vec = columns[e2.u] - columns[e2.v];
+	double a = conductance1 + e1_vec[e1.u] - e1_vec[e1.v]; 
+	double b = e1_vec[e2.u] - e1_vec[e2.v];
+	double c = conductance2 + e2_vec[e2.u] - e2_vec[e2.v];
+	double det = a*c-b*b;
+	return (-1.0) / det * (Vector::innerProduct(e1_vec, e1_vec) * c + 2.0*Vector::innerProduct(e1_vec, e2_vec) * b + Vector::innerProduct(e2_vec, e2_vec) * a);
+}
+
 void updateLaplacianPseudoinverse(std::vector<Vector> & columns, Edge e, double conductance) {
 	auto i = e.u;
 	auto j = e.v;

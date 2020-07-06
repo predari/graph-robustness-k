@@ -59,6 +59,10 @@ public:
         std::cout << "Simulated Annealing Results Summary" << "Round: " << this->round << ". Current Energy: " << this->getEnergy(this->currentState) << ". Temperature: " << this->temperature << std::endl;
     }
 
+    virtual double getTotalValue() {
+        return this->getEnergy(this->currentState);
+    }
+
 protected:
     virtual StateTransition randomTransition(State const &state)=0;
     virtual double getEnergy(State & s) = 0;

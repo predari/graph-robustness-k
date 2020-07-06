@@ -14,6 +14,11 @@
 using namespace NetworKit;
 
 
+
+// The greedy algorithms in this file optimize for large -R_tot.
+
+
+
 inline bool operator<(Edge const &lhs, Edge const & rhs) {
     return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
 }
@@ -22,12 +27,44 @@ inline bool operator<(Edge const &lhs, Edge const & rhs) {
 
 class RobustnessGreedy final : public SubmodularGreedy<Edge>{
 public:
-
     void init(Graph G, int k) {
         this->G = G;
         this->n = G.numberOfNodes();
         this->k = k;
+
+        // Compute pseudoinverse of laplacian
+        auto laplacian = CSRMatrix::laplacianMatrix(this->G);
+        NetworKit::Lamg<CSRMatrix> solver;
+        solver.setupConnected(laplacian);
+        for (int i = 0; i < this->n; i++) {
+            Vector ePivot(n, 0);
+            ePivot[i] = 1;
+            ePivot -= 1.0/n;
+            
+            Vector lpinvCol (n, 0);
+            solver.solve(ePivot, lpinvCol);
+            this->lpinv.push_back(lpinvCol);
+            this->totalValue -= this->n * lpinvCol[i];
+        }
     }
+
+    virtual void addAllEdges() {
+        // Add edges to items of greedy
+        std::vector<Edge> items;
+        for (size_t i = 0; i < this->n; i++)
+        {
+            for (size_t j = 0; j < i; j++)
+            {
+                if (i != j && !this->G.hasEdge(i, j)) {
+                    items.push_back(Edge(i,j));
+                }
+            }
+        }
+        
+        this->addItems(items);
+    }
+
+    
 private:
 
     virtual double objectiveDifference(Edge e) override {
@@ -39,39 +76,6 @@ private:
     virtual void useItem(Edge e) override {
         updateLaplacianPseudoinverse(this->lpinv, e, 1.0);
         //this->G.addEdge(e.u, e.v);
-    }
-
-    virtual void initRound() override {
-        if (this->round == 0) {
-            // Compute pseudoinverse of laplacian
-            auto laplacian = CSRMatrix::laplacianMatrix(this->G);
-            NetworKit::Lamg<CSRMatrix> solver;
-            solver.setupConnected(laplacian);
-            for (int i = 0; i < this->n; i++) {
-                Vector ePivot(n, 0);
-                ePivot[i] = 1;
-                ePivot -= 1.0/n;
-                
-                Vector lpinvCol (n, 0);
-                solver.solve(ePivot, lpinvCol);
-                this->lpinv.push_back(lpinvCol);
-                this->totalValue -= this->n * lpinvCol[i];
-            }
-
-            // Add edges to items of greedy
-            std::vector<Edge> items;
-            for (size_t i = 0; i < this->n; i++)
-            {
-                for (size_t j = 0; j < i; j++)
-                {
-                    if (i != j && !this->G.hasEdge(i, j)) {
-                        items.push_back(Edge(i,j));
-                    }
-                }
-            }
-            
-            this->addItems(items);
-        }
     }
 
     std::vector<Vector> lpinv;
@@ -132,38 +136,6 @@ private:
     virtual void useItem(Edge e) override {
         updateLaplacianPseudoinverse(this->lpinv, e, 1.0);
         //this->G.addEdge(e);
-    }
-
-    virtual void initRound() override {
-        /*if (this->round == 0) {
-            // Compute pseudoinverse of laplacian
-            auto laplacian = CSRMatrix::laplacianMatrix(this->G);
-            NetworKit::Lamg<CSRMatrix> solver;
-            solver.setupConnected(laplacian);
-            for (int i = 0; i < this->n; i++) {
-                Vector ePivot(n, 0);
-                ePivot[i] = 1;
-                ePivot -= 1.0/n;
-                
-                Vector lpinvCol (n, 0);
-                solver.solve(ePivot, lpinvCol);
-                this->lpinv.push_back(lpinvCol);
-            }
-
-            // Add edges to items of greedy
-            std::vector<NetworKit::Edge> items;
-            for (size_t i = 0; i < this->n; i++)
-            {
-                for (size_t j = 0; j < i; j++)
-                {
-                    if (i != j && !this->G.hasEdge(i, j)) {
-                        items.push_back(NetworKit::Edge(i,j));
-                    }
-                }
-            }
-            
-            this->addItems(items);
-        }*/
     }
 
     std::vector<Vector> lpinv;
