@@ -20,10 +20,13 @@
 #include <networkit/algebraic/Vector.hpp>
 #include <networkit/auxiliary/Random.hpp>
 #include <networkit/centrality/ApproxEffectiveResistance.hpp>
+#include <networkit/components/ConnectedComponents.hpp>
 #include <networkit/generators/ErdosRenyiGenerator.hpp>
 #include <networkit/graph/Graph.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
+#include <networkit/io/EdgeListReader.hpp>
+#include <networkit/io/GMLGraphReader.hpp>
 
 
 
@@ -314,7 +317,7 @@ int main(int argc, char* argv[])
 		run_random = true;
 	}
 
-	bool run_experiments = run_submodular || run_stochastic || run_random;
+	bool run_experiments = true; //run_submodular || run_stochastic || run_random;
 
 
 
@@ -349,8 +352,132 @@ int main(int argc, char* argv[])
 		addErdosRenyiInstance(100, 1000, 0.05);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-ger3")) {
+		addErdosRenyiInstance(128, 500, 0.03);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-ger3")) {
 		addErdosRenyiInstance(300, 5000, 0.05);
 	}
+
+	if (cmdOptionExists(argv,argv+argc, "-gpwr0")) {
+		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+		Instance inst;
+		inst.g = reader.read("../example-graphs/opsahl-powergrid/out.opsahl-powergrid");
+		inst.k = 10;
+		inst.name = "US Powergrid";
+		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv,argv+argc, "-gpwr1")) {
+		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+		Instance inst;
+		inst.g = reader.read("../example-graphs/opsahl-powergrid/out.opsahl-powergrid");
+		inst.k = 2000;
+		inst.name = "US Powergrid";
+		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
+		instances.push_back(inst);
+	}
+
+	if (cmdOptionExists(argv, argv+argc, "-gi0")) {
+		Instance inst;
+		NetworKit::GMLGraphReader reader;
+		inst.g = reader.read("../example-graphs/internet-topology-zoo/AsnetAm.gml");
+		inst.k = 10;
+		inst.name = "ASNET-AM";
+		inst.description = "Armenia Backbone, Customer IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gi1")) {
+		Instance inst;
+		NetworKit::GMLGraphReader reader;
+		inst.g = reader.read("../example-graphs/internet-topology-zoo/Bellsouth.gml");
+		inst.k = 10;
+		inst.name = "Bell South";
+		inst.description = "USA south east Backbone, Customer, Transit IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gi2")) {
+		Instance inst;
+		NetworKit::GMLGraphReader reader;
+		inst.g = reader.read("../example-graphs/internet-topology-zoo/Deltacom.gml");
+		inst.k = 10;
+		inst.name = "ITC Deltacom";
+		inst.description = "USA south east Backbone, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gi3")) {
+		Instance inst;
+		NetworKit::GMLGraphReader reader;
+		inst.g = reader.read("../example-graphs/internet-topology-zoo/Ion.gml");
+		inst.k = 10;
+		inst.name = "ION";
+		inst.description = "USA NY region Backbone, Customer, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gi4")) {
+		Instance inst;
+		NetworKit::GMLGraphReader reader;
+		inst.g = reader.read("../example-graphs/internet-topology-zoo/UsCarrier.gml");
+		inst.k = 10;
+		inst.name = "US Carrier";
+		inst.description = "USA south east backbone, customer fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gi5")) {
+		Instance inst;
+		NetworKit::GMLGraphReader reader;
+		inst.g = reader.read("../example-graphs/internet-topology-zoo/Dfn.gml");
+		inst.k = 10;
+		inst.name = "DFN";
+		inst.description = "Germany DFN Backbone, Testbed IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
+		instances.push_back(inst);
+	}
+
+
+
+	if (cmdOptionExists(argv, argv+argc, "-gfb1")) {
+		Instance inst;
+		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+		auto g = reader.read("../example-graphs/facebook/3980.edges");
+		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		inst.k = 10;
+		inst.name = "Facebook Ego 3980";
+		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gfb2")) {
+		Instance inst;
+		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+		auto g = reader.read("../example-graphs/facebook/686.edges");
+		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		inst.k = 10;
+		inst.name = "Facebook Ego 686";
+		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gfb3")) {
+		Instance inst;
+		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+		auto g = reader.read("../example-graphs/facebook/3437.edges");
+		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		inst.k = 10;
+		inst.name = "Facebook Ego 3437";
+		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
+		instances.push_back(inst);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gfb0")) {
+		Instance inst;
+		NetworKit::EdgeListReader reader (' ', NetworKit::node(0), "%", true, false);
+		inst.g = reader.read("../example-graphs/facebook/facebook_combined.txt");
+		//inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g);
+		inst.k = 10;
+		inst.name = "Facebook Ego Full";
+		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
+		instances.push_back(inst);
+	}
+
+
+
+
 
 	//std::cout << "Threads: " << omp_get_num_threads() << std::endl;
 
@@ -367,6 +494,13 @@ int main(int argc, char* argv[])
 			if (verbose) {
 				g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
 				std::cout << std::endl;
+			}
+
+			NetworKit::ConnectedComponents comp {g};
+			comp.run();
+			if (comp.numberOfComponents() != 1) {
+				std::cout << "Error: Instance " << inst.name << " is not connected!";
+				return 1;
 			}
 
 			if (run_submodular) {
@@ -418,7 +552,7 @@ int main(int argc, char* argv[])
 					std::cout << "Random Edges Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
-					std::cout << ". Total Effective Resistence: " << (-1.0) * rsa.getTotalValue() << std::endl;
+					std::cout << ". Total Effective Resistence: " << rsa.getTotalValue() << std::endl;
 				} else {
 					for (auto& e: s.edges) {
 						std::cout << "(" << e.u << ", " << e.v << "), ";
