@@ -17,7 +17,6 @@
 
 #include <networkit/algebraic/CSRMatrix.hpp>
 #include <networkit/algebraic/DenseMatrix.hpp>
-#include <networkit/algebraic/Vector.hpp>
 #include <networkit/auxiliary/Random.hpp>
 #include <networkit/centrality/ApproxEffectiveResistance.hpp>
 #include <networkit/components/ConnectedComponents.hpp>
@@ -372,19 +371,19 @@ int main(int argc, char* argv[])
 		instances.push_back(inst);
 	};
 	if (cmdOptionExists(argv, argv+argc, "-gws0")) {
-		addErdosRenyiInstance(10, 3, 0.4, 5);
+		addWattsStrogatzInstance(10, 3, 0.4, 5);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-gws1")) {
-		addErdosRenyiInstance(30, 5, 0.4, 10);
+		addWattsStrogatzInstance(30, 5, 0.4, 10);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-gws2")) {
-		addErdosRenyiInstance(100, 5, 0.5, 100);
+		addWattsStrogatzInstance(100, 5, 0.5, 100);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-gws3")) {
-		addErdosRenyiInstance(300, 7, 0.5, 1000);
+		addWattsStrogatzInstance(300, 7, 0.5, 1000);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-gws4")) {
-		addErdosRenyiInstance(1000, 7, 0.3, 1000);
+		addWattsStrogatzInstance(1000, 7, 0.3, 1000);
 	}
 
 	auto addBarabasiAlbertInstance = [&](int n_attachments, int n_max, int n_0, int k) {
