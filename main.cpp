@@ -22,6 +22,8 @@
 #include <networkit/centrality/ApproxEffectiveResistance.hpp>
 #include <networkit/components/ConnectedComponents.hpp>
 #include <networkit/generators/ErdosRenyiGenerator.hpp>
+#include <networkit/generators/BarabasiAlbertGenerator.hpp>
+#include <networkit/generators/WattsStrogatzGenerator.hpp>
 #include <networkit/graph/Graph.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
@@ -358,6 +360,49 @@ int main(int argc, char* argv[])
 		addErdosRenyiInstance(300, 5000, 0.05);
 	}
 
+	auto addWattsStrogatzInstance = [&](int nodes, int neighbors, double p, int k) {
+		Instance inst;
+		Aux::Random::setSeed(1, true);
+		inst.g = NetworKit::WattsStrogatzGenerator(nodes, neighbors, p).generate();
+		inst.k = k;
+		inst.name = "WattsStrogatzGraph";
+		std::stringstream s;
+		s << "neighbors: " << neighbors << ", p: " << p;
+		inst.graphParamDescription = s.str();
+		instances.push_back(inst);
+	};
+	if (cmdOptionExists(argv, argv+argc, "-gws0")) {
+		addErdosRenyiInstance(10, 3, 0.4, 5);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gws1")) {
+		addErdosRenyiInstance(30, 5, 0.4, 10);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gws2")) {
+		addErdosRenyiInstance(100, 5, 0.5, 100);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gws3")) {
+		addErdosRenyiInstance(300, 7, 0.5, 1000);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-gws4")) {
+		addErdosRenyiInstance(1000, 7, 0.3, 1000);
+	}
+
+	auto addBarabasiAlbertInstance = [&](int n_attachments, int n_max, int n_0, int k) {
+		Instance inst;
+		Aux::Random::setSeed(1, true);
+		inst.g = NetworKit::BarabasiAlbertGenerator(n_attachments, n_max, n_0).generate();
+		inst.k = k;
+		inst.name = "BarabasiAlbertGraph";
+		std::stringstream s;
+		s << "n_attachments: " << n_attachments << ", n_max: " << n_max << ", n_0: " << n_0;
+		inst.graphParamDescription = s.str();
+		instances.push_back(inst);
+	};
+	if (cmdOptionExists(argv, argv+argc, "-gba0")) {
+		addBarabasiAlbertInstance(2, 128, 2, 10);
+	}
+
+
 	if (cmdOptionExists(argv,argv+argc, "-gpwr0")) {
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		Instance inst;
@@ -474,8 +519,6 @@ int main(int argc, char* argv[])
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
 	}
-
-
 
 
 
