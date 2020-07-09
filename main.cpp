@@ -59,7 +59,7 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
 
 
 
-void testLaplacian()
+void testLaplacian(bool verbose)
 {
 	// Create Example Graphs
 	Aux::Random::setSeed(42, false);
@@ -96,28 +96,31 @@ void testLaplacian()
 	assert(std::abs(diagonal[3] - 0.3125) < 0.05);
 
 	// Test Laplacian pinv update formulas
-	CSRMatrix Lmat = CSRMatrix::laplacianMatrix(G);
-	auto col0 = computeLaplacianPseudoinverseColumn(Lmat, 0);
-	auto col3 = computeLaplacianPseudoinverseColumn(Lmat, 3);
-	assert(std::abs(laplacianPseudoinverseTraceDifference(col0, 0, col3, 3) + 0.25) < 0.001);
-	auto diffvec = laplacianPseudoinverseColumnDifference(col0, 0, col3, 3, 0);
-	std::vector<double> exp{-0.125, 0.0, 0.0, 0.125};
+	auto Lmat = laplacianMatrix(G);
+	auto lpinv = laplacianPseudoinverse(G);
+	auto diffvec = laplacianPseudoinverseColumnDifference(lpinv, 0, 3, 0);
+	if (verbose) {
+		std::cout << "Laplacian: \n" << Lmat << "\n";
+		std::cout << "Laplacian pinv: \n" << lpinv << "\n";
+	}
+	std::vector<double> expected{-0.125, 0.0, 0.0, 0.125};
 	for (int i = 0; i < 4; i++)
 	{
-		assert(std::abs(diffvec[i] - exp[i]) < 0.001);
+		assert(std::abs(diffvec(i) - expected[i]) < 0.001);
 	}
 
-	/*
-	// Test Greedy
-	GreedyTest greedyTest{10, 5};
-	greedyTest.run();
-	for (int i = 0; i < 5; i++)
-	{
-		assert(greedyTest.getResultItems()[i] == 9 - i);
+	if (verbose) {
+		std::cout << "Laplacian trace difference upon adding (0,3): " << laplacianPseudoinverseTraceDifference(lpinv, 0, 3) << "\n";
+		std::cout << "Laplacian trace difference upon removing (0,3) and adding (0,3): " << 
+			laplacianPseudoinverseTraceDifference(lpinv, std::vector<Edge>{Edge(0, 3), Edge(0, 3)}, {1.0, -1.0}) << "\n";
+		std::cout << "Laplacian trace difference upon removing (0,3) and adding (0,1): " << 
+			laplacianPseudoinverseTraceDifference(lpinv, std::vector<Edge>{Edge(0, 3), Edge(0, 1)}, {1.0, -1.0}) << "\n";
 	}
-	assert(greedyTest.size() == 5);
-	assert(greedyTest.getTotalValue() == 9 + 8 + 7 + 6 + 5);
-	*/
+	assert(std::abs(laplacianPseudoinverseTraceDifference(lpinv, 0, 3) + 0.25) < 0.001);
+	assert(std::abs(laplacianPseudoinverseTraceDifference(lpinv, std::vector<Edge>{Edge(0, 3), Edge(0, 3)}, {1.0, -1.0})) < 0.001);
+	assert(std::abs(laplacianPseudoinverseTraceDifference(lpinv, std::vector<Edge>{Edge(0, 3), Edge(0, 1)}, {1.0, -1.0})) < 0.001);
+	//assert(std::abs(laplacianPseudoinverseTraceDifference(col0, 0, col3, 3) + 0.25) < 0.001);
+
 }
 
 void testRobustnessGreedy() {
@@ -263,9 +266,12 @@ int main(int argc, char* argv[])
 	}
 
 	bool run_tests = false;
+	bool run_experiments = true;
+
 	bool run_submodular = false;
 	bool run_stochastic = false;
 	bool run_random = false;
+
 
 	bool verbose = false;
 	bool print_values_only = false;
@@ -317,8 +323,11 @@ int main(int argc, char* argv[])
 	if (cmdOptionExists(argv, argv+argc, "-a0") || cmdOptionExists(argv, argv+argc, "--random")) {
 		run_random = true;
 	}
+	if (cmdOptionExists(argv, argv+argc, "-t")) {
+		run_tests = true;
+		run_experiments = false;
+	}
 
-	bool run_experiments = true; //run_submodular || run_stochastic || run_random;
 
 
 
@@ -350,13 +359,16 @@ int main(int argc, char* argv[])
 		addErdosRenyiInstance(30, 100, 0.2);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-ger2")) {
-		addErdosRenyiInstance(100, 1000, 0.05);
+		addErdosRenyiInstance(100, 1000, 0.1);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-ger3")) {
-		addErdosRenyiInstance(128, 500, 0.03);
+		addErdosRenyiInstance(128, 500, 0.1);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger3")) {
+	if (cmdOptionExists(argv, argv+argc, "-ger4")) {
 		addErdosRenyiInstance(300, 5000, 0.05);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-ger5")) {
+		addErdosRenyiInstance(1000, 10, 0.02);
 	}
 
 	auto addWattsStrogatzInstance = [&](int nodes, int neighbors, double p, int k) {
@@ -541,7 +553,7 @@ int main(int argc, char* argv[])
 			NetworKit::ConnectedComponents comp {g};
 			comp.run();
 			if (comp.numberOfComponents() != 1) {
-				std::cout << "Error: Instance " << inst.name << " is not connected!";
+				std::cout << "Error: Instance " << inst.name << " is not connected!\n";
 				return 1;
 			}
 
@@ -604,7 +616,10 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	//testLaplacian();
+	if (run_tests) {
+		testLaplacian(verbose);
+	}
+
 	//testRobustnessGreedy();
 	//experiment();
 	return 0;
