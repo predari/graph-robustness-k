@@ -22,12 +22,10 @@ Eigen::MatrixXd laplacianMatrix(Graph const & g) {
 	Eigen::MatrixXd laplacian = Eigen::MatrixXd::Zero(n, n);
 	// TODO make sure this is zero-initialized
 	g.forEdges([&](node u, node v, double weight) {
-		if (u != v) {
-			laplacian(u, u) += weight;
-			laplacian(v, v) += weight;
-			laplacian(u, v) -= weight;
-			laplacian(v, u) -= weight;
-		}
+		laplacian(u, u) += weight;
+		laplacian(v, v) += weight;
+		laplacian(u, v) -= weight;
+		laplacian(v, u) -= weight;
 	});
 	return laplacian;
 }
@@ -35,11 +33,9 @@ Eigen::MatrixXd laplacianMatrix(Graph const & g) {
 Eigen::MatrixXd laplacianPseudoinverse(Eigen::MatrixXd lp) {
 	int n = lp.rows();
 	Eigen::MatrixXd J = Eigen::MatrixXd::Constant(n, n, 1.0 / n);
-	lp += J;
 	Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n, n);
-	Eigen::MatrixXd inverse = lp.llt().solve(I);
 
-	return inverse - J;
+	return (lp + J).llt().solve(I) - J;
 }
 Eigen::MatrixXd laplacianPseudoinverse(Graph const & g) {
 	return laplacianPseudoinverse(laplacianMatrix(g));
@@ -86,6 +82,7 @@ Eigen::VectorXd laplacianPseudoinverseColumnDifference(Eigen::MatrixXd const & l
 
 // Update formula for the trace of the lap pinv as an edge is added to the graph.
 // Add edge (i, j) and compute the difference of the traces of the pseudoinverses.
+// Depends only on i-th and j-th column of lpinv.
 // Add this to the old to get the new.
 double laplacianPseudoinverseTraceDifference(Vector const &column_i, int i, Vector const &column_j, int j, double conductance)
 {
@@ -95,11 +92,25 @@ double laplacianPseudoinverseTraceDifference(Vector const &column_i, int i, Vect
 	return Vector::innerProduct(v, v) * w * (-1.0);
 }
 
+double laplacianPseudoinverseTraceDifference(Eigen::VectorXd const & column_i, int i, Eigen::VectorXd const &column_j, int j, double conductance)
+{
+	double R_ij = column_i(i) + column_j(j) - 2 * column_i(j);
+	double w = 1.0 / (1.0 / conductance + R_ij);
+	return (column_i - column_j).squaredNorm() * w * (-1.0);
+}
+
+
 double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, int i, int j, double conductance) {
 	double R_ij = lpinv(i,i) + lpinv(j,j) - 2*lpinv(i, j);
 	double w = 1.0 / (1.0 / conductance + R_ij);
-	Eigen::VectorXd v = lpinv.col(i) - lpinv.col(j);
-	return v.squaredNorm() * w * (-1.0);
+	//Eigen::VectorXd v = lpinv.col(i) - lpinv.col(j);
+	//return v.squaredNorm() * w * (-1.0);
+
+	// Avoid allocation of vector
+	auto & col_i = lpinv.col(i);
+	auto & col_j = lpinv.col(j);
+	return (col_i - col_j).squaredNorm() * w * (-1.0);
+	//return (col_i.squaredNorm() + col_j.squaredNorm() - 2 *  col_i.dot(col_j)) * w * (-1.0);
 }
 
 // Update formula for the trace of the lap pinv as two edges are added to the graph.
@@ -132,7 +143,8 @@ double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, std:
 		u(e.u, i) = 1.0;
 		u(e.v, i) = -1.0;
 	}
-	auto a = (c_inv + u.transpose() * lpinv * u).inverse();
+	//auto a = lpinv * u;
+	//return (-1.0) * (a * (c_inv + u.transpose() * lpinv * u).inverse() * a.transpose()).trace();
 	return (-1.0) * (lpinv * u * (c_inv + u.transpose() * lpinv * u).inverse() * u.transpose() * lpinv).trace();
 }
 
@@ -156,14 +168,21 @@ void updateLaplacianPseudoinverse(Eigen::MatrixXd & lpinv, Edge e, double conduc
 	double w = 1.0 / (1.0 / conductance + R_ij);
 	Eigen::VectorXd v = lpinv.col(i) - lpinv.col(j);
 	
-	lpinv -= (w * v) * v.transpose();
+	lpinv -= w * v * v.transpose();
+	// Somehow this is a lot faster if we do it by hand and dont allocate a huge matrix.
+	//int n = v.cols();
+	//for(int i = 0; i < n; i++) {
+	//	for (int j = 0; j < n; j++) {
+	//		lpinv(i, j) -= w * v(i) * v(j);
+	//	}
+	//}
 }
 
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
 std::vector<double> approxLaplacianPseudoinverseDiagonal(Graph const &G, double epsilon)
 {
-	// TODO: Check that graph is claplacianPseudoinverseTraceDifferenceonnected
+	// TODO: Check that graph is connected
 	auto n = G.numberOfNodes();
 
 	int pivot;

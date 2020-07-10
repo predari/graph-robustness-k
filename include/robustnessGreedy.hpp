@@ -3,11 +3,12 @@
 
 
 #include <utility>
+
 #include <greedy.hpp>
 #include <laplacian.hpp>
 
-#include <networkit/algebraic/Vector.hpp>
-#include <networkit/algebraic/CSRMatrix.hpp>
+#include <Eigen/Dense>
+
 #include <networkit/graph/Graph.hpp>
 
 
@@ -33,18 +34,117 @@ public:
         this->k = k;
 
         // Compute pseudoinverse of laplacian
-        auto laplacian = CSRMatrix::laplacianMatrix(this->G);
-        NetworKit::Lamg<CSRMatrix> solver;
-        solver.setupConnected(laplacian);
-        for (int i = 0; i < this->n; i++) {
-            Vector ePivot(n, 0);
-            ePivot[i] = 1;
-            ePivot -= 1.0/n;
-            
-            Vector lpinvCol (n, 0);
-            solver.solve(ePivot, lpinvCol);
-            this->lpinv.push_back(lpinvCol);
-            this->totalValue -= this->n * lpinvCol[i];
+        this->lpinv = laplacianPseudoinverse(G);
+        this->totalValue = this->lpinv.trace() * n * (-1.0);
+    }
+
+    virtual void addAllEdges() {
+        // Add edges to items of greedy
+        std::vector<Edge> items;
+        for (size_t i = 0; i < this->n; i++)
+        {
+            for (size_t j = 0; j < i; j++)
+            {
+                if (i != j && !this->G.hasEdge(i, j)) {
+                    items.push_back(Edge(i,j));
+                }
+            }
+        }
+        
+        this->addItems(items);
+    }
+
+    
+private:
+
+    virtual double objectiveDifference(Edge e) override {
+        auto i = e.u;
+        auto j = e.v;
+        return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
+    }
+
+    virtual void useItem(Edge e) override {
+        updateLaplacianPseudoinverse(this->lpinv, e);
+        //this->G.addEdge(e.u, e.v);
+    }
+
+    Eigen::MatrixXd lpinv;
+
+    Graph G;
+    int n;
+};
+
+
+
+
+class RobustnessStochasticGreedy : public StochasticGreedy<Edge>{
+public:
+    void init(Graph G, int k, double epsilon=0.1) {
+        this->G = G;
+        this->n = G.numberOfNodes();
+        this->k = k;
+        this->epsilon = epsilon;
+
+        this->lpinv = laplacianPseudoinverse(G);
+        this->totalValue = this->lpinv.trace() * n * (-1.0);
+    }
+
+    void addAllEdges() {
+        // Add edges to items of greedy
+        std::vector<Edge> items;
+        for (size_t i = 0; i < this->n; i++)
+        {
+            for (size_t j = 0; j < i; j++)
+            {
+                if (i != j && !this->G.hasEdge(i, j)) {
+                    items.push_back(Edge(i,j));
+                }
+            }
+        }
+        
+        this->addItems(items);
+    }
+
+private:
+    virtual double objectiveDifference(Edge e) override {
+        auto i = e.u;
+        auto j = e.v;
+        return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, i, j) * n;
+    }
+
+    virtual void useItem(Edge e) override {
+        updateLaplacianPseudoinverse(this->lpinv, e);
+        //this->G.addEdge(e);
+    }
+
+    Eigen::MatrixXd lpinv;
+
+    Graph G;
+    int n;
+};
+
+
+
+
+
+
+// Store laplacian as std::vector instead of Eigen::Matrix and update on demand. Appears to slightly improve performance over the normal submodular greedy; very slightly improved cache access properties
+class RobustnessGreedy2 final : public SubmodularGreedy<Edge>{
+public:
+    void init(Graph G, int k) {
+        this->G = G;
+        this->n = G.numberOfNodes();
+        this->k = k;
+        this->age = std::vector<int>(n);
+        //for (int i = 0; i < n; i++) {
+        //    age[i] = 0;
+        //}
+
+        // Compute pseudoinverse of laplacian
+        auto lpinv = laplacianPseudoinverse(G);
+        this->totalValue = lpinv.trace() * n * (-1.0);
+        for (int i = 0; i < n; i++) {
+            this->lpinv_vec.push_back(lpinv.col(i));
         }
     }
 
@@ -70,79 +170,43 @@ private:
     virtual double objectiveDifference(Edge e) override {
         auto i = e.u;
         auto j = e.v;
-        return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv[i], i, lpinv[j], j) * n;
+        
+        this->updateColumn(i);
+        this->updateColumn(j);
+        return (-1.0) * this->n * laplacianPseudoinverseTraceDifference(this->lpinv_vec[i], i, this->lpinv_vec[j], j);
     }
 
     virtual void useItem(Edge e) override {
-        updateLaplacianPseudoinverse(this->lpinv, e, 1.0);
+        auto i = e.u;
+        auto j = e.v;
+        this->updateColumn(i);
+        this->updateColumn(j);
+        double R_ij = lpinv_vec[i](i) + lpinv_vec[j](j) - 2* lpinv_vec[j](i);
+        double w = 1.0 / (1.0 + R_ij);
+
+        updateVec.push_back(this->lpinv_vec[i] - this->lpinv_vec[j]);
+        updateW.push_back(w);
+        //updateLaplacianPseudoinverse(this->lpinv, e);
         //this->G.addEdge(e.u, e.v);
     }
 
-    std::vector<Vector> lpinv;
-
-    Graph G;
-    int n;
-};
-
-
-
-
-class RobustnessStochasticGreedy : public StochasticGreedy<Edge>{
-public:
-    void init(Graph G, int k, double epsilon=0.1) {
-        this->G = G;
-        this->n = G.numberOfNodes();
-        this->k = k;
-        this->epsilon = epsilon;
-
-        auto laplacian = CSRMatrix::laplacianMatrix(G);
-        NetworKit::Lamg<CSRMatrix> solver;
-        solver.setupConnected(laplacian);
-        for (int i = 0; i < this->n; i++) {
-            Vector ePivot(n, 0);
-            ePivot[i] = 1;
-            ePivot -= 1.0/n;
-            
-            Vector lpinvCol (n, 0);
-            solver.solve(ePivot, lpinvCol);
-            this->lpinv.push_back(lpinvCol);
-            this->totalValue -= this->n * lpinvCol[i];
+    void updateColumn(int i) {
+        if (age[i] < this->round) {
+            for (int r = age[i]; r < this->round; r++)
+                lpinv_vec[i] -= updateVec[r] * updateVec[r](i) * updateW[r];
+            age[i] = this->round;
         }
     }
 
-    void addAllEdges() {
-        // Add edges to items of greedy
-        std::vector<Edge> items;
-        for (size_t i = 0; i < this->n; i++)
-        {
-            for (size_t j = 0; j < i; j++)
-            {
-                if (i != j && !this->G.hasEdge(i, j)) {
-                    items.push_back(Edge(i,j));
-                }
-            }
-        }
-        
-        this->addItems(items);
-    }
-
-private:
-    virtual double objectiveDifference(Edge e) override {
-        auto i = e.u;
-        auto j = e.v;
-        return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv[i], i, lpinv[j], j) * n;
-    }
-
-    virtual void useItem(Edge e) override {
-        updateLaplacianPseudoinverse(this->lpinv, e, 1.0);
-        //this->G.addEdge(e);
-    }
-
-    std::vector<Vector> lpinv;
-
     Graph G;
     int n;
+    std::vector<Eigen::VectorXd> updateVec;
+    std::vector<double> updateW;
+    std::vector<int> age;
+    std::vector<Eigen::VectorXd> lpinv_vec;
 };
+
+
 
 
 #endif // ROBUSTNESS_GREEDY_H

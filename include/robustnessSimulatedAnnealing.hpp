@@ -7,8 +7,8 @@
 #include <utility>
 #include <laplacian.hpp>
 
-#include <networkit/algebraic/Vector.hpp>
-#include <networkit/algebraic/CSRMatrix.hpp>
+#include <Eigen/Dense>
+
 #include <networkit/graph/Graph.hpp>
 #include <networkit/graph/GraphTools.hpp>
 
@@ -19,7 +19,7 @@
 
 struct State {
     std::vector<NetworKit::Edge> edges;
-    std::vector<Vector> lpinv;
+    Eigen::MatrixXd lpinv;
     double energy;
 };
 
@@ -28,7 +28,8 @@ struct StateTransition {
     std::vector<unsigned int> removedEdges;
     double energy;
     bool energyCalculated = false;
-    std::vector<Vector> lpinv;
+    bool lpinv_updated = false;
+    Eigen::MatrixXd lpinv = Eigen::MatrixXd(0,0);
 };
 
 class RobustnessSimulatedAnnealing : public SimulatedAnnealing<State, StateTransition> {
@@ -43,18 +44,7 @@ public:
         dis = decltype(dis)(0, this->n-1);
         dis2 = decltype(dis2)(0, this->k-1);
 
-        auto laplacian = CSRMatrix::laplacianMatrix(G);
-        solver.setupConnected(laplacian);
-
-        for (int i = 0; i < this->n; i++) {
-            Vector ePivot(n, 0);
-            ePivot[i] = 1;
-            ePivot -= 1.0/n;
-            
-            Vector lpinvCol (n, 0);
-            solver.solve(ePivot, lpinvCol);
-            currentState.lpinv.push_back(lpinvCol);
-        }
+        currentState.lpinv = laplacianPseudoinverse(G);
     }
 
     virtual void setInitialState(State const & s) {
@@ -86,6 +76,13 @@ public:
         return this->round > 400;
     }
 
+    std::vector<NetworKit::Edge> getEdges() {
+        return this->currentState.edges;
+    }
+    double getTotalEnergy() {
+        return this->getEnergy(this->currentState);
+    }
+
 
 protected:
     int n;
@@ -95,16 +92,12 @@ protected:
     std::uniform_int_distribution<> dis;
     std::uniform_int_distribution<> dis2;
     NetworKit::Graph G;
-    std::vector<Vector> lpinv;
-    NetworKit::Lamg<CSRMatrix> solver;
-
+    Eigen::MatrixXd lpinv;
 
 
     // Add and remove a random edge.
     virtual StateTransition randomTransition(State const &state) override {
         StateTransition update;
-        update.lpinv.clear();
-        update.energyCalculated = false;
 
         int edge_index = -1;
         Edge added;
@@ -174,35 +167,30 @@ protected:
     virtual double getEnergy(State & s) override { return s.energy; };
 
     virtual void computeLpinv(State const &s, StateTransition & update) {
-        update.lpinv = s.lpinv;
+        if (!update.lpinv_updated) {
+            update.lpinv = s.lpinv;
 
-        for (auto l: update.removedEdges) {
-            updateLaplacianPseudoinverse(update.lpinv, s.edges[l], -1.0);
-        }
-        for (auto e: update.addedEdges) {
-            updateLaplacianPseudoinverse(update.lpinv, e);
+            for (auto l: update.removedEdges) {
+                updateLaplacianPseudoinverse(update.lpinv, s.edges[l], -1.0);
+            }
+            for (auto e: update.addedEdges) {
+                updateLaplacianPseudoinverse(update.lpinv, e);
+            }
+            update.lpinv_updated = true;
         }
     }
 
-    virtual double getUpdatedEnergy(State const & s, StateTransition & update) override{
-        //update.lpinv = std::vector<Vector>(currentState.lpinv);
-        
+    virtual double getUpdatedEnergy(State const & state, StateTransition & update) override{        
         if (!update.energyCalculated)
         {
             if (update.addedEdges.size() == 1 && update.removedEdges.size() == 1) {
-                update.energy = s.energy + laplacianPseudoinverseTraceDifference2(s.lpinv, update.addedEdges[0], s.edges[update.removedEdges[0]], 1.0, -1.0);
+                update.energy = state.energy + laplacianPseudoinverseTraceDifference(state.lpinv, std::vector<NetworKit::Edge>{update.addedEdges[0], state.edges[update.removedEdges[0]]}, {1.0, -1.0}) * this->n;
                 update.energyCalculated = true;
                 //std::cout << "Resistance: " << update.energy << std::endl;
             } else {
-                this->computeLpinv(s, update);
-                double tr;
-                for (int i = 0; i < this->n; i++) {
-                    tr += update.lpinv[i][i];
-                }
+                this->computeLpinv(state, update);
 
-
-                //std::cout << "Candidate total resistance: " << tr * this->n << std::endl;
-                update.energy = 1.0 * tr * this->n;
+                update.energy = update.lpinv.trace() * this->n;
 
                 update.energyCalculated = true;
             }
@@ -212,10 +200,10 @@ protected:
 
     virtual void transition(State & state, StateTransition & update) override {
         state.energy = this->getUpdatedEnergy(state, update);
-        if (update.lpinv.size() == 0) {
+
+        if (!update.lpinv_updated) {
             this->computeLpinv(state, update);
         }
-
         state.lpinv = update.lpinv;
 
         // Remove in descending order

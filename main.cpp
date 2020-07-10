@@ -258,7 +258,7 @@ void experiment() {
 int main(int argc, char* argv[])
 {
 	using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-	//omp_set_num_threads(1);
+	omp_set_num_threads(1);
 
 	if (argc < 2) {
 		std::cout << "Error: Call without arguments. Use --help for help.\n";
@@ -268,9 +268,11 @@ int main(int argc, char* argv[])
 	bool run_tests = false;
 	bool run_experiments = true;
 
-	bool run_submodular = false;
-	bool run_stochastic = false;
 	bool run_random = false;
+	bool run_submodular = false;
+	bool run_submodular2 = false;
+	bool run_stochastic = false;
+	bool run_simulated_annealing = false;
 
 
 	bool verbose = false;
@@ -317,11 +319,17 @@ int main(int argc, char* argv[])
 	if (cmdOptionExists(argv, argv+argc, "-a1") || cmdOptionExists(argv, argv+argc, "--submodular-greedy")) {
 		run_submodular = true;
 	}
+	if (cmdOptionExists(argv, argv+argc, "-a11") || cmdOptionExists(argv, argv+argc, "--submodular-greedy")) {
+		run_submodular2 = true;
+	}
 	if (cmdOptionExists(argv, argv+argc, "-a2") || cmdOptionExists(argv, argv+argc, "--stochastic-submodular-greedy")) {
 		run_stochastic = true;
 	}
 	if (cmdOptionExists(argv, argv+argc, "-a0") || cmdOptionExists(argv, argv+argc, "--random")) {
 		run_random = true;
+	}
+	if (cmdOptionExists(argv, argv+argc, "-a3") || cmdOptionExists(argv, argv+argc, "--simulated-annealing")) {
+		run_simulated_annealing = true;
 	}
 	if (cmdOptionExists(argv, argv+argc, "-t")) {
 		run_tests = true;
@@ -356,7 +364,7 @@ int main(int argc, char* argv[])
 		addErdosRenyiInstance(10, 10, 0.4);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-ger1")) {
-		addErdosRenyiInstance(30, 100, 0.2);
+		addErdosRenyiInstance(30, 100, 0.3);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-ger2")) {
 		addErdosRenyiInstance(100, 1000, 0.1);
@@ -368,7 +376,10 @@ int main(int argc, char* argv[])
 		addErdosRenyiInstance(300, 5000, 0.05);
 	}
 	if (cmdOptionExists(argv, argv+argc, "-ger5")) {
-		addErdosRenyiInstance(1000, 10, 0.02);
+		addErdosRenyiInstance(1000, 5000, 0.02);
+	}
+	if (cmdOptionExists(argv, argv+argc, "-ger6")) {
+		addErdosRenyiInstance(3000, 5000, 0.01);
 	}
 
 	auto addWattsStrogatzInstance = [&](int nodes, int neighbors, double p, int k) {
@@ -544,10 +555,14 @@ int main(int argc, char* argv[])
 			auto k = inst.k;
 			int n = g.numberOfNodes();
 			if (!print_values_only)
-				std::cout << inst.name << ". Nodes: " << n << ", Edges: " << g.numberOfEdges() << ". " << inst.graphParamDescription << "\n";
+				std::cout << inst.name << ". Nodes: " << n << ", Edges: " << g.numberOfEdges() << ", k: " << k << ". " << inst.graphParamDescription << "\n";
 			if (verbose) {
 				g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
 				std::cout << std::endl;
+			}
+
+			if (override_k) {
+				k = k_override;
 			}
 
 			NetworKit::ConnectedComponents comp {g};
@@ -557,6 +572,28 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 
+			if (run_random) {
+				Aux::Random::setSeed(1, true);
+				auto t5 = std::chrono::high_resolution_clock::now();
+				State s;
+				s.edges = randomEdges(g, k);
+				auto t6 = std::chrono::high_resolution_clock::now();
+
+				// We use the simulated annealing class here only to compute the cost without too much effort.
+				RobustnessSimulatedAnnealing rsa;
+				rsa.init(g, k);
+				rsa.setInitialState(s);
+				if (!verbose) {
+					std::cout << "Random Edges Result";
+					if (!print_values_only)
+						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
+					std::cout << ". Total Effective Resistence: " << rsa.getTotalValue() << std::endl;
+				} else {
+					for (auto& e: s.edges) {
+						std::cout << "(" << e.u << ", " << e.v << "), ";
+					}
+				}
+			}
 			if (run_submodular) {
 				Aux::Random::setSeed(1, true);
 				RobustnessGreedy rg;
@@ -567,6 +604,23 @@ int main(int argc, char* argv[])
 				auto t2 = std::chrono::high_resolution_clock::now();
 				if (!verbose) {
 					std::cout << "Submodular Greedy Result";
+					if (!print_values_only)
+						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t2-t1).count();
+					std::cout << ". Total Effective Resistence: " << (-1.0) * rg.getTotalValue() << std::endl;
+				} else {
+					rg.summarize();
+				}
+			}
+			if (run_submodular2) {
+				Aux::Random::setSeed(1, true);
+				RobustnessGreedy2 rg;
+				auto t1 = std::chrono::high_resolution_clock::now();
+				rg.init(g, k);
+				rg.addAllEdges();
+				rg.run();
+				auto t2 = std::chrono::high_resolution_clock::now();
+				if (!verbose) {
+					std::cout << "Submodular Greedy 2 Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t2-t1).count();
 					std::cout << ". Total Effective Resistence: " << (-1.0) * rg.getTotalValue() << std::endl;
@@ -591,27 +645,34 @@ int main(int argc, char* argv[])
 					rs.summarize();
 				}
 			}
-			if (run_random) {
+			if (run_simulated_annealing) {
 				Aux::Random::setSeed(1, true);
-				auto t5 = std::chrono::high_resolution_clock::now();
+				auto t7 = std::chrono::high_resolution_clock::now();
+				RobustnessSimulatedAnnealing rsa;
 				State s;
 				s.edges = randomEdges(g, k);
-				auto t6 = std::chrono::high_resolution_clock::now();
-
-				// We use the simulated annealing class here only to compute the cost without too much effort.
-				RobustnessSimulatedAnnealing rsa;
 				rsa.init(g, k);
 				rsa.setInitialState(s);
+
+				rsa.run();
+				auto t8 = std::chrono::high_resolution_clock::now();
+
+				double value = rsa.getTotalValue();
+
 				if (!verbose) {
-					std::cout << "Random Edges Result";
+					std::cout << "Simulated Annealing Result";
 					if (!print_values_only)
-						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
+						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
 					std::cout << ". Total Effective Resistence: " << rsa.getTotalValue() << std::endl;
 				} else {
-					for (auto& e: s.edges) {
-						std::cout << "(" << e.u << ", " << e.v << "), ";
-					}
-				}				
+					rsa.summarize();
+				}
+				auto g1 = g;
+
+				for (auto e: rsa.getEdges()) {
+					g1.addEdge(e.u, e.v);
+				}
+				std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 			}
 		}
 	}

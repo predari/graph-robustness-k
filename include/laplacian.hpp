@@ -33,6 +33,7 @@ Eigen::VectorXd laplacianPseudoinverseColumnDifference(Eigen::MatrixXd const & l
 // Add edge (i, j) and compute the difference of the traces of the pseudoinverses.
 // Add this to the old to get the new.
 double laplacianPseudoinverseTraceDifference(Vector const & column_i, int i, Vector const &column_j, int j, double conductance = 1.0);
+double laplacianPseudoinverseTraceDifference(Eigen::VectorXd const & column_i, int i, Eigen::VectorXd const &column_j, int j, double conductance = 1.0);
 double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, int i, int j, double conductance = 1.0);
 double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, std::vector<Edge> edges, std::vector<double> conductances=std::vector<double>());
 
