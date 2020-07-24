@@ -105,6 +105,11 @@ public:
         this->addItems(items);
     }
 
+    std::vector<Edge> getResultEdges() {
+        return this->results;
+    }
+    
+
 private:
     virtual double objectiveDifference(Edge e) override {
         auto i = e.u;

@@ -16,7 +16,7 @@ add_subdirectory(networkit)
 
 add_executable(robustness main cpp/greedy.cpp cpp/laplacian.cpp cpp/robustnessGreedy.cpp)
 
-target_compile_options(robustness PUBLIC -Wno-deprecated-declarations PUBLIC -g -O2)
+target_compile_options(robustness PUBLIC -Wno-deprecated-declarations PUBLIC -g -O2 -fno-omit-frame-pointer)
 
 target_include_directories(robustness PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(robustness INTERFACE )

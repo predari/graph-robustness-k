@@ -179,7 +179,7 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 				std::swap(u, v);
 			}
 			auto e = std::pair<unsigned int, unsigned int> (u, v);
-			if (!G.hasEdge(u,v) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
+			if (u != v && !G.hasEdge(u,v) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
 				es.insert(e);
 				result.push_back(NetworKit::Edge(u, v));
 				break;
@@ -276,6 +276,7 @@ int main(int argc, char* argv[])
 
 
 	bool verbose = false;
+	bool vv = false;
 	bool print_values_only = false;
 
 	bool override_k = false;
@@ -302,6 +303,10 @@ int main(int argc, char* argv[])
 
 	if (cmdOptionExists(argv, argv+argc, "-v") || cmdOptionExists(argv, argv+argc, "--verbose")) {
 		verbose = true;
+	}
+	if (cmdOptionExists(argv, argv+argc, "-vv") || cmdOptionExists(argv, argv+argc, "--very-verbose")) {
+		verbose = true;
+		vv = true;
 	}
 	if (cmdOptionExists(argv, argv+argc, "--values-only")) {
 		print_values_only = true;
@@ -554,6 +559,9 @@ int main(int argc, char* argv[])
 			auto & g = inst.g;
 			auto k = inst.k;
 			int n = g.numberOfNodes();
+			if (override_k) {
+				k = k_override;
+			}
 			if (!print_values_only)
 				std::cout << inst.name << ". Nodes: " << n << ", Edges: " << g.numberOfEdges() << ", k: " << k << ". " << inst.graphParamDescription << "\n";
 			if (verbose) {
@@ -561,9 +569,6 @@ int main(int argc, char* argv[])
 				std::cout << std::endl;
 			}
 
-			if (override_k) {
-				k = k_override;
-			}
 
 			NetworKit::ConnectedComponents comp {g};
 			comp.run();
@@ -587,7 +592,7 @@ int main(int argc, char* argv[])
 					std::cout << "Random Edges Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
-					std::cout << ". Total Effective Resistence: " << rsa.getTotalValue() << std::endl;
+					std::cout << ". Total Effective Resistance: " << rsa.getTotalValue() << std::endl;
 				} else {
 					for (auto& e: s.edges) {
 						std::cout << "(" << e.u << ", " << e.v << "), ";
@@ -606,7 +611,7 @@ int main(int argc, char* argv[])
 					std::cout << "Submodular Greedy Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t2-t1).count();
-					std::cout << ". Total Effective Resistence: " << (-1.0) * rg.getTotalValue() << std::endl;
+					std::cout << ". Total Effective Resistance: " << (-1.0) * rg.getTotalValue() << std::endl;
 				} else {
 					rg.summarize();
 				}
@@ -623,7 +628,7 @@ int main(int argc, char* argv[])
 					std::cout << "Submodular Greedy 2 Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t2-t1).count();
-					std::cout << ". Total Effective Resistence: " << (-1.0) * rg.getTotalValue() << std::endl;
+					std::cout << ". Total Effective Resistance: " << (-1.0) * rg.getTotalValue() << std::endl;
 				} else {
 					rg.summarize();
 				}
@@ -632,7 +637,7 @@ int main(int argc, char* argv[])
 				Aux::Random::setSeed(1, true);
 				RobustnessStochasticGreedy rs;
 				auto t3 = std::chrono::high_resolution_clock::now();
-				rs.init(g, k, 0.8);
+				rs.init(g, k, 0.5);
 				rs.addAllEdges();
 				rs.run();
 				auto t4 = std::chrono::high_resolution_clock::now();
@@ -640,7 +645,7 @@ int main(int argc, char* argv[])
 					std::cout << "Stochastic Greedy Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t4-t3).count();
-					std::cout << ". Total Effective Resistence: " << (-1.0) * rs.getTotalValue() << std::endl;
+					std::cout << ". Total Effective Resistance: " << (-1.0) * rs.getTotalValue() << std::endl;
 				} else {
 					rs.summarize();
 				}
@@ -653,6 +658,9 @@ int main(int argc, char* argv[])
 				s.edges = randomEdges(g, k);
 				rsa.init(g, k);
 				rsa.setInitialState(s);
+				if (vv) {
+					rsa.setVerbose(true);
+				}
 
 				rsa.run();
 				auto t8 = std::chrono::high_resolution_clock::now();
@@ -663,7 +671,7 @@ int main(int argc, char* argv[])
 					std::cout << "Simulated Annealing Result";
 					if (!print_values_only)
 						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
-					std::cout << ". Total Effective Resistence: " << rsa.getTotalValue() << std::endl;
+					std::cout << ". Total Effective Resistance: " << rsa.getTotalValue() << std::endl;
 				} else {
 					rsa.summarize();
 				}
@@ -672,7 +680,7 @@ int main(int argc, char* argv[])
 				for (auto e: rsa.getEdges()) {
 					g1.addEdge(e.u, e.v);
 				}
-				std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
+				//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 			}
 		}
 	}

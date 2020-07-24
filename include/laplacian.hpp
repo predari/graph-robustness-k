@@ -44,6 +44,7 @@ double laplacianPseudoinverseTraceDifference2(std::vector<Vector> const & column
 
 void updateLaplacianPseudoinverse(std::vector<Vector> & columns, Edge e, double conductance = 1.0);
 void updateLaplacianPseudoinverse(Eigen::MatrixXd & lpinv, Edge e, double conductance = 1.0);
+Eigen::MatrixXd updateLaplacianPseudoinverseCopy(Eigen::MatrixXd const & lpinv, Edge e, double conductance = 1.0);
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
 std::vector<double> approxLaplacianPseudoinverseDiagonal(Graph const &G, double epsilon = 0.1);

@@ -16,6 +16,7 @@
 #define GREEDY_H
 
 #include <networkit/base/Algorithm.hpp>
+#include <networkit/auxiliary/Random.hpp>
 
 template <class Item>
 struct _ItemWrapperType {
@@ -249,8 +250,7 @@ void StochasticGreedy<Item>::run() {
     this->results.clear();
 
     bool candidatesLeft = true;
-    std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g(Aux::Random::getSeed());
 
     while (candidatesLeft)
     {

@@ -22,6 +22,9 @@ Eigen::MatrixXd laplacianMatrix(Graph const & g) {
 	Eigen::MatrixXd laplacian = Eigen::MatrixXd::Zero(n, n);
 	// TODO make sure this is zero-initialized
 	g.forEdges([&](node u, node v, double weight) {
+		if (u == v) {
+			std::cout << "Warning: Graph has edge with equal target and destination!";
+		}
 		laplacian(u, u) += weight;
 		laplacian(v, v) += weight;
 		laplacian(u, v) -= weight;
@@ -165,17 +168,28 @@ void updateLaplacianPseudoinverse(Eigen::MatrixXd & lpinv, Edge e, double conduc
 	auto i = e.u;
 	auto j = e.v;
 	double R_ij = lpinv(i,i) + lpinv(j,j) - 2*lpinv(i, j);
+	double w_negative = -1.0 / (1.0 / conductance + R_ij);
+	Eigen::VectorXd v = lpinv.col(i) - lpinv.col(j);
+	//Eigen::VectorXd col_i = lpinv.col(i);
+	//Eigen::VectorXd col_j = lpinv.col(j);
+
+	int n = lpinv.cols();
+	for (int i = 0; i < n; i++) {
+		lpinv.col(i) += v(i) * w_negative * v;
+	}
+	
+	// This version causes pagefaults on my system which slows down the entire thing by a factor of 10 ...
+	//lpinv += (w_negative * v) * v.transpose();
+}
+
+Eigen::MatrixXd updateLaplacianPseudoinverseCopy(Eigen::MatrixXd const & lpinv, Edge e, double conductance) {
+	auto i = e.u;
+	auto j = e.v;
+	double R_ij = lpinv(i,i) + lpinv(j,j) - 2*lpinv(i, j);
 	double w = 1.0 / (1.0 / conductance + R_ij);
 	Eigen::VectorXd v = lpinv.col(i) - lpinv.col(j);
 	
-	lpinv -= w * v * v.transpose();
-	// Somehow this is a lot faster if we do it by hand and dont allocate a huge matrix.
-	//int n = v.cols();
-	//for(int i = 0; i < n; i++) {
-	//	for (int j = 0; j < n; j++) {
-	//		lpinv(i, j) -= w * v(i) * v(j);
-	//	}
-	//}
+	return lpinv - w * v * v.transpose();
 }
 
 
