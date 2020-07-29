@@ -317,7 +317,7 @@ int main(int argc, char* argv[])
 		}
 		i++;
 		return argv[i];
-	}
+	};
 
 	struct Instance {
 		Graph g;
@@ -349,7 +349,7 @@ int main(int argc, char* argv[])
 		}
 
 		if (arg == "-k" || arg == "--override-k" || arg == "--set-k") {
-			std::string k_string = nextArg(i);
+			auto k_string = nextArg(i);
 			k_override = std::atoi(k_string);
 			if (k_override == 0) { std::cout << "Error: Bad argument to --set-k!"; return 1; }
 			override_k = true;
@@ -357,8 +357,13 @@ int main(int argc, char* argv[])
 		}
 
 		if (arg == "--round-factor" || arg == "-r") {
-			std::string rf_string = nextArg(i);
-			roundFactor = std::tod(rf_string);
+			auto rf_string = nextArg(i);
+			roundFactor = std::stod(rf_string);
+			continue;
+		}
+		if (arg == "--seed") {
+			auto s_string = nextArg(i);
+			seed = atoi(s_string);
 			continue;
 		}
 		if (arg == "-a1" || arg == "--submodular-greedy") { run_submodular = true; continue; }
