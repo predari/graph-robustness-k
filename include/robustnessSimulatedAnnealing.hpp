@@ -35,15 +35,18 @@ struct StateTransition {
 };
 
 
-class RobustnessSimulatedAnnealingBase {
+// Interface for different variants.
+class RobustnessSimulatedAnnealingBase : public virtual SimulatedAnnealing<State, StateTransition>{
+public:
     virtual void init(NetworKit::Graph G, int k, double roundFactor) = 0;
     virtual void setInitialState(State const &s) = 0;
     virtual double getResultResistance() = 0;
     virtual std::vector<Edge> getResultEdges() = 0;
+    //virtual void run() = 0;
 };
 
 template <int transitionMethod=0>
-class RobustnessSimulatedAnnealing : public SimulatedAnnealing<State, StateTransition>, public RobustnessSimulatedAnnealingBase {
+class RobustnessSimulatedAnnealing : public virtual SimulatedAnnealing<State, StateTransition>, public RobustnessSimulatedAnnealingBase {
 public:
     void init (NetworKit::Graph G, int k, double roundFactor=1.0) {
         this->G = G;

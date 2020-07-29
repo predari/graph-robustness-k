@@ -54,6 +54,13 @@ public:
         this->addItems(items);
     }
 
+    double getResultResistance() {
+        return this->totalValue * (-1.0);
+    }
+
+    std::vector<NetworKit::Edge> getResultEdges() {
+        return this->results;
+    }
     
 private:
 
@@ -107,6 +114,9 @@ public:
 
     std::vector<Edge> getResultEdges() {
         return this->results;
+    }
+    double getResultResistance() {
+        return this->totalValue * (-1.0);
     }
     
 
@@ -167,6 +177,13 @@ public:
         this->addItems(items);
     }
 
+    double getResultResistance() {
+        return this->totalValue * (-1.0);
+    }
+
+    std::vector<NetworKit::Edge> getResultEdges() {
+        return this->results;
+    }
     
 private:
 

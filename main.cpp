@@ -8,6 +8,7 @@
 #include <sstream>
 #include <utility>
 #include <vector>
+#include <exception>
 
 #include <cassert>
 #include <cstdlib>
@@ -263,7 +264,6 @@ void experiment() {
 
 int main(int argc, char* argv[])
 {
-	using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
 	omp_set_num_threads(1);
 
 	if (argc < 2) {
@@ -275,6 +275,7 @@ int main(int argc, char* argv[])
 	bool run_experiments = true;
 
 	bool run_random = false;
+	bool run_random_avg = false;
 	bool run_submodular = false;
 	bool run_submodular2 = false;
 	bool run_stochastic = false;
@@ -287,93 +288,36 @@ int main(int argc, char* argv[])
 
 	bool verbose = false;
 	bool vv = false;
-	bool print_values_only = false;
 
 	bool override_k = false;
 	int k_override;
-	double effort_value = 1.0;
+	double roundFactor = 1.0;
+	int seed = 1;
 
-	if (cmdOptionExists(argc, argv, "-h") || cmdOptionExists(argc, argv, "--help")) {
-		std::cout << 
-		"EXAMPLE CALL\n"
+	std::string helpstring = "EXAMPLE CALL\n"
     	"\trobustness -a1 -a2 -i graph.gml\n"
 		"OPTIONS:\n" 
-		"\t-v --verbose\n\n"
-		"\t--values-only\n\t\tWrite only total effective resistance values to stdout\n\n"
+		"\t-v --verbose\n\t\tAlso output edge lists\n"
 		"\t--override-k n\n\t\tOverride the k value preset of the instance\n\n"
 		"\t-a0\t\tRandom Edges\n"
 		"\t-a1\t\tSubmodular Greedy\n"
 		"\t-a2\t\tStochastic submodular greedy\n"
 		"\t-a3\t\tSimulated Annealing\n"
-		"\n"
-		"\t-ger0\t\tErdos Renyi instance 1\n"
-		"\t-ger1\t\tErdos Renyi instance 2\n"
-		"\t-ger2\t\tErdos Renyi instance 3\n"
-		"\t-ger3\t\tErdos Renyi instance 4\n";
-	}
+		"\n";
 
-	if (cmdOptionExists(argc, argv, "-v") || cmdOptionExists(argc, argv, "--verbose")) {
-		verbose = true;
-	}
-	if (cmdOptionExists(argc, argv, "-vv") || cmdOptionExists(argc, argv, "--very-verbose")) {
-		verbose = true;
-		vv = true;
-	}
-	if (cmdOptionExists(argc, argv, "--values-only")) {
-		print_values_only = true;
-	}
-	if (cmdOptionExists(argc, argv, "--override-k")) {
-		auto k_string = getCmdOption(argc, argv, "--override-k");
-		k_override = std::atoi(k_string);
-		if (k_override == 0) {
-			std::cout << "Error: Bad argument to --override-k" << '\n';
-			return 1;
+
+	if (argv == 0) { std::cout << "Error!"; return 1; }
+	if (argc < 3) { std::cout << helpstring; return 1; }
+
+	// Return next arg and increment i
+	auto nextArg = [&](int &i) {
+		if (i+1 >= argc || argv[i+1] == 0) {
+			std::cout << "Error!";
+			throw std::exception();
 		}
-		override_k = true;
-		std::cout << "Overriding k: " << k_override << std::endl;
+		i++;
+		return argv[i];
 	}
-	if (cmdOptionExists(argc, argv, "--effort-factor")) {
-		auto val_string = getCmdOption(argc, argv, "--effort-factor");
-		effort_value = std::stod(val_string);
-		std::cout << "Overriding effort value: " << effort_value << std::endl;
-	}
-	if (cmdOptionExists(argc, argv, "-a1") || cmdOptionExists(argc, argv, "--submodular-greedy")) {
-		run_submodular = true;
-	}
-	if (cmdOptionExists(argc, argv, "-a11") || cmdOptionExists(argc, argv, "--submodular-greedy")) {
-		run_submodular2 = true;
-	}
-	if (cmdOptionExists(argc, argv, "-a2") || cmdOptionExists(argc, argv, "--stochastic-submodular-greedy")) {
-		run_stochastic = true;
-	}
-	if (cmdOptionExists(argc, argv, "-a0") || cmdOptionExists(argc, argv, "--random")) {
-		run_random = true;
-	}
-	if (cmdOptionExists(argc, argv, "-a3") || cmdOptionExists(argc, argv, "--simulated-annealing")) {
-		run_simulated_annealing = true;
-	}
-	if (cmdOptionExists(argc, argv, "-a4") || cmdOptionExists(argc, argv, "--combined")) {
-		run_combined = true;
-	}
-	if (cmdOptionExists(argc, argv, "-h0")) {
-		heuristic_0 = true;
-	}
-	if (cmdOptionExists(argc, argv, "-h1")) {
-		heuristic_1 = true;
-	}
-	if (cmdOptionExists(argc, argv, "-h2")) {
-		heuristic_2 = true;
-	}
-	if (cmdOptionExists(argc, argv, "-t")) {
-		run_tests = true;
-		run_experiments = false;
-	}
-
-	if (!heuristic_1 && !heuristic_2) {
-		heuristic_0 = true;
-	}
-
-
 
 	struct Instance {
 		Graph g;
@@ -384,39 +328,90 @@ int main(int argc, char* argv[])
 	};
 	std::vector<Instance> instances;
 
-	if (cmdOptionExists(argc, argv, "-i")) {
-		auto filenamepointer = getCmdOption(argc, argv, "-i");
-		if (filenamepointer == 0) {
-			std::cout << "Instance error!";
-			return 1;
+
+	for (int i = 1; i < argc; i++) {
+		if (argv[i] == 0) { std::cout << "Error!"; return 1; }
+		std::string arg = argv[i];
+
+		if (arg == "-h" || arg == "--help") {
+			std::cout << helpstring;
+			return 0;
 		}
-		std::string filename {filenamepointer};
-		std::string prefix = "../instances/";
-		Instance inst;
-		inst.name = filename;
-		filename = prefix + filename;
-		auto hasEnding = [&] (std::string const &fullString, std::string const &ending) {
-			if (fullString.length() >= ending.length()) {
-				return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
-			} else {
-				return false;
+
+		if (arg == "-v" || arg == "--verbose") {
+			verbose = true;
+			continue;
+		}
+		if (arg == "-vv" || arg == "--very-verbose") {
+			verbose = true;
+			vv = true;
+			continue;
+		}
+
+		if (arg == "-k" || arg == "--override-k" || arg == "--set-k") {
+			std::string k_string = nextArg(i);
+			k_override = std::atoi(k_string);
+			if (k_override == 0) { std::cout << "Error: Bad argument to --set-k!"; return 1; }
+			override_k = true;
+			continue;
+		}
+
+		if (arg == "--round-factor" || arg == "-r") {
+			std::string rf_string = nextArg(i);
+			roundFactor = std::tod(rf_string);
+			continue;
+		}
+		if (arg == "-a1" || arg == "--submodular-greedy") { run_submodular = true; continue; }
+		if (arg == "-a11") { run_submodular2 = true; continue; }
+		if (arg == "-a2" || arg == "--stochastic-submodular-greedy") { run_stochastic = true; continue; }
+		if (arg == "-a3" || arg == "--simulated-annealing") { run_simulated_annealing = true; continue; }
+		if (arg == "-a0" || arg == "--random-avg") { run_random_avg = true; continue; }
+		if (arg == "-a00" || arg == "--random") { run_random = true; continue; }
+		if (arg == "-a4" || arg == "--combined") { run_combined = true; continue; }
+
+		if (arg == "-h0") { heuristic_0 = true; continue; }
+		if (arg == "-h1") { heuristic_1 = true; continue; }
+		if (arg == "-h2") { heuristic_2 = true; continue; }
+		if (arg == "-t") { run_tests = true; run_experiments = false; continue; }
+
+
+		if (arg == "-i" || arg == "--instance") {
+			Instance inst;
+			std::string filename = nextArg(i);
+			std::string prefix = "../instances/";
+			inst.name = prefix + filename;
+
+			auto hasEnding = [&] (std::string const &fullString, std::string const &ending) {
+				if (fullString.length() >= ending.length()) {
+					return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+				} else {
+					return false;
+				}
+			};
+			if (hasEnding(filename, ".gml")) {
+				GMLGraphReader reader;
+				auto g = reader.read(filename);
+				inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+			} else if (hasEnding(filename, ".edges")) {
+				NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+				auto g = reader.read(filename);
+				inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 			}
-		};
-		if (hasEnding(filename, ".gml")) {
-			GMLGraphReader reader;
-			auto g = reader.read(filename);
-			inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		} else if (hasEnding(filename, ".edges")) {
-			NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-			auto g = reader.read(filename);
-			inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+			instances.push_back(inst);
+			continue;
 		}
-		instances.push_back(inst);
 	}
 
+
+	if (!heuristic_1 && !heuristic_2) {
+		heuristic_0 = true;
+	}
+
+
+	// TODO: move this to simexpal.
 	auto addErdosRenyiInstance = [&](int n, int k, double p) {
 		Instance inst;
-		Aux::Random::setSeed(1, true);
+		Aux::Random::setSeed(seed, true);
 		inst.g = NetworKit::ErdosRenyiGenerator(n, p, false).generate();
 		inst.k = k;
 		inst.name = "ErdosRenyiGraph";
@@ -453,7 +448,7 @@ int main(int argc, char* argv[])
 
 	auto addWattsStrogatzInstance = [&](int nodes, int neighbors, double p, int k) {
 		Instance inst;
-		Aux::Random::setSeed(1, true);
+		Aux::Random::setSeed(seed, true);
 		inst.g = NetworKit::WattsStrogatzGenerator(nodes, neighbors, p).generate();
 		inst.k = k;
 		inst.name = "WattsStrogatzGraph";
@@ -480,7 +475,7 @@ int main(int argc, char* argv[])
 
 	auto addBarabasiAlbertInstance = [&](int n_attachments, int n_max, int n_0, int k) {
 		Instance inst;
-		Aux::Random::setSeed(1, true);
+		Aux::Random::setSeed(seed, true);
 		inst.g = NetworKit::BarabasiAlbertGenerator(n_attachments, n_max, n_0).generate();
 		inst.k = k;
 		inst.name = "BarabasiAlbertGraph";
@@ -631,12 +626,19 @@ int main(int argc, char* argv[])
 			if (override_k) {
 				k = k_override;
 			}
-			if (!print_values_only)
-				std::cout << inst.name << ". Nodes: " << n << ", Edges: " << g.numberOfEdges() << ", k: " << k << ". " << inst.graphParamDescription << "\n";
+
+			std::cout << "- Instance: \n";
+			std::cout << "\tName: " << inst.name << "\n";
+			std::cout << "\tNodes: " << n << "\n";
+			std::cout << "\tEdges: " << g.numberOfEdges() << "\n";
+			std::cout << "\tk: " << k << "\n";
 			if (verbose) {
+				std::cout << "\tEdgeList: [";
 				g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
-				std::cout << std::endl;
+				std::cout << "]\n" << std::endl;
+
 			}
+			std::cout << "\tRuns: \n";
 
 
 			NetworKit::ConnectedComponents comp {g};
@@ -646,12 +648,26 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 
+			auto write_result = [&](std::string name, double value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
+				std::cout << "\t\t- Algorithm:\t" << name << "\n";
+				if (variant_name != "") {
+					std::cout << "\t\t  Variant:\t" << variant_name << "\n";
+				}
+				std::cout << "\t\t  Value:\t" << value << "\n";
+				using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+				std::cout << "\t\t  Time:\t\t" << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+				if (verbose) {
+					std::cout << "\t\t  EdgeList:\t[";
+					for (auto e: edges) { std::cout << "(" << e.u << ", " << e.v << "), "; }
+					std::cout << "]\n" << std::endl;
+				}
+			};
+
 			if (run_random) {
-				Aux::Random::setSeed(1, true);
-				auto t5 = std::chrono::high_resolution_clock::now();
-				State s;
+				Aux::Random::setSeed(seed, true);
+				auto t1 = std::chrono::high_resolution_clock::now();
 				auto edges = randomEdges(g, k);
-				auto t6 = std::chrono::high_resolution_clock::now();
+				auto t2 = std::chrono::high_resolution_clock::now();
 
 				auto G_copy = g;
 				for (auto e : edges) {
@@ -659,189 +675,125 @@ int main(int argc, char* argv[])
 				}
 				double resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
 
-				std::cout << "Random Edges Result";
-				if (!print_values_only) {
-					std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
-					std::cout << ". Total Effective Resistance: " << resistance << std::endl;
-				} else {
-					std::cout << resistance << std::endl;
-				}
-				
-				if (verbose) {
-					for (auto& e: edges) {
-						std::cout << "(" << e.u << ", " << e.v << "), ";
-					}
-					std::cout << std::endl;
-				}
+				write_result("Random Edges", resistance, t2 - t1, edges, "");
 			}
+
+			if (run_random_avg) {
+				Aux::Random::setSeed(seed, true);
+				double resistance = 0.0;
+				std::chrono::nanoseconds duration;
+				int rnds = 10;
+				for (int i = 0; i < rnds; i++) {
+					auto t1 = std::chrono::high_resolution_clock::now();
+					auto edges = randomEdges(g, k);
+					auto t2 = std::chrono::high_resolution_clock::now();
+
+					auto G_copy = g;
+					for (auto e : edges) {
+						G_copy.addEdge(e.u, e.v);
+					}
+					duration += (t2 - t1);
+					resistance += G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
+				}
+				write_result("Random Edges averaged", resistance / rnds, duration / rnds, {}, "");
+			}
+
+
 			if (run_submodular) {
-				Aux::Random::setSeed(1, true);
+				Aux::Random::setSeed(seed, true);
 				RobustnessGreedy rg;
 				auto t1 = std::chrono::high_resolution_clock::now();
 				rg.init(g, k);
 				rg.addAllEdges();
 				rg.run();
 				auto t2 = std::chrono::high_resolution_clock::now();
-				if (!verbose) {
-					std::cout << "Submodular Greedy Result";
-					if (!print_values_only)
-						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t2-t1).count();
-					std::cout << ". Total Effective Resistance: " << (-1.0) * rg.getTotalValue() << std::endl;
-				} else {
-					rg.summarize();
-				}
+				write_result("Submodular Greedy", rg.getResultResistance(), t2 - t1, rg.getResultEdges(), "");
 			}
 			if (run_submodular2) {
-				Aux::Random::setSeed(1, true);
+				Aux::Random::setSeed(seed, true);
 				RobustnessGreedy2 rg;
 				auto t1 = std::chrono::high_resolution_clock::now();
 				rg.init(g, k);
 				rg.addAllEdges();
 				rg.run();
 				auto t2 = std::chrono::high_resolution_clock::now();
-				if (!verbose) {
-					std::cout << "Submodular Greedy 2 Result";
-					if (!print_values_only)
-						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t2-t1).count();
-					std::cout << ". Total Effective Resistance: " << (-1.0) * rg.getTotalValue() << std::endl;
-				} else {
-					rg.summarize();
-				}
+				write_result("Submodular Greedy", rg.getResultResistance(), t2 - t1, rg.getResultEdges(), "Lpinv Updates On Demand");
 			}
 			if (run_stochastic) {
-				Aux::Random::setSeed(1, true);
+				Aux::Random::setSeed(seed, true);
 				RobustnessStochasticGreedy rs;
-				auto t3 = std::chrono::high_resolution_clock::now();
+				auto t1 = std::chrono::high_resolution_clock::now();
 				rs.init(g, k, 0.5);
 				rs.addAllEdges();
 				rs.run();
-				auto t4 = std::chrono::high_resolution_clock::now();
-				if (!verbose) {
-					std::cout << "Stochastic Greedy Result";
-					if (!print_values_only)
-						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t4-t3).count();
-					std::cout << ". Total Effective Resistance: " << (-1.0) * rs.getTotalValue() << std::endl;
-				} else {
-					rs.summarize();
-				}
+				auto t2 = std::chrono::high_resolution_clock::now();
+				write_result("Submodular Greedy", rs.getResultResistance(), t2 - t1, rs.getResultEdges(), "");
 			}
 
 
-			// TODO: cut down on code duplication here.
 			if (run_simulated_annealing || run_combined) {
-				if (heuristic_0) {
-					Aux::Random::setSeed(1, true);
-					auto t7 = std::chrono::high_resolution_clock::now();
-					RobustnessSimulatedAnnealing<0> rsa;
+				auto run_and_analyze = [&](RobustnessSimulatedAnnealingBase& rsa, int variant, bool combined) {
+					Aux::Random::setSeed(seed, true);
+					auto t1 = std::chrono::high_resolution_clock::now();
+					int variation;
+		
 					State s;
-					s.edges = randomEdges(g, k);
-					rsa.init(g, k, effort_value);
-					rsa.setInitialState(s);
-					if (vv) {
-						rsa.setVerbose(true);
+					if (combined) {
+						RobustnessGreedy rg;
+						rg.init(g, k);
+						rg.addAllEdges();
+						rg.run();
+						s.edges = rg.getResultItems();
+					} else {
+						s.edges = randomEdges(g, k);
 					}
+					rsa.init(g, k, roundFactor);
+					rsa.setInitialState(s);
 
 					rsa.run();
-					auto t8 = std::chrono::high_resolution_clock::now();
+					auto t2 = std::chrono::high_resolution_clock::now();
 
 					double value = rsa.getResultResistance();
 
-					if (!verbose) {
-						std::cout << "Simulated Annealing (Random Transition) Result";
-						if (!print_values_only)
-							std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
-						std::cout << ". Total Effective Resistance: " << rsa.getResultResistance() << std::endl;
-					} else {
-						rsa.summarize();
-					}
-					auto g1 = g;
+					std::vector<std::string> variant_names = {"Random", "Resistance-Based", "Resistance-Based, Multiple"};
 
-					for (auto e: rsa.getEdges()) {
-						g1.addEdge(e.u, e.v);
+					std::string name = "Simulated Annealing";
+					if (combined) { name = "Submodular Greedy + Simulated Annealing"; }
+					write_result(name, value, t2 - t1, rsa.getResultEdges(), variant_names[variant]);
+				};
+
+				if (heuristic_0) {
+					const int variant = 0;
+					if (run_combined) {
+						RobustnessSimulatedAnnealing<variant> rsa;
+						run_and_analyze(rsa, variant, true);
 					}
-					//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
+					if (run_simulated_annealing) {
+						RobustnessSimulatedAnnealing<variant> rsa;
+						run_and_analyze(rsa, variant, false);
+					}
 				}
 				if (heuristic_1) {
-					Aux::Random::setSeed(1, true);
-					auto t7 = std::chrono::high_resolution_clock::now();
-					RobustnessSimulatedAnnealing<1> rsa;
-					State s;
+					const int variant = 1;
 					if (run_combined) {
-						RobustnessGreedy rg;
-						auto t1 = std::chrono::high_resolution_clock::now();
-						rg.init(g, k);
-						rg.addAllEdges();
-						rg.run();
-						s.edges = rg.getResultItems();
-					} else {
-						s.edges = randomEdges(g, k);
+						RobustnessSimulatedAnnealing<variant> rsa;
+						run_and_analyze(rsa, variant, true);
 					}
-					rsa.init(g, k, effort_value);
-					rsa.setInitialState(s);
-					if (vv) {
-						rsa.setVerbose(true);
+					if (run_simulated_annealing) {
+						RobustnessSimulatedAnnealing<variant> rsa;
+						run_and_analyze(rsa, variant, false);
 					}
-
-					rsa.run();
-					auto t8 = std::chrono::high_resolution_clock::now();
-
-					double value = rsa.getResultResistance();
-
-					if (!verbose) {
-						std::cout << "Simulated Annealing (Resistance Centrality randomized transition) Result";
-						if (!print_values_only)
-							std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
-						std::cout << ". Total Effective Resistance: " << rsa.getResultResistance() << std::endl;
-					} else {
-						rsa.summarize();
-					}
-					auto g1 = g;
-
-					for (auto e: rsa.getEdges()) {
-						g1.addEdge(e.u, e.v);
-					}
-					//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 				}
 				if (heuristic_2) {
-					Aux::Random::setSeed(1, true);
-					auto t7 = std::chrono::high_resolution_clock::now();
-					RobustnessSimulatedAnnealing<2> rsa;
-					State s;
+					const int variant = 2;
 					if (run_combined) {
-						RobustnessGreedy rg;
-						auto t1 = std::chrono::high_resolution_clock::now();
-						rg.init(g, k);
-						rg.addAllEdges();
-						rg.run();
-						s.edges = rg.getResultItems();
-					} else {
-						s.edges = randomEdges(g, k);
+						RobustnessSimulatedAnnealing<variant> rsa;
+						run_and_analyze(rsa, variant, true);
 					}
-					rsa.init(g, k, effort_value);
-					rsa.setInitialState(s);
-					if (vv) {
-						rsa.setVerbose(true);
+					if (run_simulated_annealing) {
+						RobustnessSimulatedAnnealing<variant> rsa;
+						run_and_analyze(rsa, variant, false);
 					}
-
-					rsa.run();
-					auto t8 = std::chrono::high_resolution_clock::now();
-
-					double value = rsa.getResultResistance();
-
-					if (!verbose) {
-						std::cout << "Simulated Annealing (Node set randomized transition) Result";
-						if (!print_values_only)
-							std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
-						std::cout << ". Total Effective Resistance: " << rsa.getResultResistance() << std::endl;
-					} else {
-						rsa.summarize();
-					}
-					auto g1 = g;
-
-					for (auto e: rsa.getEdges()) {
-						g1.addEdge(e.u, e.v);
-					}
-					//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 				}
 			}
 		}
