@@ -28,26 +28,30 @@ public:
             auto candidate = this->randomTransition(this->currentState);
             double oldEnergy = this->getEnergy(this->currentState);
             double candidateEnergy = this->getUpdatedEnergy(this->currentState, candidate);
-            bool accepted = false;
+            bool accepted = (dis(gen) < this->acceptanceProbability(oldEnergy, candidateEnergy, this->temperature));
+            bool switchToBest = false;//(dis(gen) > this->acceptanceProbability(this->getEnergy(this->bestState), candidateEnergy, this->temperature));
             if (this->verbose) {
-                std::cout << "Round " << this->round << ". Candidate with energy " << candidateEnergy << ". Transition Probability: " << this->acceptanceProbability(oldEnergy,candidateEnergy, this->temperature) << ". ";
+                std::cout << "Round " << this->round << ". Temperature: " << this->temperature << ". Candidate with energy " << candidateEnergy << ". Transition Probability: " << this->acceptanceProbability(oldEnergy,candidateEnergy, this->temperature) << ". ";
             }
-            if (dis(gen) < this->acceptanceProbability(oldEnergy, candidateEnergy, this->temperature)) {
+            if (accepted && switchToBest && verbose) {
+                std::cout << "Transition omitted. ";
+            }
+            if (accepted && !switchToBest) {
+                if (candidateEnergy > oldEnergy) { std::cout << "Unoptimal transition. "; }
                 this->transition(this->currentState, candidate);
                 if (verbose)
                     std::cout << "Transition accepted. ";
-                accepted = true;
-                if (this->getEnergy(this->currentState) < this->getEnergy(this->bestState)) {
+                /*if (this->getEnergy(this->currentState) < this->getEnergy(this->bestState)) {
                     this->bestState = this->currentState;
                     if (verbose)
-                        std:: cout << "Best state set. ";
-                }
+                        std::cout << "Best state set. ";
+                }*/
             } else {
                 if (verbose)
                     std::cout << "Transition rejected. ";
             }
 
-            if (dis(gen) > this->acceptanceProbability(this->getEnergy(this->bestState), candidateEnergy, this->temperature)) {
+            if (switchToBest) {
                 this->currentState = this->bestState;
                 if (verbose)
                     std::cout << "Switched to best state. \n";
@@ -61,7 +65,7 @@ public:
 
             this->updateTemperature(oldEnergy, candidateEnergy, accepted);
         } while (!this->endIteration());
-        this->currentState = this->bestState;
+        //this->currentState = this->bestState;
         this->hasRun = true;
     }
 

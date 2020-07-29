@@ -41,9 +41,13 @@
 #include <algorithm>
 
 
+using namespace NetworKit;
 
-char* getCmdOption(char ** begin, char ** end, const std::string & option)
+
+
+char* getCmdOption(int count, char ** begin, const std::string & option)
 {
+	char** end = begin + count;
     char ** itr = std::find(begin, end, option);
     if (itr != end && ++itr != end)
     {
@@ -52,9 +56,9 @@ char* getCmdOption(char ** begin, char ** end, const std::string & option)
     return 0;
 }
 
-bool cmdOptionExists(char** begin, char** end, const std::string& option)
+bool cmdOptionExists(int count, char** begin, const std::string& option)
 {
-    return std::find(begin, end, option) != end;
+    return std::find(begin, begin+count, option) != begin+count;
 }
 
 
@@ -89,11 +93,13 @@ void testLaplacian(bool verbose)
 	G.addEdge(1, 3);
 	G.addEdge(2, 3);
 
+	/*
 	auto diagonal = approxLaplacianPseudoinverseDiagonal(G);
 	assert(std::abs(diagonal[0] - 0.3125) < 0.05);
 	assert(std::abs(diagonal[1] - 0.1875) < 0.05);
 	assert(std::abs(diagonal[2] - 0.1876) < 0.05);
 	assert(std::abs(diagonal[3] - 0.3125) < 0.05);
+	*/
 
 	// Test Laplacian pinv update formulas
 	auto Lmat = laplacianMatrix(G);
@@ -273,7 +279,11 @@ int main(int argc, char* argv[])
 	bool run_submodular2 = false;
 	bool run_stochastic = false;
 	bool run_simulated_annealing = false;
+	bool run_combined = false;
 
+	bool heuristic_0 = false;
+	bool heuristic_1 = false;
+	bool heuristic_2 = false;
 
 	bool verbose = false;
 	bool vv = false;
@@ -281,11 +291,12 @@ int main(int argc, char* argv[])
 
 	bool override_k = false;
 	int k_override;
+	double effort_value = 1.0;
 
-	if (cmdOptionExists(argv, argv+argc, "-h") || cmdOptionExists(argv, argv+argc, "--help")) {
+	if (cmdOptionExists(argc, argv, "-h") || cmdOptionExists(argc, argv, "--help")) {
 		std::cout << 
 		"EXAMPLE CALL\n"
-    	"\trobustness -a1 -a2 -g1 -g2\n"
+    	"\trobustness -a1 -a2 -i graph.gml\n"
 		"OPTIONS:\n" 
 		"\t-v --verbose\n\n"
 		"\t--values-only\n\t\tWrite only total effective resistance values to stdout\n\n"
@@ -301,18 +312,18 @@ int main(int argc, char* argv[])
 		"\t-ger3\t\tErdos Renyi instance 4\n";
 	}
 
-	if (cmdOptionExists(argv, argv+argc, "-v") || cmdOptionExists(argv, argv+argc, "--verbose")) {
+	if (cmdOptionExists(argc, argv, "-v") || cmdOptionExists(argc, argv, "--verbose")) {
 		verbose = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-vv") || cmdOptionExists(argv, argv+argc, "--very-verbose")) {
+	if (cmdOptionExists(argc, argv, "-vv") || cmdOptionExists(argc, argv, "--very-verbose")) {
 		verbose = true;
 		vv = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "--values-only")) {
+	if (cmdOptionExists(argc, argv, "--values-only")) {
 		print_values_only = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "--override-k")) {
-		auto k_string = getCmdOption(argv, argv+argc, "--override-k");
+	if (cmdOptionExists(argc, argv, "--override-k")) {
+		auto k_string = getCmdOption(argc, argv, "--override-k");
 		k_override = std::atoi(k_string);
 		if (k_override == 0) {
 			std::cout << "Error: Bad argument to --override-k" << '\n';
@@ -321,26 +332,46 @@ int main(int argc, char* argv[])
 		override_k = true;
 		std::cout << "Overriding k: " << k_override << std::endl;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-a1") || cmdOptionExists(argv, argv+argc, "--submodular-greedy")) {
+	if (cmdOptionExists(argc, argv, "--effort-factor")) {
+		auto val_string = getCmdOption(argc, argv, "--effort-factor");
+		effort_value = std::stod(val_string);
+		std::cout << "Overriding effort value: " << effort_value << std::endl;
+	}
+	if (cmdOptionExists(argc, argv, "-a1") || cmdOptionExists(argc, argv, "--submodular-greedy")) {
 		run_submodular = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-a11") || cmdOptionExists(argv, argv+argc, "--submodular-greedy")) {
+	if (cmdOptionExists(argc, argv, "-a11") || cmdOptionExists(argc, argv, "--submodular-greedy")) {
 		run_submodular2 = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-a2") || cmdOptionExists(argv, argv+argc, "--stochastic-submodular-greedy")) {
+	if (cmdOptionExists(argc, argv, "-a2") || cmdOptionExists(argc, argv, "--stochastic-submodular-greedy")) {
 		run_stochastic = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-a0") || cmdOptionExists(argv, argv+argc, "--random")) {
+	if (cmdOptionExists(argc, argv, "-a0") || cmdOptionExists(argc, argv, "--random")) {
 		run_random = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-a3") || cmdOptionExists(argv, argv+argc, "--simulated-annealing")) {
+	if (cmdOptionExists(argc, argv, "-a3") || cmdOptionExists(argc, argv, "--simulated-annealing")) {
 		run_simulated_annealing = true;
 	}
-	if (cmdOptionExists(argv, argv+argc, "-t")) {
+	if (cmdOptionExists(argc, argv, "-a4") || cmdOptionExists(argc, argv, "--combined")) {
+		run_combined = true;
+	}
+	if (cmdOptionExists(argc, argv, "-h0")) {
+		heuristic_0 = true;
+	}
+	if (cmdOptionExists(argc, argv, "-h1")) {
+		heuristic_1 = true;
+	}
+	if (cmdOptionExists(argc, argv, "-h2")) {
+		heuristic_2 = true;
+	}
+	if (cmdOptionExists(argc, argv, "-t")) {
 		run_tests = true;
 		run_experiments = false;
 	}
 
+	if (!heuristic_1 && !heuristic_2) {
+		heuristic_0 = true;
+	}
 
 
 
@@ -352,6 +383,36 @@ int main(int argc, char* argv[])
 		std::string description = "";
 	};
 	std::vector<Instance> instances;
+
+	if (cmdOptionExists(argc, argv, "-i")) {
+		auto filenamepointer = getCmdOption(argc, argv, "-i");
+		if (filenamepointer == 0) {
+			std::cout << "Instance error!";
+			return 1;
+		}
+		std::string filename {filenamepointer};
+		std::string prefix = "../instances/";
+		Instance inst;
+		inst.name = filename;
+		filename = prefix + filename;
+		auto hasEnding = [&] (std::string const &fullString, std::string const &ending) {
+			if (fullString.length() >= ending.length()) {
+				return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+			} else {
+				return false;
+			}
+		};
+		if (hasEnding(filename, ".gml")) {
+			GMLGraphReader reader;
+			auto g = reader.read(filename);
+			inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		} else if (hasEnding(filename, ".edges")) {
+			NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
+			auto g = reader.read(filename);
+			inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		}
+		instances.push_back(inst);
+	}
 
 	auto addErdosRenyiInstance = [&](int n, int k, double p) {
 		Instance inst;
@@ -365,25 +426,28 @@ int main(int argc, char* argv[])
 		instances.push_back(inst);
 	};
 
-	if (cmdOptionExists(argv, argv+argc, "-ger0")) {
+	if (cmdOptionExists(argc, argv, "-ger0")) {
 		addErdosRenyiInstance(10, 10, 0.4);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger1")) {
+	if (cmdOptionExists(argc, argv, "-ger1")) {
 		addErdosRenyiInstance(30, 100, 0.3);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger2")) {
+	if (cmdOptionExists(argc, argv, "-ger2")) {
 		addErdosRenyiInstance(100, 1000, 0.1);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger3")) {
+	if (cmdOptionExists(argc, argv, "-ger3")) {
 		addErdosRenyiInstance(128, 500, 0.1);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger4")) {
+	if (cmdOptionExists(argc, argv, "-ger4")) {
 		addErdosRenyiInstance(300, 5000, 0.05);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger5")) {
+	if (cmdOptionExists(argc, argv, "-ger5")) {
+		addErdosRenyiInstance(600, 300, 0.05);
+	}
+	if (cmdOptionExists(argc, argv, "-ger6")) {
 		addErdosRenyiInstance(1000, 5000, 0.02);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-ger6")) {
+	if (cmdOptionExists(argc, argv, "-ger7")) {
 		addErdosRenyiInstance(3000, 5000, 0.01);
 	}
 
@@ -398,19 +462,19 @@ int main(int argc, char* argv[])
 		inst.graphParamDescription = s.str();
 		instances.push_back(inst);
 	};
-	if (cmdOptionExists(argv, argv+argc, "-gws0")) {
+	if (cmdOptionExists(argc, argv, "-gws0")) {
 		addWattsStrogatzInstance(10, 3, 0.4, 5);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gws1")) {
+	if (cmdOptionExists(argc, argv, "-gws1")) {
 		addWattsStrogatzInstance(30, 5, 0.4, 10);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gws2")) {
+	if (cmdOptionExists(argc, argv, "-gws2")) {
 		addWattsStrogatzInstance(100, 5, 0.5, 100);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gws3")) {
+	if (cmdOptionExists(argc, argv, "-gws3")) {
 		addWattsStrogatzInstance(300, 7, 0.5, 1000);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gws4")) {
+	if (cmdOptionExists(argc, argv, "-gws4")) {
 		addWattsStrogatzInstance(1000, 7, 0.3, 1000);
 	}
 
@@ -425,79 +489,84 @@ int main(int argc, char* argv[])
 		inst.graphParamDescription = s.str();
 		instances.push_back(inst);
 	};
-	if (cmdOptionExists(argv, argv+argc, "-gba0")) {
+	if (cmdOptionExists(argc, argv, "-gba0")) {
 		addBarabasiAlbertInstance(2, 128, 2, 10);
+	}
+	if (cmdOptionExists(argc, argv, "-gba1")) {
+		addBarabasiAlbertInstance(2, 1000, 2, 200);
 	}
 
 
-	if (cmdOptionExists(argv,argv+argc, "-gpwr0")) {
+	if (cmdOptionExists(argc, argv, "-gpwr0")) {
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		Instance inst;
-		inst.g = reader.read("../example-graphs/opsahl-powergrid/out.opsahl-powergrid");
+		auto g = reader.read("../instances/opsahl-powergrid/out.opsahl-powergrid");
+		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		inst.k = 10;
 		inst.name = "US Powergrid";
 		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv,argv+argc, "-gpwr1")) {
+	if (cmdOptionExists(argc, argv, "-gpwr1")) {
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		Instance inst;
-		inst.g = reader.read("../example-graphs/opsahl-powergrid/out.opsahl-powergrid");
+		auto g = reader.read("../instances/opsahl-powergrid/out.opsahl-powergrid");
+		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		inst.k = 2000;
 		inst.name = "US Powergrid";
 		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
 		instances.push_back(inst);
 	}
 
-	if (cmdOptionExists(argv, argv+argc, "-gi0")) {
+	if (cmdOptionExists(argc, argv, "-gi0")) {
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../example-graphs/internet-topology-zoo/AsnetAm.gml");
+		inst.g = reader.read("../instances/internet-topology-zoo/AsnetAm.gml");
 		inst.k = 10;
 		inst.name = "ASNET-AM";
 		inst.description = "Armenia Backbone, Customer IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gi1")) {
+	if (cmdOptionExists(argc, argv, "-gi1")) {
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../example-graphs/internet-topology-zoo/Bellsouth.gml");
+		inst.g = reader.read("../instances/internet-topology-zoo/Bellsouth.gml");
 		inst.k = 10;
 		inst.name = "Bell South";
 		inst.description = "USA south east Backbone, Customer, Transit IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gi2")) {
+	if (cmdOptionExists(argc, argv, "-gi2")) {
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../example-graphs/internet-topology-zoo/Deltacom.gml");
+		inst.g = reader.read("../instances/internet-topology-zoo/Deltacom.gml");
 		inst.k = 10;
 		inst.name = "ITC Deltacom";
 		inst.description = "USA south east Backbone, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gi3")) {
+	if (cmdOptionExists(argc, argv, "-gi3")) {
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../example-graphs/internet-topology-zoo/Ion.gml");
+		inst.g = reader.read("../instances/internet-topology-zoo/Ion.gml");
 		inst.k = 10;
 		inst.name = "ION";
 		inst.description = "USA NY region Backbone, Customer, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gi4")) {
+	if (cmdOptionExists(argc, argv, "-gi4")) {
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../example-graphs/internet-topology-zoo/UsCarrier.gml");
+		inst.g = reader.read("../instances/internet-topology-zoo/UsCarrier.gml");
 		inst.k = 10;
 		inst.name = "US Carrier";
 		inst.description = "USA south east backbone, customer fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gi5")) {
+	if (cmdOptionExists(argc, argv, "-gi5")) {
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../example-graphs/internet-topology-zoo/Dfn.gml");
+		inst.g = reader.read("../instances/internet-topology-zoo/Dfn.gml");
 		inst.k = 10;
 		inst.name = "DFN";
 		inst.description = "Germany DFN Backbone, Testbed IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
@@ -506,40 +575,40 @@ int main(int argc, char* argv[])
 
 
 
-	if (cmdOptionExists(argv, argv+argc, "-gfb1")) {
+	if (cmdOptionExists(argc, argv, "-gfb1")) {
 		Instance inst;
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		auto g = reader.read("../example-graphs/facebook/3980.edges");
+		auto g = reader.read("../instances/facebook/3980.edges");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		inst.k = 10;
 		inst.name = "Facebook Ego 3980";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gfb2")) {
+	if (cmdOptionExists(argc, argv, "-gfb2")) {
 		Instance inst;
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		auto g = reader.read("../example-graphs/facebook/686.edges");
+		auto g = reader.read("../instances/facebook/686.edges");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		inst.k = 10;
 		inst.name = "Facebook Ego 686";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gfb3")) {
+	if (cmdOptionExists(argc, argv, "-gfb3")) {
 		Instance inst;
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		auto g = reader.read("../example-graphs/facebook/3437.edges");
+		auto g = reader.read("../instances/facebook/3437.edges");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		inst.k = 10;
 		inst.name = "Facebook Ego 3437";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
 	}
-	if (cmdOptionExists(argv, argv+argc, "-gfb0")) {
+	if (cmdOptionExists(argc, argv, "-gfb0")) {
 		Instance inst;
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(0), "%", true, false);
-		inst.g = reader.read("../example-graphs/facebook/facebook_combined.txt");
+		inst.g = reader.read("../instances/facebook/facebook_combined.txt");
 		//inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g);
 		inst.k = 10;
 		inst.name = "Facebook Ego Full";
@@ -581,22 +650,28 @@ int main(int argc, char* argv[])
 				Aux::Random::setSeed(1, true);
 				auto t5 = std::chrono::high_resolution_clock::now();
 				State s;
-				s.edges = randomEdges(g, k);
+				auto edges = randomEdges(g, k);
 				auto t6 = std::chrono::high_resolution_clock::now();
 
-				// We use the simulated annealing class here only to compute the cost without too much effort.
-				RobustnessSimulatedAnnealing rsa;
-				rsa.init(g, k);
-				rsa.setInitialState(s);
-				if (!verbose) {
-					std::cout << "Random Edges Result";
-					if (!print_values_only)
-						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
-					std::cout << ". Total Effective Resistance: " << rsa.getTotalValue() << std::endl;
+				auto G_copy = g;
+				for (auto e : edges) {
+					G_copy.addEdge(e.u, e.v);
+				}
+				double resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
+
+				std::cout << "Random Edges Result";
+				if (!print_values_only) {
+					std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t6-t5).count();
+					std::cout << ". Total Effective Resistance: " << resistance << std::endl;
 				} else {
-					for (auto& e: s.edges) {
+					std::cout << resistance << std::endl;
+				}
+				
+				if (verbose) {
+					for (auto& e: edges) {
 						std::cout << "(" << e.u << ", " << e.v << "), ";
 					}
+					std::cout << std::endl;
 				}
 			}
 			if (run_submodular) {
@@ -650,37 +725,124 @@ int main(int argc, char* argv[])
 					rs.summarize();
 				}
 			}
-			if (run_simulated_annealing) {
-				Aux::Random::setSeed(1, true);
-				auto t7 = std::chrono::high_resolution_clock::now();
-				RobustnessSimulatedAnnealing rsa;
-				State s;
-				s.edges = randomEdges(g, k);
-				rsa.init(g, k);
-				rsa.setInitialState(s);
-				if (vv) {
-					rsa.setVerbose(true);
+
+
+			// TODO: cut down on code duplication here.
+			if (run_simulated_annealing || run_combined) {
+				if (heuristic_0) {
+					Aux::Random::setSeed(1, true);
+					auto t7 = std::chrono::high_resolution_clock::now();
+					RobustnessSimulatedAnnealing<0> rsa;
+					State s;
+					s.edges = randomEdges(g, k);
+					rsa.init(g, k, effort_value);
+					rsa.setInitialState(s);
+					if (vv) {
+						rsa.setVerbose(true);
+					}
+
+					rsa.run();
+					auto t8 = std::chrono::high_resolution_clock::now();
+
+					double value = rsa.getResultResistance();
+
+					if (!verbose) {
+						std::cout << "Simulated Annealing (Random Transition) Result";
+						if (!print_values_only)
+							std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
+						std::cout << ". Total Effective Resistance: " << rsa.getResultResistance() << std::endl;
+					} else {
+						rsa.summarize();
+					}
+					auto g1 = g;
+
+					for (auto e: rsa.getEdges()) {
+						g1.addEdge(e.u, e.v);
+					}
+					//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 				}
+				if (heuristic_1) {
+					Aux::Random::setSeed(1, true);
+					auto t7 = std::chrono::high_resolution_clock::now();
+					RobustnessSimulatedAnnealing<1> rsa;
+					State s;
+					if (run_combined) {
+						RobustnessGreedy rg;
+						auto t1 = std::chrono::high_resolution_clock::now();
+						rg.init(g, k);
+						rg.addAllEdges();
+						rg.run();
+						s.edges = rg.getResultItems();
+					} else {
+						s.edges = randomEdges(g, k);
+					}
+					rsa.init(g, k, effort_value);
+					rsa.setInitialState(s);
+					if (vv) {
+						rsa.setVerbose(true);
+					}
 
-				rsa.run();
-				auto t8 = std::chrono::high_resolution_clock::now();
+					rsa.run();
+					auto t8 = std::chrono::high_resolution_clock::now();
 
-				double value = rsa.getTotalValue();
+					double value = rsa.getResultResistance();
 
-				if (!verbose) {
-					std::cout << "Simulated Annealing Result";
-					if (!print_values_only)
-						std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
-					std::cout << ". Total Effective Resistance: " << rsa.getTotalValue() << std::endl;
-				} else {
-					rsa.summarize();
+					if (!verbose) {
+						std::cout << "Simulated Annealing (Resistance Centrality randomized transition) Result";
+						if (!print_values_only)
+							std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
+						std::cout << ". Total Effective Resistance: " << rsa.getResultResistance() << std::endl;
+					} else {
+						rsa.summarize();
+					}
+					auto g1 = g;
+
+					for (auto e: rsa.getEdges()) {
+						g1.addEdge(e.u, e.v);
+					}
+					//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 				}
-				auto g1 = g;
+				if (heuristic_2) {
+					Aux::Random::setSeed(1, true);
+					auto t7 = std::chrono::high_resolution_clock::now();
+					RobustnessSimulatedAnnealing<2> rsa;
+					State s;
+					if (run_combined) {
+						RobustnessGreedy rg;
+						auto t1 = std::chrono::high_resolution_clock::now();
+						rg.init(g, k);
+						rg.addAllEdges();
+						rg.run();
+						s.edges = rg.getResultItems();
+					} else {
+						s.edges = randomEdges(g, k);
+					}
+					rsa.init(g, k, effort_value);
+					rsa.setInitialState(s);
+					if (vv) {
+						rsa.setVerbose(true);
+					}
 
-				for (auto e: rsa.getEdges()) {
-					g1.addEdge(e.u, e.v);
+					rsa.run();
+					auto t8 = std::chrono::high_resolution_clock::now();
+
+					double value = rsa.getResultResistance();
+
+					if (!verbose) {
+						std::cout << "Simulated Annealing (Node set randomized transition) Result";
+						if (!print_values_only)
+							std::cout << ". Duration: " << std::chrono::duration_cast<scnds>(t8-t7).count();
+						std::cout << ". Total Effective Resistance: " << rsa.getResultResistance() << std::endl;
+					} else {
+						rsa.summarize();
+					}
+					auto g1 = g;
+
+					for (auto e: rsa.getEdges()) {
+						g1.addEdge(e.u, e.v);
+					}
+					//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 				}
-				//std::cout << laplacianPseudoinverse(g1).trace() * g.numberOfNodes();
 			}
 		}
 	}

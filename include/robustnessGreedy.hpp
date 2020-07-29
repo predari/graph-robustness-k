@@ -112,9 +112,7 @@ public:
 
 private:
     virtual double objectiveDifference(Edge e) override {
-        auto i = e.u;
-        auto j = e.v;
-        return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, i, j) * n;
+        return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {

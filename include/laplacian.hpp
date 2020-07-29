@@ -12,44 +12,39 @@
 
 #include <Eigen/Dense>
 
-using namespace NetworKit;
 
 
-Eigen::MatrixXd laplacianMatrix(Graph const & g);
-Eigen::MatrixXd laplacianPseudoinverse(Graph const & g);
+Eigen::MatrixXd laplacianMatrix(NetworKit::Graph const & g);
+Eigen::MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(Eigen::MatrixXd laplacian);
 
-Vector computeLaplacianPseudoinverseColumn(CSRMatrix const &laplacian, int index, bool connected = false);
 //Eigen::VectorXd computeLaplacianPseudoinverseColumn(Eigen::MatrixXd const & laplacian, int index, bool connected = false);;
 
 // Update formula for the pseudoinverse of the Laplacian as an edge is added to the graph.
 // Add edge (i, j) and compute difference between the k-th column of the pseudoinverse.
 // Takes the columns of the pseudoinverse that correspond to the vertices i and j.
 // Add this to the old to get the new.
-Vector laplacianPseudoinverseColumnDifference(Vector const & column_i, int i, Vector const & column_j, int j, int k, double conductance = 1.0);
 Eigen::VectorXd laplacianPseudoinverseColumnDifference(Eigen::MatrixXd const & lpinv, int i, int j, int k, double conductance = 1.0);
 
 // Update formula for the trace of the lap pinv as an edge is added to the graph.
 // Add edge (i, j) and compute the difference of the traces of the pseudoinverses.
 // Add this to the old to get the new.
-double laplacianPseudoinverseTraceDifference(Vector const & column_i, int i, Vector const &column_j, int j, double conductance = 1.0);
 double laplacianPseudoinverseTraceDifference(Eigen::VectorXd const & column_i, int i, Eigen::VectorXd const &column_j, int j, double conductance = 1.0);
 double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, int i, int j, double conductance = 1.0);
-double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, std::vector<Edge> edges, std::vector<double> conductances=std::vector<double>());
+double laplacianPseudoinverseTraceDifference(Eigen::MatrixXd const & lpinv, std::vector<NetworKit::Edge> edges, std::vector<double> conductances=std::vector<double>());
 
 // Update formula for the trace of the lpinv as two edges are added to the graph.
-double laplacianPseudoinverseTraceDifference2(std::vector<Vector> const & columns, Edge e1, Edge e2, double conductance1=1.0, double conductance2=1.0);
 //double laplacianPseudoinverseTraceDifference2(Eigen::MatrixXd const & lpinv, Edge e1, Edge e2, double conductance1=1.0, double conductance2=1.0);
+double laplacianPseudoinverseTraceDifference2(Eigen::MatrixXd const & lpinv, NetworKit::Edge e1, NetworKit::Edge e2, double conductance1=1.0, double conductance2=1.0);
 
 
-void updateLaplacianPseudoinverse(std::vector<Vector> & columns, Edge e, double conductance = 1.0);
-void updateLaplacianPseudoinverse(Eigen::MatrixXd & lpinv, Edge e, double conductance = 1.0);
-Eigen::MatrixXd updateLaplacianPseudoinverseCopy(Eigen::MatrixXd const & lpinv, Edge e, double conductance = 1.0);
+void updateLaplacianPseudoinverse(Eigen::MatrixXd & lpinv, NetworKit::Edge e, double conductance = 1.0);
+Eigen::MatrixXd updateLaplacianPseudoinverseCopy(Eigen::MatrixXd const & lpinv, NetworKit::Edge e, double conductance = 1.0);
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
-std::vector<double> approxLaplacianPseudoinverseDiagonal(Graph const &G, double epsilon = 0.1);
+//std::vector<double> approxLaplacianPseudoinverseDiagonal(NetworKit::Graph const &G, double epsilon = 0.1);
 
-std::vector<double> approxEffectiveResistances(Graph const &G, int &pivot);
+//std::vector<double> approxEffectiveResistances(NetworKit::Graph const &G, int &pivot);
 
 
 #endif // LAPLACIAN_H
