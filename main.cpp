@@ -64,10 +64,10 @@ bool cmdOptionExists(int count, char** begin, const std::string& option)
 
 
 
-void testLaplacian(bool verbose)
+void testLaplacian(int seed, bool verbose=false)
 {
 	// Create Example Graphs
-	Aux::Random::setSeed(42, false);
+	Aux::Random::setSeed(seed, false);
 	auto G1 = NetworKit::ErdosRenyiGenerator(
 				  100, 0.15, false)
 				  .generate();
@@ -94,13 +94,14 @@ void testLaplacian(bool verbose)
 	G.addEdge(1, 3);
 	G.addEdge(2, 3);
 
-	/*
+	
 	auto diagonal = approxLaplacianPseudoinverseDiagonal(G);
-	assert(std::abs(diagonal[0] - 0.3125) < 0.05);
-	assert(std::abs(diagonal[1] - 0.1875) < 0.05);
-	assert(std::abs(diagonal[2] - 0.1876) < 0.05);
-	assert(std::abs(diagonal[3] - 0.3125) < 0.05);
-	*/
+
+	assert(std::abs(diagonal(0) - 0.3125) < 0.05);
+	assert(std::abs(diagonal(1) - 0.1875) < 0.05);
+	assert(std::abs(diagonal(2) - 0.1876) < 0.05);
+	assert(std::abs(diagonal(3) - 0.3125) < 0.05);
+	
 
 	// Test Laplacian pinv update formulas
 	auto Lmat = laplacianMatrix(G);
@@ -128,6 +129,14 @@ void testLaplacian(bool verbose)
 	assert(std::abs(laplacianPseudoinverseTraceDifference(lpinv, std::vector<Edge>{Edge(0, 3), Edge(0, 1)}, {1.0, -1.0})) < 0.001);
 	//assert(std::abs(laplacianPseudoinverseTraceDifference(col0, 0, col3, 3) + 0.25) < 0.001);
 
+	/*
+	Graph largeG = NetworKit::BarabasiAlbertGenerator(10, 1000, 2).generate();
+	int pivot;
+	diagonal = approxLaplacianPseudoinverseDiagonal(largeG, 0.5);
+	std::cout << diagonal(5);
+	lpinv = laplacianPseudoinverse(largeG);
+	std::cout << " " << lpinv(5, 5);
+	*/
 }
 
 void testRobustnessGreedy() {
@@ -196,9 +205,9 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 	return result;
 }
 
-void experiment() {
+void experiment(int seed) {
     using deci = std::chrono::duration<int, std::ratio<1, 10>>;
-    Aux::Random::setSeed(1, true);
+    Aux::Random::setSeed(seed, true);
 	int n = 100;
 	int k = 1000;
 	double p = 0.05;
@@ -215,7 +224,7 @@ void experiment() {
 	std::cout << "Duration: " << std::chrono::duration_cast<deci>(t2-t1).count() << std::endl;
 	rg.summarize();
 	
-    Aux::Random::setSeed(1, true);
+    Aux::Random::setSeed(seed, true);
 	
 	
 	RobustnessStochasticGreedy rgd;
@@ -264,7 +273,7 @@ void experiment() {
 
 int main(int argc, char* argv[])
 {
-	omp_set_num_threads(1);
+	omp_set_num_threads(8);
 
 	if (argc < 2) {
 		std::cout << "Error: Call without arguments. Use --help for help.\n";
@@ -289,8 +298,11 @@ int main(int argc, char* argv[])
 	bool verbose = false;
 	bool vv = false;
 
-	bool override_k = false;
-	int k_override;
+	double k_factor = 1.0;
+	bool km_sqrt = false;
+	bool km_linear = false;
+	bool km_crt = false;
+
 	double roundFactor = 1.0;
 	int seed = 1;
 
@@ -298,7 +310,7 @@ int main(int argc, char* argv[])
     	"\trobustness -a1 -a2 -i graph.gml\n"
 		"OPTIONS:\n" 
 		"\t-v --verbose\n\t\tAlso output edge lists\n"
-		"\t--override-k n\n\t\tOverride the k value preset of the instance\n\n"
+		"\t--k-factor 5.3\n\t\tOverride the k value preset of the instance\n\n"
 		"\t-a0\t\tRandom Edges\n"
 		"\t-a1\t\tSubmodular Greedy\n"
 		"\t-a2\t\tStochastic submodular greedy\n"
@@ -307,7 +319,7 @@ int main(int argc, char* argv[])
 
 
 	if (argv == 0) { std::cout << "Error!"; return 1; }
-	if (argc < 3) { std::cout << helpstring; return 1; }
+	if (argc < 2) { std::cout << helpstring; return 1; }
 
 	// Return next arg and increment i
 	auto nextArg = [&](int &i) {
@@ -321,7 +333,6 @@ int main(int argc, char* argv[])
 
 	struct Instance {
 		Graph g;
-		int k;
 		std::string name = "";
 		std::string graphParamDescription = "";
 		std::string description = "";
@@ -348,11 +359,23 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		if (arg == "-k" || arg == "--override-k" || arg == "--set-k") {
-			auto k_string = nextArg(i);
-			k_override = std::atoi(k_string);
-			if (k_override == 0) { std::cout << "Error: Bad argument to --set-k!"; return 1; }
-			override_k = true;
+		if (arg == "-k" || arg == "--override-k" || arg == "--k-factor") {
+			std::string k_string = nextArg(i);
+			k_factor = std::stod(k_string);
+			continue;
+		}
+		if (arg == "-km") {
+			std::string km_string = nextArg(i);
+			if (km_string == "sqrt") {
+				km_sqrt = true;
+			} else if (km_string == "linear") {
+				km_linear = true;
+			} else if (km_string == "crt") {
+				km_crt = true;
+			} else {
+				std::cout << "Error: bad argument to -km. Possible Values: 'sqrt', 'linear', 'crt'. Default is const.\n";
+				return 1;
+			}
 			continue;
 		}
 
@@ -382,9 +405,11 @@ int main(int argc, char* argv[])
 
 		if (arg == "-i" || arg == "--instance") {
 			Instance inst;
+			NetworKit::Graph g;
+
 			std::string filename = nextArg(i);
 			std::string prefix = "../instances/";
-			inst.name = prefix + filename;
+			inst.name = filename;
 
 			auto hasEnding = [&] (std::string const &fullString, std::string const &ending) {
 				if (fullString.length() >= ending.length()) {
@@ -393,13 +418,45 @@ int main(int argc, char* argv[])
 					return false;
 				}
 			};
+			auto hasStart = [&] (std::string const &fullString, std::string const &start) {
+				if (fullString.length() >= start.length()) {
+					return (0 == fullString.compare (0, start.length(), start));
+				} else {
+					return false;
+				}
+			};
+			//if (!hasStart(filename, "/")) { filename = prefix + filename; }
 			if (hasEnding(filename, ".gml")) {
 				GMLGraphReader reader;
-				auto g = reader.read(filename);
+				try { g = reader.read(filename); }
+				catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + filename << '\n'; return 1;}
 				inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-			} else if (hasEnding(filename, ".edges")) {
-				NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-				auto g = reader.read(filename);
+			} else {
+				bool success = false;
+				try {
+					NetworKit::EdgeListReader reader(' ', NetworKit::node(1), "%", true, false);
+					g = reader.read(filename);
+					success = true;
+				} catch (const std::exception& e) {}
+				if (!success) try {
+					NetworKit::EdgeListReader reader('\t', NetworKit::node(1), "%", true, false);
+					g = reader.read(filename);
+					success = true;
+				} catch (const std::exception& e) {}
+				if (!success) try {
+					NetworKit::EdgeListReader reader(' ', NetworKit::node(1), "%", true, true);
+					g = reader.read(filename);
+					success = true;
+				} catch (const std::exception& e) {}
+				if (!success) try {
+					NetworKit::EdgeListReader reader('\t', NetworKit::node(1), "%", true, true);
+					g = reader.read(filename);
+					success = true;
+				} 
+				catch (const std::exception& e) { 
+					std::cout << "Failed to open or parse edge list file " + filename << '\n' << e.what() << "\n"; 
+					return 1;
+				}
 				inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 			}
 			instances.push_back(inst);
@@ -414,95 +471,11 @@ int main(int argc, char* argv[])
 
 
 	// TODO: move this to simexpal.
-	auto addErdosRenyiInstance = [&](int n, int k, double p) {
-		Instance inst;
-		Aux::Random::setSeed(seed, true);
-		inst.g = NetworKit::ErdosRenyiGenerator(n, p, false).generate();
-		inst.k = k;
-		inst.name = "ErdosRenyiGraph";
-		std::stringstream s;
-		s << "p: " << p;
-		inst.graphParamDescription = s.str();
-		instances.push_back(inst);
-	};
-
-	if (cmdOptionExists(argc, argv, "-ger0")) {
-		addErdosRenyiInstance(10, 10, 0.4);
-	}
-	if (cmdOptionExists(argc, argv, "-ger1")) {
-		addErdosRenyiInstance(30, 100, 0.3);
-	}
-	if (cmdOptionExists(argc, argv, "-ger2")) {
-		addErdosRenyiInstance(100, 1000, 0.1);
-	}
-	if (cmdOptionExists(argc, argv, "-ger3")) {
-		addErdosRenyiInstance(128, 500, 0.1);
-	}
-	if (cmdOptionExists(argc, argv, "-ger4")) {
-		addErdosRenyiInstance(300, 5000, 0.05);
-	}
-	if (cmdOptionExists(argc, argv, "-ger5")) {
-		addErdosRenyiInstance(600, 300, 0.05);
-	}
-	if (cmdOptionExists(argc, argv, "-ger6")) {
-		addErdosRenyiInstance(1000, 5000, 0.02);
-	}
-	if (cmdOptionExists(argc, argv, "-ger7")) {
-		addErdosRenyiInstance(3000, 5000, 0.01);
-	}
-
-	auto addWattsStrogatzInstance = [&](int nodes, int neighbors, double p, int k) {
-		Instance inst;
-		Aux::Random::setSeed(seed, true);
-		inst.g = NetworKit::WattsStrogatzGenerator(nodes, neighbors, p).generate();
-		inst.k = k;
-		inst.name = "WattsStrogatzGraph";
-		std::stringstream s;
-		s << "neighbors: " << neighbors << ", p: " << p;
-		inst.graphParamDescription = s.str();
-		instances.push_back(inst);
-	};
-	if (cmdOptionExists(argc, argv, "-gws0")) {
-		addWattsStrogatzInstance(10, 3, 0.4, 5);
-	}
-	if (cmdOptionExists(argc, argv, "-gws1")) {
-		addWattsStrogatzInstance(30, 5, 0.4, 10);
-	}
-	if (cmdOptionExists(argc, argv, "-gws2")) {
-		addWattsStrogatzInstance(100, 5, 0.5, 100);
-	}
-	if (cmdOptionExists(argc, argv, "-gws3")) {
-		addWattsStrogatzInstance(300, 7, 0.5, 1000);
-	}
-	if (cmdOptionExists(argc, argv, "-gws4")) {
-		addWattsStrogatzInstance(1000, 7, 0.3, 1000);
-	}
-
-	auto addBarabasiAlbertInstance = [&](int n_attachments, int n_max, int n_0, int k) {
-		Instance inst;
-		Aux::Random::setSeed(seed, true);
-		inst.g = NetworKit::BarabasiAlbertGenerator(n_attachments, n_max, n_0).generate();
-		inst.k = k;
-		inst.name = "BarabasiAlbertGraph";
-		std::stringstream s;
-		s << "n_attachments: " << n_attachments << ", n_max: " << n_max << ", n_0: " << n_0;
-		inst.graphParamDescription = s.str();
-		instances.push_back(inst);
-	};
-	if (cmdOptionExists(argc, argv, "-gba0")) {
-		addBarabasiAlbertInstance(2, 128, 2, 10);
-	}
-	if (cmdOptionExists(argc, argv, "-gba1")) {
-		addBarabasiAlbertInstance(2, 1000, 2, 200);
-	}
-
-
 	if (cmdOptionExists(argc, argv, "-gpwr0")) {
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		Instance inst;
 		auto g = reader.read("../instances/opsahl-powergrid/out.opsahl-powergrid");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.k = 10;
 		inst.name = "US Powergrid";
 		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
 		instances.push_back(inst);
@@ -512,7 +485,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		auto g = reader.read("../instances/opsahl-powergrid/out.opsahl-powergrid");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.k = 2000;
 		inst.name = "US Powergrid";
 		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
 		instances.push_back(inst);
@@ -522,7 +494,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
 		inst.g = reader.read("../instances/internet-topology-zoo/AsnetAm.gml");
-		inst.k = 10;
 		inst.name = "ASNET-AM";
 		inst.description = "Armenia Backbone, Customer IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
@@ -531,7 +502,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
 		inst.g = reader.read("../instances/internet-topology-zoo/Bellsouth.gml");
-		inst.k = 10;
 		inst.name = "Bell South";
 		inst.description = "USA south east Backbone, Customer, Transit IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
@@ -540,7 +510,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
 		inst.g = reader.read("../instances/internet-topology-zoo/Deltacom.gml");
-		inst.k = 10;
 		inst.name = "ITC Deltacom";
 		inst.description = "USA south east Backbone, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
@@ -549,7 +518,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
 		inst.g = reader.read("../instances/internet-topology-zoo/Ion.gml");
-		inst.k = 10;
 		inst.name = "ION";
 		inst.description = "USA NY region Backbone, Customer, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
@@ -558,7 +526,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
 		inst.g = reader.read("../instances/internet-topology-zoo/UsCarrier.gml");
-		inst.k = 10;
 		inst.name = "US Carrier";
 		inst.description = "USA south east backbone, customer fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
@@ -567,7 +534,6 @@ int main(int argc, char* argv[])
 		Instance inst;
 		NetworKit::GMLGraphReader reader;
 		inst.g = reader.read("../instances/internet-topology-zoo/Dfn.gml");
-		inst.k = 10;
 		inst.name = "DFN";
 		inst.description = "Germany DFN Backbone, Testbed IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
 		instances.push_back(inst);
@@ -580,7 +546,6 @@ int main(int argc, char* argv[])
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		auto g = reader.read("../instances/facebook/3980.edges");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.k = 10;
 		inst.name = "Facebook Ego 3980";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
@@ -590,7 +555,6 @@ int main(int argc, char* argv[])
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		auto g = reader.read("../instances/facebook/686.edges");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.k = 10;
 		inst.name = "Facebook Ego 686";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
@@ -600,7 +564,6 @@ int main(int argc, char* argv[])
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
 		auto g = reader.read("../instances/facebook/3437.edges");
 		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.k = 10;
 		inst.name = "Facebook Ego 3437";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
@@ -610,30 +573,29 @@ int main(int argc, char* argv[])
 		NetworKit::EdgeListReader reader (' ', NetworKit::node(0), "%", true, false);
 		inst.g = reader.read("../instances/facebook/facebook_combined.txt");
 		//inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g);
-		inst.k = 10;
 		inst.name = "Facebook Ego Full";
 		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
 		instances.push_back(inst);
 	}
 
 
-
-	//std::cout << "Threads: " << omp_get_num_threads() << std::endl;
-
-
-
-
 	if (run_experiments) {
 		for (auto inst: instances) {
 			auto & g = inst.g;
-			auto k = inst.k;
+			int k;
 			int n = g.numberOfNodes();
-			if (override_k) {
-				k = k_override;
+			if (km_sqrt) {
+				k = std::sqrt(n) * k_factor;
+			} else if (km_linear) {
+				k = n * k_factor;
+			} else if (km_crt) {
+				k = std::pow(n, 0.33333) * k_factor;
+			} else {
+				k = k_factor;
 			}
 
 			std::cout << "- Instance: \n";
-			std::cout << "\tName: " << inst.name << "\n";
+			std::cout << "\tName: '" << inst.name << "'\n";
 			std::cout << "\tNodes: " << n << "\n";
 			std::cout << "\tEdges: " << g.numberOfEdges() << "\n";
 			std::cout << "\tk: " << k << "\n";
@@ -654,9 +616,9 @@ int main(int argc, char* argv[])
 			}
 
 			auto write_result = [&](std::string name, double value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
-				std::cout << "\t\t- Algorithm:\t" << name << "\n";
+				std::cout << "\t\t- Algorithm:\t" << "'" << name << "'" << "\n";
 				if (variant_name != "") {
-					std::cout << "\t\t  Variant:\t" << variant_name << "\n";
+					std::cout << "\t\t  Variant:\t'" << variant_name << "'\n";
 				}
 				std::cout << "\t\t  Value:\t" << value << "\n";
 				using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
@@ -805,10 +767,10 @@ int main(int argc, char* argv[])
 	}
 
 	if (run_tests) {
-		testLaplacian(verbose);
+		testLaplacian(seed, verbose);
 	}
 
 	//testRobustnessGreedy();
-	//experiment();
+	//experiment(seed);
 	return 0;
 }

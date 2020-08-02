@@ -186,7 +186,7 @@ protected:
             }
             for (auto &v : edgeWeights) {
                 auto u = max - v;
-                v = u*u*u;
+                v = u; // TODO: Try u**3 here for various graphs
             }
             std::discrete_distribution<> d_edges(edgeWeights.begin(), edgeWeights.end());
             edgeIndex = d_edges(gen);

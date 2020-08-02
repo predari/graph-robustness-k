@@ -258,7 +258,7 @@ void StochasticGreedy<Item>::run() {
 
         std::priority_queue<ItemWrapper> R;
         unsigned int s = (unsigned int)(1.0 * this->N / k * std::log(1.0/epsilon)) + 1;
-        s = std::min(s, (unsigned int) this->items.size());
+        s = std::min(s, (unsigned int) this->items.size() - round);
 
         // Get a random subset of the items of size s.
         if (s > N/4) { // This is not a theoretically justified estimate

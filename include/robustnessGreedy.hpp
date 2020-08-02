@@ -103,7 +103,7 @@ public:
         {
             for (size_t j = 0; j < i; j++)
             {
-                if (i != j && !this->G.hasEdge(i, j)) {
+                if (!this->G.hasEdge(i, j)) {
                     items.push_back(Edge(i,j));
                 }
             }

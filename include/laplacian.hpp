@@ -11,14 +11,18 @@
 #include <networkit/algebraic/Vector.hpp>
 
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 
 
 Eigen::MatrixXd laplacianMatrix(NetworKit::Graph const & g);
+Eigen::SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g);
+
 Eigen::MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(Eigen::MatrixXd laplacian);
 
-//Eigen::VectorXd computeLaplacianPseudoinverseColumn(Eigen::MatrixXd const & laplacian, int index, bool connected = false);;
+Eigen::VectorXd laplacianPseudoinverseColumn(Eigen::SparseMatrix<double> & L, int k);
+
 
 // Update formula for the pseudoinverse of the Laplacian as an edge is added to the graph.
 // Add edge (i, j) and compute difference between the k-th column of the pseudoinverse.
@@ -42,9 +46,8 @@ void updateLaplacianPseudoinverse(Eigen::MatrixXd & lpinv, NetworKit::Edge e, do
 Eigen::MatrixXd updateLaplacianPseudoinverseCopy(Eigen::MatrixXd const & lpinv, NetworKit::Edge e, double conductance = 1.0);
 
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
-//std::vector<double> approxLaplacianPseudoinverseDiagonal(NetworKit::Graph const &G, double epsilon = 0.1);
-
-//std::vector<double> approxEffectiveResistances(NetworKit::Graph const &G, int &pivot);
+Eigen::VectorXd approxLaplacianPseudoinverseDiagonal(NetworKit::Graph const &G, double epsilon = 0.1);
+Eigen::VectorXd approxEffectiveResistances(NetworKit::Graph const &G, int &pivot, double epsilon = 0.1);
 
 
 #endif // LAPLACIAN_H
