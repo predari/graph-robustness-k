@@ -141,12 +141,12 @@ double laplacianPseudoinverseTraceDifference2(MatrixXd const & lpinv, NetworKit:
 	auto e1_L = lpinv.col(u1) - lpinv.col(v1);
 	auto e2_L = lpinv.col(u2) - lpinv.col(v2);
 
-	double a = conductance1 + e1_L(u1) - e1_L(v1);
+	double a = 1.0/conductance1 + e1_L(u1) - e1_L(v1);
 	double b = e1_L(u2) - e1_L(v2);
-	double c = conductance2 + e2_L(u2) - e2_L(v2);
+	double c = 1.0/conductance2 + e2_L(u2) - e2_L(v2);
 	double det = a*c - b*b;
 
-	return (-1.0) / det * (c * e1_L.squaredNorm() + (2.0*b) * e1_L.dot(e2_L) + a * e2_L.squaredNorm());
+	return (-1.0) / det * (c * e1_L.squaredNorm() - (2.0*b) * e1_L.dot(e2_L) + a * e2_L.squaredNorm());
 }
 
 // Based on Woodbury matrix identity. O(k^3 + k n^2 + k^2 n) where k is the number of edges. Does not compute the pseudoinverse explicitly.

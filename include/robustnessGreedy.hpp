@@ -3,6 +3,11 @@
 
 
 #include <utility>
+#include <random>
+#include <exception>
+#include <cmath>
+#include <set>
+#include <vector>
 
 #include <greedy.hpp>
 #include <laplacian.hpp>
@@ -18,12 +23,9 @@ using namespace NetworKit;
 
 // The greedy algorithms in this file optimize for large -R_tot.
 
-
-
-inline bool operator<(Edge const &lhs, Edge const & rhs) {
+inline bool operator<(const Edge& lhs, const Edge& rhs) {
     return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
 }
-
 
 
 class RobustnessGreedy final : public SubmodularGreedy<Edge>{
@@ -82,6 +84,161 @@ private:
 };
 
 
+class RobustnessSqGreedy final : public Algorithm {
+public:
+    void init(Graph G, int k, double epsilon = 0.1) {
+        this->G = G;
+        this->n = G.numberOfNodes();
+        this->k = k;
+        this->epsilon = epsilon;
+        gen = std::mt19937(Aux::Random::getSeed());
+
+        // Compute pseudoinverse of laplacian
+        this->lpinv = laplacianPseudoinverse(G);
+        this->totalValue = this->lpinv.trace() * n * (-1.0);
+    }
+
+    double getResultResistance() {
+        return this->totalValue * (-1.0);
+    }
+
+    std::vector<NetworKit::Edge> getResultEdges() {
+        return this->results;
+    }
+
+    bool isValidSolution() {
+        return this->validSolution;
+    }
+
+    void run() {
+        this->round = 0;
+        this->validSolution = false;
+        this->results.clear();
+        struct edge_cmp {
+            bool operator() (const Edge& lhs, const Edge& rhs) const {
+                return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
+            }
+        };
+        std::set<Edge, edge_cmp> resultSet;
+
+        if (k + G.numberOfEdges() > (n * (n-1) / 4)) {
+            this->hasRun = true;
+            std::cout << "Bad call to GreedySq, adding this many edges is not supported!";
+            return;
+        }
+
+        for (int r = 0; r < k; r++)
+        {
+            double bestGain = -std::numeric_limits<double>::infinity();
+            Edge bestEdge;
+
+            int it = 0;
+
+            do {
+                // Collect nodes set for current round
+                std::set<NetworKit::node> nodes;
+                //int s = (int)std::log2(n)*2;
+                //int s = //std::sqrt((n*(n-1) / 2) / k);
+                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon)) + 2;
+                //if (s > k-round) { s = k - round; }
+                if (s < 10) { s = 10; }
+
+                //if (s < 4) { s = 4; }
+                if (s > n/2) { s = n/2; }
+                double min = std::numeric_limits<double>::infinity();
+
+                std::vector<double> nodeWeights;
+                if (it++ < 2) { 
+                    double tr = lpinv.trace();
+                    for (int i = 0; i < n; i++) {
+                        double val = n * lpinv(i, i) + tr;
+                        if (val < min) { min = val; }
+                        nodeWeights.push_back(val);
+                    }
+                    for (auto &v : nodeWeights) {
+                        auto u = v - min;
+                        v = u*u;
+                    }
+                } else {
+                    for (int i = 0; i < n; i++) {
+                        nodeWeights.push_back(1.0/n);
+                    }
+                }
+
+                std::discrete_distribution<> d_nodes_resistance (nodeWeights.begin(), nodeWeights.end());
+
+                nodeWeights.clear();
+                for (int i = 0; i < n; i++) {
+                nodeWeights.push_back(1.0/n);
+                }
+                std::discrete_distribution<> d_nodes (nodeWeights.begin(), nodeWeights.end());
+
+                while (nodes.size() < s / 2) {
+                    nodes.insert(d_nodes_resistance(gen));
+                }
+                while (nodes.size() < s) {
+                    nodes.insert(d_nodes(gen));
+                }
+                std::vector<node> nodesVec {nodes.begin(), nodes.end()};
+                
+
+                // Determine best edge between nodes from node set
+                auto edgeValid = [&](node u, node v){
+                    if (this->G.hasEdge(u, v)) return false;
+                    if (resultSet.count(Edge(u, v)) > 0 || resultSet.count(Edge(v, u)) > 0) { return false; }
+                    return true;
+                };
+                for (int i = 0; i < s; i++) {
+                    auto u = nodesVec[i];
+                    for (int j = 0; j < i; j++) {
+                        auto v = nodesVec[j];
+                        if (edgeValid(u, v)) {
+                            double gain = objectiveDifference(Edge(u, v));
+                            if (gain > bestGain) {
+                                bestEdge = Edge(u, v);
+                                bestGain = gain;
+                            }
+                        }
+                    }
+                }
+            } while (bestGain == -std::numeric_limits<double>::infinity());
+            // Accept edge
+            resultSet.insert(bestEdge);
+            this->totalValue += bestGain;
+            updateLaplacianPseudoinverse(this->lpinv, bestEdge);
+
+            if (this->round == k-1)
+            {
+                this->validSolution = true;
+                break;
+            }
+            this->round++;
+        }
+        this->hasRun = true;
+        this->results = {resultSet.begin(), resultSet.end()};
+    }
+
+    
+private:
+    virtual double objectiveDifference(Edge e) {
+        auto i = e.u;
+        auto j = e.v;
+        return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
+    }
+
+    Graph G;
+    int n;
+    Eigen::MatrixXd lpinv;
+    std::mt19937 gen;
+
+
+	bool validSolution = false;
+	int round=0;
+	std::vector<Edge> results;
+	double totalValue = 0.0;
+    double epsilon = 0.1;
+    int k;
+};
 
 
 class RobustnessStochasticGreedy : public StochasticGreedy<Edge>{

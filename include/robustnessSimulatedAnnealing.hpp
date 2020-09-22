@@ -42,7 +42,6 @@ public:
     virtual void setInitialState(State const &s) = 0;
     virtual double getResultResistance() = 0;
     virtual std::vector<Edge> getResultEdges() = 0;
-    //virtual void run() = 0;
 };
 
 template <int transitionMethod=0>
@@ -186,7 +185,7 @@ protected:
             }
             for (auto &v : edgeWeights) {
                 auto u = max - v;
-                v = u; // TODO: Try u**3 here for various graphs
+                v = u*u; // TODO: Try u**3 here for various graphs
             }
             std::discrete_distribution<> d_edges(edgeWeights.begin(), edgeWeights.end());
             edgeIndex = d_edges(gen);
@@ -204,7 +203,7 @@ protected:
             }
             for (auto &v : nodeWeights) {
                 auto u = v - min;
-                v = u*u*u;
+                v = u*u;
             }
 
             std::discrete_distribution<> d_nodes(nodeWeights.begin(), nodeWeights.end());

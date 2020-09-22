@@ -187,6 +187,9 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 	result.clear();
 	std::set<std::pair<unsigned int, unsigned int>> es;
 	int n = G.numberOfNodes();
+	if (n*(n-1)/2 - G.numberOfEdges() < k) {
+		throw std::logic_error("Graph does not allow requested number of edges.");
+	}
 	for (int i = 0; i < k; i++) {
 		do {
 			int u = std::rand() % n;
@@ -195,7 +198,7 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 				std::swap(u, v);
 			}
 			auto e = std::pair<unsigned int, unsigned int> (u, v);
-			if (u != v && !G.hasEdge(u,v) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
+			if (u != v && !G.hasEdge(u,v) && !G.hasEdge(v,u) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
 				es.insert(e);
 				result.push_back(NetworKit::Edge(u, v));
 				break;
@@ -203,72 +206,6 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 		} while (true);
 	}
 	return result;
-}
-
-void experiment(int seed) {
-    using deci = std::chrono::duration<int, std::ratio<1, 10>>;
-    Aux::Random::setSeed(seed, true);
-	int n = 100;
-	int k = 1000;
-	double p = 0.05;
-	Graph smallworld = NetworKit::ErdosRenyiGenerator(n, p, false).generate();
-	//smallworld.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
-	std::cout << "Nodes: " << n << ", Edges: " << smallworld.numberOfEdges() << "\n";
-	
-	RobustnessGreedy rg;
-	auto t1 = std::chrono::high_resolution_clock::now();
-	rg.init(smallworld, k);
-	rg.addAllEdges();
-	rg.run();
-	auto t2 = std::chrono::high_resolution_clock::now();
-	std::cout << "Duration: " << std::chrono::duration_cast<deci>(t2-t1).count() << std::endl;
-	rg.summarize();
-	
-    Aux::Random::setSeed(seed, true);
-	
-	
-	RobustnessStochasticGreedy rgd;
-	auto t3 = std::chrono::high_resolution_clock::now();
-	rgd.init(smallworld, k, 0.8);
-	rgd.addAllEdges();
-	rgd.run();
-	auto t4 = std::chrono::high_resolution_clock::now();
-	std::cout << "Duration: " << std::chrono::duration_cast<deci>(t4-t3).count() << std::endl;
-	rgd.summarize();
-	
-
-
-/*
-
-	auto t5 = std::chrono::high_resolution_clock::now();
-	State s;
-	s.edges = randomEdges(smallworld, k);
-	auto t6 = std::chrono::high_resolution_clock::now();
-
-	auto t7 = std::chrono::high_resolution_clock::now();
-	RobustnessSimulatedAnnealing rsa;
-	rsa.init(smallworld, k);
-	rsa.setInitialTemperature();
-	//s.edges = rgd.getResultItems();
-	rsa.setInitialState(s);
-	rsa.setInitialTemperature();
-	double randomVal = rsa.getTotalValue();
-	rsa.summarize();
-	rsa.run();
-	auto t8 = std::chrono::high_resolution_clock::now();
-	rsa.summarize();
-	std::cout << "Duration: " << std::chrono::duration_cast<deci>(t6-t5).count() << std::endl;
-*/
-
-
-	auto g = smallworld;
-	using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-	std::cout << "Nodes: " << g.numberOfNodes() << ", Edges: " << g.numberOfEdges() << ", k=" << k << std::endl;
-	std::cout << "Submodular Greedy: \t\t\t\t" << (-1.0) * rg.getTotalValue() << ", \t\t"<< std::chrono::duration_cast<scnds>(t2-t1).count() << "s" << std::endl;
-	std::cout << "Stochastic Submodular Greedy: \t\t\t" << (-1.0) * rgd.getTotalValue() << ", \t\t"<< std::chrono::duration_cast<scnds>(t4-t3).count() << "s" << std::endl;
-	//std::cout << "Random Edges: \t\t\t\t\t" << randomVal << ", \t\t"<< std::chrono::duration_cast<scnds>(t6-t5).count() << "s" << std::endl;
-	//std::cout << "Simulated Annealing: \t\t\t\t" << rsa.getTotalValue() << ", \t\t"<< std::chrono::duration_cast<scnds>(t8-t7).count() << "s" << std::endl;
-
 }
 
 int main(int argc, char* argv[])
@@ -290,6 +227,7 @@ int main(int argc, char* argv[])
 	bool run_stochastic = false;
 	bool run_simulated_annealing = false;
 	bool run_combined = false;
+	bool run_a5 = false; 
 
 	bool heuristic_0 = false;
 	bool heuristic_1 = false;
@@ -297,11 +235,19 @@ int main(int argc, char* argv[])
 
 	bool verbose = false;
 	bool vv = false;
+	bool verify_result = false;
 
 	double k_factor = 1.0;
 	bool km_sqrt = false;
 	bool km_linear = false;
 	bool km_crt = false;
+
+	Graph g;
+	std::string instance_filename;
+	int instance_first_node = 0;
+	char instance_sep_char = ' ';
+	bool instance_directed = false;
+	std::string instance_comment_prefix = "%";
 
 	double roundFactor = 1.0;
 	int seed = 1;
@@ -309,12 +255,17 @@ int main(int argc, char* argv[])
 	std::string helpstring = "EXAMPLE CALL\n"
     	"\trobustness -a1 -a2 -i graph.gml\n"
 		"OPTIONS:\n" 
+		"\t-i <path to instance>\n"
 		"\t-v --verbose\n\t\tAlso output edge lists\n"
-		"\t--k-factor 5.3\n\t\tOverride the k value preset of the instance\n\n"
+		"\t-km\t\t k is a function of n, possible values: linear, sqrt, crt, const"
+		"\t-k 5.3\n\t multiplicative factor to influence k.\n\n"
 		"\t-a0\t\tRandom Edges\n"
 		"\t-a1\t\tSubmodular Greedy\n"
 		"\t-a2\t\tStochastic submodular greedy\n"
 		"\t-a3\t\tSimulated Annealing\n"
+		"\t-a4\t\tHill Climbing\n"
+		"\t-a5\t\tGreedy Sq\n"
+		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
 		"\n";
 
 
@@ -330,14 +281,6 @@ int main(int argc, char* argv[])
 		i++;
 		return argv[i];
 	};
-
-	struct Instance {
-		Graph g;
-		std::string name = "";
-		std::string graphParamDescription = "";
-		std::string description = "";
-	};
-	std::vector<Instance> instances;
 
 
 	for (int i = 1; i < argc; i++) {
@@ -358,6 +301,8 @@ int main(int argc, char* argv[])
 			vv = true;
 			continue;
 		}
+
+		if (arg == "-tr") { verify_result = true; }
 
 		if (arg == "-k" || arg == "--override-k" || arg == "--k-factor") {
 			std::string k_string = nextArg(i);
@@ -396,6 +341,7 @@ int main(int argc, char* argv[])
 		if (arg == "-a0" || arg == "--random-avg") { run_random_avg = true; continue; }
 		if (arg == "-a00" || arg == "--random") { run_random = true; continue; }
 		if (arg == "-a4" || arg == "--combined") { run_combined = true; continue; }
+		if (arg == "-a5") { run_a5 = true; continue;}
 
 		if (arg == "-h0") { heuristic_0 = true; continue; }
 		if (arg == "-h1") { heuristic_1 = true; continue; }
@@ -404,64 +350,22 @@ int main(int argc, char* argv[])
 
 
 		if (arg == "-i" || arg == "--instance") {
-			Instance inst;
-			NetworKit::Graph g;
-
-			std::string filename = nextArg(i);
-			std::string prefix = "../instances/";
-			inst.name = filename;
-
-			auto hasEnding = [&] (std::string const &fullString, std::string const &ending) {
-				if (fullString.length() >= ending.length()) {
-					return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
-				} else {
-					return false;
-				}
-			};
-			auto hasStart = [&] (std::string const &fullString, std::string const &start) {
-				if (fullString.length() >= start.length()) {
-					return (0 == fullString.compare (0, start.length(), start));
-				} else {
-					return false;
-				}
-			};
-			//if (!hasStart(filename, "/")) { filename = prefix + filename; }
-			if (hasEnding(filename, ".gml")) {
-				GMLGraphReader reader;
-				try { g = reader.read(filename); }
-				catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + filename << '\n'; return 1;}
-				inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-			} else {
-				bool success = false;
-				try {
-					NetworKit::EdgeListReader reader(' ', NetworKit::node(1), "%", true, false);
-					g = reader.read(filename);
-					success = true;
-				} catch (const std::exception& e) {}
-				if (!success) try {
-					NetworKit::EdgeListReader reader('\t', NetworKit::node(1), "%", true, false);
-					g = reader.read(filename);
-					success = true;
-				} catch (const std::exception& e) {}
-				if (!success) try {
-					NetworKit::EdgeListReader reader(' ', NetworKit::node(1), "%", true, true);
-					g = reader.read(filename);
-					success = true;
-				} catch (const std::exception& e) {}
-				if (!success) try {
-					NetworKit::EdgeListReader reader('\t', NetworKit::node(1), "%", true, true);
-					g = reader.read(filename);
-					success = true;
-				} 
-				catch (const std::exception& e) { 
-					std::cout << "Failed to open or parse edge list file " + filename << '\n' << e.what() << "\n"; 
-					return 1;
-				}
-				inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-			}
-			instances.push_back(inst);
+			instance_filename = nextArg(i);
 			continue;
 		}
+		if (arg == "-in") {
+			instance_first_node = atoi(nextArg(i));
+		}
+		if (arg == "-isep") {
+			instance_sep_char = nextArg(i)[0];
+		}
+		if (arg == "-id") {
+			instance_directed = true;
+		}
+		if (arg == "-ic") {
+			instance_comment_prefix = nextArg(i);
+		}
+		
 	}
 
 
@@ -470,168 +374,139 @@ int main(int argc, char* argv[])
 	}
 
 
-	// TODO: move this to simexpal.
-	if (cmdOptionExists(argc, argv, "-gpwr0")) {
-		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		Instance inst;
-		auto g = reader.read("../instances/opsahl-powergrid/out.opsahl-powergrid");
-		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.name = "US Powergrid";
-		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gpwr1")) {
-		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		Instance inst;
-		auto g = reader.read("../instances/opsahl-powergrid/out.opsahl-powergrid");
-		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.name = "US Powergrid";
-		inst.description = "This undirected network contains information about the power grid of the Western States of the United States of America. An edge represents a power supply line. A node is either a generator, a transformator or a substation.\nhttp://konect.uni-koblenz.de/networks/opsahl-powergrid";
-		instances.push_back(inst);
+	// Read graph file
+
+	auto hasEnding = [&] (std::string const &fullString, std::string const &ending) {
+		if (fullString.length() >= ending.length()) {
+			return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+		} else {
+			return false;
+		}
+	};
+	auto hasStart = [&] (std::string const &fullString, std::string const &start) {
+		if (fullString.length() >= start.length()) {
+			return (0 == fullString.compare (0, start.length(), start));
+		} else {
+			return false;
+		}
+	};
+	if (hasEnding(instance_filename, ".gml")) {
+		GMLGraphReader reader;
+		try { g = reader.read(instance_filename); }
+		catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1;}
+		g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+	} else {
+		try {
+			NetworKit::EdgeListReader reader(instance_sep_char, NetworKit::node(instance_first_node), instance_comment_prefix, true, instance_directed);
+			g = reader.read(instance_filename);
+		}
+		catch (const std::exception& e) { 
+			std::cout << "Failed to open or parse edge list file " + instance_filename << '\n' << e.what() << "\n"; 
+			return 1;
+		}
+		g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 	}
 
-	if (cmdOptionExists(argc, argv, "-gi0")) {
-		Instance inst;
-		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../instances/internet-topology-zoo/AsnetAm.gml");
-		inst.name = "ASNET-AM";
-		inst.description = "Armenia Backbone, Customer IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gi1")) {
-		Instance inst;
-		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../instances/internet-topology-zoo/Bellsouth.gml");
-		inst.name = "Bell South";
-		inst.description = "USA south east Backbone, Customer, Transit IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gi2")) {
-		Instance inst;
-		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../instances/internet-topology-zoo/Deltacom.gml");
-		inst.name = "ITC Deltacom";
-		inst.description = "USA south east Backbone, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gi3")) {
-		Instance inst;
-		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../instances/internet-topology-zoo/Ion.gml");
-		inst.name = "ION";
-		inst.description = "USA NY region Backbone, Customer, Transit fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gi4")) {
-		Instance inst;
-		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../instances/internet-topology-zoo/UsCarrier.gml");
-		inst.name = "US Carrier";
-		inst.description = "USA south east backbone, customer fibre network topology. \nhttp://www.topology-zoo.org/dataset.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gi5")) {
-		Instance inst;
-		NetworKit::GMLGraphReader reader;
-		inst.g = reader.read("../instances/internet-topology-zoo/Dfn.gml");
-		inst.name = "DFN";
-		inst.description = "Germany DFN Backbone, Testbed IP network topology. \nhttp://www.topology-zoo.org/dataset.html";
-		instances.push_back(inst);
-	}
-
-
-
-	if (cmdOptionExists(argc, argv, "-gfb1")) {
-		Instance inst;
-		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		auto g = reader.read("../instances/facebook/3980.edges");
-		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.name = "Facebook Ego 3980";
-		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gfb2")) {
-		Instance inst;
-		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		auto g = reader.read("../instances/facebook/686.edges");
-		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.name = "Facebook Ego 686";
-		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gfb3")) {
-		Instance inst;
-		NetworKit::EdgeListReader reader (' ', NetworKit::node(1), "%", true, false);
-		auto g = reader.read("../instances/facebook/3437.edges");
-		inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-		inst.name = "Facebook Ego 3437";
-		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
-		instances.push_back(inst);
-	}
-	if (cmdOptionExists(argc, argv, "-gfb0")) {
-		Instance inst;
-		NetworKit::EdgeListReader reader (' ', NetworKit::node(0), "%", true, false);
-		inst.g = reader.read("../instances/facebook/facebook_combined.txt");
-		//inst.g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g);
-		inst.name = "Facebook Ego Full";
-		inst.description = "https://snap.stanford.edu/data/egonets-Facebook.html";
-		instances.push_back(inst);
-	}
 
 
 	if (run_experiments) {
-		for (auto inst: instances) {
-			auto & g = inst.g;
-			int k;
-			int n = g.numberOfNodes();
-			if (km_sqrt) {
-				k = std::sqrt(n) * k_factor;
-			} else if (km_linear) {
-				k = n * k_factor;
-			} else if (km_crt) {
-				k = std::pow(n, 0.33333) * k_factor;
-			} else {
-				k = k_factor;
-			}
+		int k;
+		int n = g.numberOfNodes();
+		if (km_sqrt) {
+			k = std::sqrt(n) * k_factor;
+		} else if (km_linear) {
+			k = n * k_factor;
+		} else if (km_crt) {
+			k = std::pow(n, 0.33333) * k_factor;
+		} else {
+			k = k_factor;
+		}
+		k = std::min(k, (int)(n*(n-1)/2 - g.numberOfEdges()));
+		k = std::max(k, 1);
 
-			std::cout << "- Instance: \n";
-			std::cout << "\tName: '" << inst.name << "'\n";
-			std::cout << "\tNodes: " << n << "\n";
-			std::cout << "\tEdges: " << g.numberOfEdges() << "\n";
-			std::cout << "\tk: " << k << "\n";
+		std::cout << "Runs: \n";
+
+
+		NetworKit::ConnectedComponents comp {g};
+		comp.run();
+		if (comp.numberOfComponents() != 1) {
+			std::cout << "Error: Instance " << instance_filename << " is not connected!\n";
+			return 1;
+		}
+
+		auto write_result = [&](std::string name, double value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
+			std::cout << "- Instance: '" << instance_filename << "'\n";
+			std::cout << "  Nodes: " << n << "\n";
+			std::cout << "  Edges: " << g.numberOfEdges() << "\n";
+			std::cout << "  k: " << k << "\n";
+			std::string call = "";
+			for (int i = 0; i < argc; i++) {
+				call += argv[i]; call += " ";
+			}
+			std::cout << "  Call: " << call << "\n";
 			if (verbose) {
-				std::cout << "\tEdgeList: [";
+				std::cout << "  EdgeList: [";
 				g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
 				std::cout << "]\n" << std::endl;
-
-			}
-			std::cout << "\tRuns: \n";
-
-
-			NetworKit::ConnectedComponents comp {g};
-			comp.run();
-			if (comp.numberOfComponents() != 1) {
-				std::cout << "Error: Instance " << inst.name << " is not connected!\n";
-				return 1;
 			}
 
-			auto write_result = [&](std::string name, double value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
-				std::cout << "\t\t- Algorithm:\t" << "'" << name << "'" << "\n";
-				if (variant_name != "") {
-					std::cout << "\t\t  Variant:\t'" << variant_name << "'\n";
-				}
-				std::cout << "\t\t  Value:\t" << value << "\n";
-				using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-				std::cout << "\t\t  Time:\t\t" << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-				if (verbose) {
-					std::cout << "\t\t  EdgeList:\t[";
-					for (auto e: edges) { std::cout << "(" << e.u << ", " << e.v << "), "; }
-					std::cout << "]\n" << std::endl;
-				}
-			};
+			std::cout << "  Algorithm:  " << "'" << name << "'" << "\n";
+			if (variant_name != "") {
+				std::cout << "  Variant:  '" << variant_name << "'\n";
+			}
+			std::cout << "  Value:  " << value << "\n";
+			using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+			std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+			if (verbose) {
+				std::cout << "  AddedEdgeList:  [";
+				for (auto e: edges) { std::cout << "(" << e.u << ", " << e.v << "), "; }
+				std::cout << "]\n" << std::endl;
+			}
+		};
 
-			if (run_random) {
-				Aux::Random::setSeed(seed, true);
+		auto result_correct = [&](double value, std::vector<NetworKit::Edge> edges) {
+			if (edges.size() != k) { 
+				std::cout << "Error: Output size != k\n"; 
+				return false;
+			}
+			for (auto e : edges) { 
+				if (g.hasEdge(e.u, e.v)) { 
+					std::cout << "Error: Edge from result already in original graph! (" << e.u << ", " << e.v << ")\n";
+					return false;
+				}
+			}
+			auto g_ = g;
+			for (auto e: edges) { g_.addEdge(e.u, e.v); }
+			double v = g_.numberOfNodes() * laplacianPseudoinverse(g_).trace();
+			if (std::abs(value - v) > 0.000001) {
+				std::cout << "Error: Value Test failed. Algorithm output: " << value << ", computed: " << v << "\n";
+				return false;
+			}
+			return true;
+		};
+
+		if (run_random) {
+			Aux::Random::setSeed(seed, true);
+			auto t1 = std::chrono::high_resolution_clock::now();
+			auto edges = randomEdges(g, k);
+			auto t2 = std::chrono::high_resolution_clock::now();
+
+			auto G_copy = g;
+			for (auto e : edges) {
+				G_copy.addEdge(e.u, e.v);
+			}
+			double resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
+
+			write_result("Random Edges", resistance, t2 - t1, edges, "");
+			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+		}
+
+		if (run_random_avg) {
+			Aux::Random::setSeed(seed, true);
+			double resistance = 0.0;
+			std::chrono::nanoseconds duration;
+			int rnds = 10;
+			for (int i = 0; i < rnds; i++) {
 				auto t1 = std::chrono::high_resolution_clock::now();
 				auto edges = randomEdges(g, k);
 				auto t2 = std::chrono::high_resolution_clock::now();
@@ -640,127 +515,161 @@ int main(int argc, char* argv[])
 				for (auto e : edges) {
 					G_copy.addEdge(e.u, e.v);
 				}
-				double resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
+				duration += (t2 - t1);
+				resistance += G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
+			}
+			write_result("Random Edges averaged", resistance / rnds, duration / rnds, {}, "");
+		}
 
-				write_result("Random Edges", resistance, t2 - t1, edges, "");
+
+		if (run_submodular) {
+			Aux::Random::setSeed(seed, true);
+			RobustnessGreedy rg;
+			auto t1 = std::chrono::high_resolution_clock::now();
+			rg.init(g, k);
+			rg.addAllEdges();
+			rg.run();
+			auto t2 = std::chrono::high_resolution_clock::now();
+
+			auto resistance = rg.getResultResistance();
+			auto edges = rg.getResultEdges();
+
+			write_result("Submodular Greedy", rg.getResultResistance(), t2 - t1, rg.getResultEdges(), "");
+			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+		}
+		if (run_a5) {
+			Aux::Random::setSeed(seed, true);
+			RobustnessSqGreedy rg;
+			auto t1 = std::chrono::high_resolution_clock::now();
+			rg.init(g, k);
+			rg.run();
+			auto t2 = std::chrono::high_resolution_clock::now();
+			if (rg.isValidSolution()) {
+				auto resistance = rg.getResultResistance();
+				auto edges = rg.getResultEdges();
+				write_result("Greedy Sq", resistance, t2 - t1, edges, "");
+				if (verify_result && !result_correct(resistance, edges)) { return 1; }
+			} else {
+				std::cout << "A5 failed!";
+				return 1;
 			}
 
-			if (run_random_avg) {
+		}
+		if (run_submodular2) {
+			Aux::Random::setSeed(seed, true);
+			RobustnessGreedy2 rg;
+			auto t1 = std::chrono::high_resolution_clock::now();
+			rg.init(g, k);
+			rg.addAllEdges();
+			rg.run();
+			auto t2 = std::chrono::high_resolution_clock::now();
+
+			auto resistance = rg.getResultResistance();
+			auto edges = rg.getResultEdges();
+			write_result("Submodular Greedy", resistance, t2 - t1, edges, "Lpinv Updates On Demand");
+			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+		}
+		if (run_stochastic) {
+			Aux::Random::setSeed(seed, true);
+			RobustnessStochasticGreedy rs;
+			auto t1 = std::chrono::high_resolution_clock::now();
+			rs.init(g, k, 0.5);
+			rs.addAllEdges();
+			rs.run();
+			auto resistance = rs.getResultResistance();
+			auto edges = rs.getResultEdges();
+			auto t2 = std::chrono::high_resolution_clock::now();
+			write_result("Submodular Greedy", resistance, t2 - t1, edges, "");
+			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+
+		}
+
+
+		// TODO: Fix duplication in the following section.
+		if (run_simulated_annealing || run_combined) {
+			auto run_and_analyze = [&](RobustnessSimulatedAnnealingBase& rsa, int variant, bool combined) {
 				Aux::Random::setSeed(seed, true);
-				double resistance = 0.0;
-				std::chrono::nanoseconds duration;
-				int rnds = 10;
-				for (int i = 0; i < rnds; i++) {
-					auto t1 = std::chrono::high_resolution_clock::now();
-					auto edges = randomEdges(g, k);
-					auto t2 = std::chrono::high_resolution_clock::now();
-
-					auto G_copy = g;
-					for (auto e : edges) {
-						G_copy.addEdge(e.u, e.v);
-					}
-					duration += (t2 - t1);
-					resistance += G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
-				}
-				write_result("Random Edges averaged", resistance / rnds, duration / rnds, {}, "");
-			}
-
-
-			if (run_submodular) {
-				Aux::Random::setSeed(seed, true);
-				RobustnessGreedy rg;
 				auto t1 = std::chrono::high_resolution_clock::now();
-				rg.init(g, k);
-				rg.addAllEdges();
-				rg.run();
-				auto t2 = std::chrono::high_resolution_clock::now();
-				write_result("Submodular Greedy", rg.getResultResistance(), t2 - t1, rg.getResultEdges(), "");
-			}
-			if (run_submodular2) {
-				Aux::Random::setSeed(seed, true);
-				RobustnessGreedy2 rg;
-				auto t1 = std::chrono::high_resolution_clock::now();
-				rg.init(g, k);
-				rg.addAllEdges();
-				rg.run();
-				auto t2 = std::chrono::high_resolution_clock::now();
-				write_result("Submodular Greedy", rg.getResultResistance(), t2 - t1, rg.getResultEdges(), "Lpinv Updates On Demand");
-			}
-			if (run_stochastic) {
-				Aux::Random::setSeed(seed, true);
-				RobustnessStochasticGreedy rs;
-				auto t1 = std::chrono::high_resolution_clock::now();
-				rs.init(g, k, 0.5);
-				rs.addAllEdges();
-				rs.run();
-				auto t2 = std::chrono::high_resolution_clock::now();
-				write_result("Submodular Greedy", rs.getResultResistance(), t2 - t1, rs.getResultEdges(), "");
-			}
-
-
-			if (run_simulated_annealing || run_combined) {
-				auto run_and_analyze = [&](RobustnessSimulatedAnnealingBase& rsa, int variant, bool combined) {
-					Aux::Random::setSeed(seed, true);
-					auto t1 = std::chrono::high_resolution_clock::now();
-					int variation;
-		
-					State s;
-					if (combined) {
-						RobustnessGreedy rg;
-						rg.init(g, k);
-						rg.addAllEdges();
-						rg.run();
-						s.edges = rg.getResultItems();
-					} else {
-						s.edges = randomEdges(g, k);
-					}
-					rsa.init(g, k, roundFactor);
-					rsa.setInitialState(s);
-
-					rsa.run();
-					auto t2 = std::chrono::high_resolution_clock::now();
-
-					double value = rsa.getResultResistance();
-
-					std::vector<std::string> variant_names = {"Random", "Resistance-Based", "Resistance-Based, Multiple"};
-
-					std::string name = "Simulated Annealing";
-					if (combined) { name = "Submodular Greedy + Simulated Annealing"; }
-					write_result(name, value, t2 - t1, rsa.getResultEdges(), variant_names[variant]);
-				};
-
-				if (heuristic_0) {
-					const int variant = 0;
-					if (run_combined) {
-						RobustnessSimulatedAnnealing<variant> rsa;
-						run_and_analyze(rsa, variant, true);
-					}
-					if (run_simulated_annealing) {
-						RobustnessSimulatedAnnealing<variant> rsa;
-						run_and_analyze(rsa, variant, false);
-					}
+				int variation;
+	
+				State s;
+				if (combined) {
+					RobustnessGreedy rg;
+					rg.init(g, k);
+					rg.addAllEdges();
+					rg.run();
+					s.edges = rg.getResultItems();
+				} else {
+					s.edges = randomEdges(g, k);
 				}
-				if (heuristic_1) {
-					const int variant = 1;
-					if (run_combined) {
-						RobustnessSimulatedAnnealing<variant> rsa;
-						run_and_analyze(rsa, variant, true);
-					}
-					if (run_simulated_annealing) {
-						RobustnessSimulatedAnnealing<variant> rsa;
-						run_and_analyze(rsa, variant, false);
-					}
+				rsa.init(g, k, roundFactor);
+				rsa.setInitialState(s);
+
+				if (vv) { rsa.setVerbose(true); }
+
+				rsa.run();
+				auto t2 = std::chrono::high_resolution_clock::now();
+
+				double value = rsa.getResultResistance();
+
+				std::vector<std::string> variant_names = {"Random", "Resistance-Based", "Resistance-Based, Multiple"};
+
+				std::string name = "Simulated Annealing";
+				if (combined) { name = "Submodular Greedy + Simulated Annealing"; }
+				auto resistance = rsa.getResultResistance();
+				auto edges = rsa.getResultEdges();
+				write_result(name, resistance, t2 - t1, edges, variant_names[variant]);
+			};
+
+			if (heuristic_0) {
+				const int variant = 0;
+				if (run_combined) {
+					RobustnessSimulatedAnnealing<variant> rsa;
+					run_and_analyze(rsa, variant, true);
+					auto resistance = rsa.getResultResistance();
+					auto edges = rsa.getResultEdges();
+					if (verify_result && !result_correct(resistance, edges)) { return 1; }
 				}
-				if (heuristic_2) {
-					const int variant = 2;
-					if (run_combined) {
-						RobustnessSimulatedAnnealing<variant> rsa;
-						run_and_analyze(rsa, variant, true);
-					}
-					if (run_simulated_annealing) {
-						RobustnessSimulatedAnnealing<variant> rsa;
-						run_and_analyze(rsa, variant, false);
-					}
+				if (run_simulated_annealing) {
+					RobustnessSimulatedAnnealing<variant> rsa;
+					run_and_analyze(rsa, variant, false);
+					auto resistance = rsa.getResultResistance();
+					auto edges = rsa.getResultEdges();
+					if (verify_result && !result_correct(resistance, edges)) { return 1; }
+				}
+			}
+			if (heuristic_1) {
+				const int variant = 1;
+				if (run_combined) {
+					RobustnessSimulatedAnnealing<variant> rsa;
+					run_and_analyze(rsa, variant, true);
+					auto resistance = rsa.getResultResistance();
+					auto edges = rsa.getResultEdges();
+					if (verify_result && !result_correct(resistance, edges)) { return 1; }
+				}
+				if (run_simulated_annealing) {
+					RobustnessSimulatedAnnealing<variant> rsa;
+					run_and_analyze(rsa, variant, false);
+					auto resistance = rsa.getResultResistance();
+					auto edges = rsa.getResultEdges();
+					if (verify_result && !result_correct(resistance, edges)) { return 1; }
+				}
+			}
+			if (heuristic_2) {
+				const int variant = 2;
+				if (run_combined) {
+					RobustnessSimulatedAnnealing<variant> rsa;
+					run_and_analyze(rsa, variant, true);
+					auto resistance = rsa.getResultResistance();
+					auto edges = rsa.getResultEdges();
+					if (verify_result && !result_correct(resistance, edges)) { return 1; }
+				}
+				if (run_simulated_annealing) {
+					RobustnessSimulatedAnnealing<variant> rsa;
+					run_and_analyze(rsa, variant, false);
+					auto resistance = rsa.getResultResistance();
+					auto edges = rsa.getResultEdges();
+					if (verify_result && !result_correct(resistance, edges)) { return 1; }
 				}
 			}
 		}

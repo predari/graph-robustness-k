@@ -1,22 +1,50 @@
 experiments:
   - name: submodular-greedy
-    args: ['./build/robustness', '-a1', '-i', '@INSTANCE@']
+    args: ['./build/robustness', '-a1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     output: stdout
   - name: stochastic-greedy
-    args: ['./build/robustness', '-a2', '-i', '@INSTANCE@']
+    args: ['./build/robustness', '-a2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    output: stdout
+  - name: hillclimbing-random
+    args: ['./build/robustness', '-a3', '-h0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    output: stdout
+  - name: hillclimbing-resistance-based
+    args: ['./build/robustness', '-a3', '-h1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    output: stdout
+  - name: hillclimbing-resistance-based-multiple
+    args: ['./build/robustness', '-a3', '-h2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    output: stdout
+  - name: random-averaged
+    args: ['./build/robustness', '-a0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    output: stdout
+  - name: greedy-sq
+    args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     output: stdout
 
 variants:
-  - axis: 'k'
+  - axis: 'k-size'
     items:
-      - name: 'const'
-        extra_args: ['--k-factor', '10.0']
-      - name: 'crt'
-        extra_args: ['-km', 'crt', '--k-factor', '3.0']
-      - name: 'sqrt'
-        extra_args: ['-km', 'sqrt', '--k-factor', '3.0']
-      - name: 'linear'
-        extra_args: ['-km', 'linear', '--k-factor', '3.0']
+      # - name: 'crt'
+      #   extra_args: ['-km', 'crt', '--k-factor', '3.0']
+      # - name: 'sqrt'
+      #   extra_args: ['-km', 'sqrt', '--k-factor', '3.0']
+      #- name: '2**-7'
+      #  extra_args: ['-km', 'linear', '--k-factor', '0.0078125']
+      #- name: '2**-5'
+      #  extra_args: ['-km', 'linear', '--k-factor', '0.03125']
+      - name: '2**-4'
+        extra_args: ['-km', 'linear', '--k-factor', '0.0625']
+      - name: '2**-2'
+        extra_args: ['-km', 'linear', '--k-factor', '0.25']
+      - name: '2**0'
+        extra_args: ['-km', 'linear', '--k-factor', '1.0']
+      - name: '2**2'
+        extra_args: ['-km', 'linear', '--k-factor', '4.0']
+      - name: 2**4
+        extra_args: ['-km', 'linear', '--k-factor', '16.0']
+      #- name: 'const'
+      #  extra_args: ['--k-factor', '10.0']
+
 instdir: "instances"
 instances:
 # size1: 10-30 nodes
@@ -30,16 +58,16 @@ instances:
     items: 
       - ErdosRenyi_10_0.4.gml
     set: [size1]
-  - generator:
-      args: ['./generator.py', '-er', '30', '0.3']
-    items:  
-      - ErdosRenyi_30_0.3.gml
-    set: [size1]
-  - generator:
-      args: ['./generator.py', '-er', '128', '0.1']
-    items:  
-      - ErdosRenyi_128_0.1.gml
-    set: [size3]
+  # - generator:
+  #     args: ['./generator.py', '-er', '30', '0.3']
+  #   items:  
+  #     - ErdosRenyi_30_0.3.gml
+  #   set: [size1]
+  # - generator:
+  #     args: ['./generator.py', '-er', '128', '0.1']
+  #   items:  
+  #     - ErdosRenyi_128_0.1.gml
+  #   set: [size3]
   - generator:
       args: ['./generator.py', '-er', '300', '0.05']
     items:  
@@ -65,16 +93,16 @@ instances:
     items:  
       - WattsStrogatz_10_3_0.4.gml
     set: [size1]
-  - generator:
-      args: ['./generator.py', '-ws', '30', '5', '0.4']
-    items:  
-      - WattsStrogatz_30_5_0.4.gml
-    set: [size1]
-  - generator:
-      args: ['./generator.py', '-ws', '100', '5', '0.5']
-    items:  
-      - WattsStrogatz_100_5_0.5.gml
-    set: [size2]
+  # - generator:
+  #     args: ['./generator.py', '-ws', '30', '5', '0.4']
+  #   items:  
+  #     - WattsStrogatz_30_5_0.4.gml
+  #   set: [size1]
+  # - generator:
+  #     args: ['./generator.py', '-ws', '100', '5', '0.5']
+  #   items:  
+  #     - WattsStrogatz_100_5_0.5.gml
+  #   set: [size2]
   - generator:
       args: ['./generator.py', '-ws', '300', '7', '0.5']
     items:  
@@ -96,9 +124,14 @@ instances:
       - BarabasiAlbert_2_1000_2.gml      
     set: [size4]
   - generator:
-      args: ['./generator.py' '-ba', '200', '400', '8']
+      args: ['./generator.py', '-ba', '4', '3000', '4']
+    items:
+      - BarabasiAlbert_4_3000_4.gml
+  - generator:
+      args: ['./generator.py', '-ba', '200', '400', '8']
     items:
       - BarabasiAlbert_200_400_8.gml
+    set: [size3]
   - repo: local
     set: [size2]
     items: 
@@ -114,14 +147,12 @@ instances:
     set: [size6]
     items:
       - 'facebook_combined'
-  - repo: konect
-    set: [size6]
-    items:
-      - 'edit-tywiki'
+    args: ['-in', '0']
   - repo: konect
     set: [size5]
     items: 
       - 'opsahl-usairport'
+    args: ['-in', '1']
 #  - repo: konect
 #    set: [size7]
 #    items:
