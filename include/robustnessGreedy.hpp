@@ -121,9 +121,9 @@ public:
         };
         std::set<Edge, edge_cmp> resultSet;
 
-        if (k + G.numberOfEdges() > (n * (n-1) / 4)) {
+        if (k + G.numberOfEdges() > (n * (n-1) / 8*3)) {
             this->hasRun = true;
-            std::cout << "Bad call to GreedySq, adding this many edges is not supported!";
+            std::cout << "Bad call to GreedySq, adding this many edges is not supported! Attempting to have " << k + G.numberOfEdges() << " edges, limit is " << n*(n-1) / 8 *3;
             return;
         }
 

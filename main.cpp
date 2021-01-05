@@ -359,6 +359,10 @@ int main(int argc, char* argv[])
 		if (arg == "-isep") {
 			instance_sep_char = nextArg(i)[0];
 		}
+		if (arg == "--isepspace") {
+			instance_sep_char = ' ';
+			std::cout << "OY";
+		}
 		if (arg == "-id") {
 			instance_directed = true;
 		}
@@ -372,6 +376,12 @@ int main(int argc, char* argv[])
 	if (!heuristic_1 && !heuristic_2) {
 		heuristic_0 = true;
 	}
+
+	std::string call = "";
+	for (int i = 0; i < argc; i++) {
+		call += argv[i]; call += " ";
+	}
+	//std::cout << "  Call: " << call << "\n";
 
 
 	// Read graph file

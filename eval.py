@@ -64,6 +64,8 @@ def plot_instance(df, instance_name):
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     fig.suptitle(instance_name)
+    fig.set_size_inches((8,8))
+    fig._set_dpi(200)
 
     ax1.set_xlabel('k')
     ax1.set_xscale('log')
@@ -101,6 +103,11 @@ def plot_instance(df, instance_name):
     ax1.legend()
     ax2.legend()
     fig.savefig(instance_name + ".png")
-    plt.show()
+    #plt.show()
 
 plot_instance(df, "WattsStrogatz_1000_7_0.3")
+plot_instance(df, "BarabasiAlbert_200_400_8")
+plot_instance(df, "opsahl-usairport")
+#plot_instance(df, "facebook_combined")
+plot_instance(df, "dimacs10-netscience")
+plot_instance(df, "ErdosRenyi_3000_0.01")

@@ -4,3 +4,6 @@
 [submodule "networkit"]
 	path = networkit
 	url = https://gitlab.informatik.hu-berlin.de/goergmat/networkit-graph-robustness
+[submodule "FlameGraph"]
+	path = FlameGraph
+	url = https://github.com/brendangregg/FlameGraph

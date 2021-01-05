@@ -5,19 +5,19 @@ experiments:
   - name: stochastic-greedy
     args: ['./build/robustness', '-a2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     output: stdout
-  - name: hillclimbing-random
-    args: ['./build/robustness', '-a3', '-h0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
-  - name: hillclimbing-resistance-based
-    args: ['./build/robustness', '-a3', '-h1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
-  - name: hillclimbing-resistance-based-multiple
-    args: ['./build/robustness', '-a3', '-h2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
+#  - name: hillclimbing-random
+#    args: ['./build/robustness', '-a3', '-h0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+#    output: stdout
+#  - name: hillclimbing-resistance-based
+#    args: ['./build/robustness', '-a3', '-h1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+#    output: stdout
+#  - name: hillclimbing-resistance-based-multiple
+#    args: ['./build/robustness', '-a3', '-h2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+#    output: stdout
   - name: random-averaged
     args: ['./build/robustness', '-a0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     output: stdout
-  - name: greedy-sq
+  - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     output: stdout
 
@@ -53,21 +53,11 @@ instances:
 # size4: 300-1000 nodes
 # size5: 1000-3000 nodes
 # size6: 3000-10000 nodes
-  - generator:
-      args: ['./generator.py', '-er', '10', '0.4']
-    items: 
-      - ErdosRenyi_10_0.4.gml
-    set: [size1]
-  # - generator:
-  #     args: ['./generator.py', '-er', '30', '0.3']
-  #   items:  
-  #     - ErdosRenyi_30_0.3.gml
-  #   set: [size1]
-  # - generator:
-  #     args: ['./generator.py', '-er', '128', '0.1']
-  #   items:  
-  #     - ErdosRenyi_128_0.1.gml
-  #   set: [size3]
+#  - generator:
+#      args: ['./generator.py', '-er', '10', '0.4']
+#    items: 
+#      - ErdosRenyi_10_0.4.gml
+#    set: [size1]
   - generator:
       args: ['./generator.py', '-er', '300', '0.05']
     items:  
@@ -88,21 +78,11 @@ instances:
     items:  
       - ErdosRenyi_3000_0.01.gml
     set: [size5]
-  - generator:
-      args: ['./generator.py', '-ws', '10', '3', '0.4']
-    items:  
-      - WattsStrogatz_10_3_0.4.gml
-    set: [size1]
-  # - generator:
-  #     args: ['./generator.py', '-ws', '30', '5', '0.4']
-  #   items:  
-  #     - WattsStrogatz_30_5_0.4.gml
-  #   set: [size1]
-  # - generator:
-  #     args: ['./generator.py', '-ws', '100', '5', '0.5']
-  #   items:  
-  #     - WattsStrogatz_100_5_0.5.gml
-  #   set: [size2]
+#  - generator:
+#      args: ['./generator.py', '-ws', '10', '3', '0.4']
+#    items:  
+#      - WattsStrogatz_10_3_0.4.gml
+#    set: [size1]
   - generator:
       args: ['./generator.py', '-ws', '300', '7', '0.5']
     items:  
@@ -135,24 +115,38 @@ instances:
   - repo: local
     set: [size2]
     items: 
-      - ucidata-zachary/out.ucidata-zachary
       - internet-topology-zoo/AsnetAm.gml
       - internet-topology-zoo/Bellsouth.gml
       - internet-topology-zoo/Deltacom.gml
       - internet-topology-zoo/Dfn.gml
       - internet-topology-zoo/Ion.gml
       - internet-topology-zoo/UsCarrier.gml
-      - facebook/3980.edges
+  - repo: konect
+    set: [size2]
+    items:
+      - 'ucidata-zachary'
+    args: ['-in', '1', '--isepspace']
   - repo: snap
     set: [size6]
     items:
       - 'facebook_combined'
-    args: ['-in', '0']
+    args: ['-in', '0', '--isepspace']
   - repo: konect
     set: [size5]
     items: 
       - 'opsahl-usairport'
+      - 'subelj_euroroad'
+    extra_args: ['-in', '1', '--isepspace']
+  - repo: konect
+    set: [size5]
+    items: 
+      - 'dimacs10-netscience'
     args: ['-in', '1']
+  - repo: konect
+    set: [size6]
+    items: 
+      - 'opsahl-powergrid/out.opsahl-powergrid'
+    args: ['-in', '1', '--isepspace']
 #  - repo: konect
 #    set: [size7]
 #    items:
