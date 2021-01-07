@@ -7,7 +7,7 @@
 #include <Eigen/Sparse>
 #include <Eigen/SparseCholesky>
 
-#include <networkit/centrality/ApproxEffectiveResistance.hpp>
+#include <networkit/centrality/ApproxElectricalCloseness.hpp>
 
 using namespace Eigen;
 
@@ -202,38 +202,19 @@ MatrixXd updateLaplacianPseudoinverseCopy(MatrixXd const & lpinv, NetworKit::Edg
 }
 
 
-VectorXd approxEffectiveResistances(NetworKit::Graph const & G, int &pivot, double epsilon)
-{
-	NetworKit::ApproxEffectiveResistance resAlg(G, epsilon);
-	resAlg.init();
-	resAlg.numberOfUSTs = resAlg.computeNumberOfUSTs();
-	resAlg.run();
-	auto resistances = resAlg.getApproxEffectiveResistances();
-	pivot = resAlg.getRoot();
-	auto n = G.numberOfNodes();
-	VectorXd vec (n);
-	for (int i = 0; i < n; i++) {
-		vec(i) = resistances[i];
-	}
-	return vec;
-}
-
-
 // Compute a stochastic approximation of the diagonal of the Moore-Penrose pseudoinverse of the laplacian matrix of a graph.
 VectorXd approxLaplacianPseudoinverseDiagonal(NetworKit::Graph const &G, double epsilon)
 {
 	auto n = G.numberOfNodes();
 
-	int pivot;
-	auto resistances = approxEffectiveResistances(G, pivot, epsilon);
-
-	auto L = laplacianMatrixSparse(G);
-	auto lpinvPivotColumn = laplacianPseudoinverseColumn(L, pivot);
+	NetworKit::ApproxElectricalCloseness diagAlg (G, epsilon);
+	diagAlg.run();
+	auto diag_std_vec = diagAlg.getDiagonal();
 
 	VectorXd lpinvDiag(n);
 	for (auto i = 0; i < n; i++)
 	{
-		lpinvDiag(i) = resistances(i) - lpinvPivotColumn(pivot) + 2 * lpinvPivotColumn(i);
+		lpinvDiag(i) = diag_std_vec[i];
 	}
 
 	return lpinvDiag;

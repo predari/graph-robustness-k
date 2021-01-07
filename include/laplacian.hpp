@@ -5,7 +5,6 @@
 #include <networkit/algebraic/CSRMatrix.hpp>
 #include <networkit/algebraic/DenseMatrix.hpp>
 #include <networkit/algebraic/Vector.hpp>
-#include <networkit/centrality/ApproxEffectiveResistance.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/algebraic/Vector.hpp>

@@ -19,7 +19,6 @@
 #include <networkit/algebraic/CSRMatrix.hpp>
 #include <networkit/algebraic/DenseMatrix.hpp>
 #include <networkit/auxiliary/Random.hpp>
-#include <networkit/centrality/ApproxEffectiveResistance.hpp>
 #include <networkit/components/ConnectedComponents.hpp>
 #include <networkit/generators/ErdosRenyiGenerator.hpp>
 #include <networkit/generators/BarabasiAlbertGenerator.hpp>
@@ -29,7 +28,10 @@
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/io/EdgeListReader.hpp>
 #include <networkit/io/GMLGraphReader.hpp>
+#include <networkit/numerics/ConjugateGradient.hpp>
+#include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
 
+#include <networkit/centrality/ApproxElectricalCloseness.hpp>
 
 
 #include <greedy.hpp>
@@ -68,22 +70,6 @@ void testLaplacian(int seed, bool verbose=false)
 {
 	// Create Example Graphs
 	Aux::Random::setSeed(seed, false);
-	auto G1 = NetworKit::ErdosRenyiGenerator(
-				  100, 0.15, false)
-				  .generate();
-
-	Graph G2 = NetworKit::ErdosRenyiGenerator(10, 0.15, false).generate();
-	auto G3 = NetworKit::ErdosRenyiGenerator(10, 0.15, false).generate();
-	G2.append(G3);
-	for (int i = 0; i < 20; i++)
-	{
-		auto v = G2.randomNode();
-		auto w = G2.randomNode();
-		if (v != w)
-		{
-			G2.addEdge(v, w);
-		}
-	}
 
 	// Test Laplacian pinv approximation
 	Graph G = Graph();
@@ -137,6 +123,56 @@ void testLaplacian(int seed, bool verbose=false)
 	lpinv = laplacianPseudoinverse(largeG);
 	std::cout << " " << lpinv(5, 5);
 	*/
+}
+
+
+// Approximate columns of the pseudoinverse and compare with exact results
+void testColumnApprox(int seed) {
+	Aux::Random::setSeed(seed, false);
+
+	Graph G = NetworKit::ErdosRenyiGenerator(20, 0.3).generate();
+	auto n = G.numberOfNodes();
+
+	NetworKit::ApproxElectricalCloseness apx (G);
+	apx.run();
+	auto diag = apx.getDiagonal();
+
+	const auto L = CSRMatrix::laplacianMatrix(G);
+	Diameter diamAlgo(G, estimatedRange, 0);
+	diamAlgo.run();
+
+	// Getting diameter upper bound
+	const double diam = diamAlgo.getDiameter().second;
+	double epsilon = 0.1;
+	double kappa = 0.3;
+	const double tol =
+		epsilon * kappa
+		/ (std::sqrt(static_cast<double>((n * G.numberOfEdges())) * std::log(n)) * diam
+			* 3.);
+	NetworKit::ConjugateGradient<NetworKit::CSRMatrix, NetworKit::DiagonalPreconditioner> cg(tol);
+	cg.setupConnected(L);
+	Vector sol(n);
+
+	for (int i = 0; i < n; i++) {
+		auto col = apx.approxColumn(i);
+
+		Vector rhs(n);
+		G.forNodes([&](node u) { rhs[u] = -1.0 / static_cast<double>(n); });
+		rhs[i] += 1.;
+		cg.solve(rhs, sol);
+
+		double sum = 0.0;
+		for (size_t i = 0; i < n; i++) { sum += sol[i]; }
+		sol -= sum/static_cast<double>(n);
+
+		for (int j = 0; j < n; j++) {
+			if (std::abs(sol[j] - col[j]) >= 0.05) {
+				std::cout << i << ", " << j << ": " << sol[j] << ", " << col[j] << "\n";
+				std::cout.flush();
+			}
+			assert(std::abs(sol[j] - col[j]) < 0.1);
+		}
+	}
 }
 
 void testRobustnessGreedy() {
@@ -589,7 +625,7 @@ int main(int argc, char* argv[])
 			auto resistance = rs.getResultResistance();
 			auto edges = rs.getResultEdges();
 			auto t2 = std::chrono::high_resolution_clock::now();
-			write_result("Submodular Greedy", resistance, t2 - t1, edges, "");
+			write_result("Stochastic Submodular Greedy", resistance, t2 - t1, edges, "");
 			if (verify_result && !result_correct(resistance, edges)) { return 1; }
 
 		}
@@ -686,7 +722,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (run_tests) {
-		testLaplacian(seed, verbose);
+		testColumnApprox(seed);
 	}
 
 	//testRobustnessGreedy();
