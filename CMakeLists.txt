@@ -16,13 +16,14 @@ add_subdirectory(networkit)
 
 add_executable(robustness main cpp/greedy.cpp cpp/laplacian.cpp cpp/robustnessGreedy.cpp)
 
-target_compile_options(robustness PUBLIC -g -O2 -fno-omit-frame-pointer)
-target_compile_options(networkit PUBLIC -Wno-deprecated-declarations -g -O2 -fno-omit-frame-pointer)
+target_compile_options(robustness PUBLIC -g -O0 -fno-omit-frame-pointer)
+target_compile_options(networkit PUBLIC -Wno-deprecated-declarations -g -O0 -fno-omit-frame-pointer)
 
 target_include_directories(robustness PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(robustness INTERFACE )
 target_link_libraries(robustness PUBLIC networkit)
 target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX)
+
 
 set_target_properties(networkit
     PROPERTIES

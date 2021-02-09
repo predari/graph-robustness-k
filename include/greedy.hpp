@@ -17,6 +17,11 @@
 
 #include <networkit/base/Algorithm.hpp>
 #include <networkit/auxiliary/Random.hpp>
+#include <networkit/graph/Graph.hpp>
+
+//inline bool operator<(const NetworKit::Edge& lhs, const NetworKit::Edge& rhs) {
+//    return lhs.u < rhs.u || lhs.u == rhs.u && lhs.v < rhs.v;
+//}
 
 template <class Item>
 struct _ItemWrapperType {

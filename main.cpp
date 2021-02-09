@@ -24,6 +24,7 @@
 #include <networkit/generators/BarabasiAlbertGenerator.hpp>
 #include <networkit/generators/WattsStrogatzGenerator.hpp>
 #include <networkit/graph/Graph.hpp>
+#include <networkit/generators/HyperbolicGenerator.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/io/EdgeListReader.hpp>
@@ -37,7 +38,7 @@
 #include <greedy.hpp>
 #include <laplacian.hpp>
 #include <robustnessGreedy.hpp>
-#include <robustnessSimulatedAnnealing.hpp>
+//#include <robustnessSimulatedAnnealing.hpp>
 
 
 
@@ -125,54 +126,91 @@ void testLaplacian(int seed, bool verbose=false)
 	*/
 }
 
-
-// Approximate columns of the pseudoinverse and compare with exact results
-void testColumnApprox(int seed) {
-	Aux::Random::setSeed(seed, false);
-
-	Graph G = NetworKit::ErdosRenyiGenerator(20, 0.3).generate();
-	auto n = G.numberOfNodes();
-
-	NetworKit::ApproxElectricalCloseness apx (G);
+/*
+void testSampleUSTWithEdge() {
+	omp_set_num_threads(1);
+	Graph G = Graph();
+	G.addNodes(4);
+	G.addEdge(0, 1);
+	G.addEdge(0, 2);
+	G.addEdge(1, 2);
+	G.addEdge(1, 3);
+	G.addEdge(2, 3);
+	NetworKit::ApproxElectricalCloseness apx(G);
 	apx.run();
-	auto diag = apx.getDiagonal();
+	node a = 1;
+	node b = 2;
+	apx.testSampleUSTWithEdge(a, b);
+}
+*/
 
-	const auto L = CSRMatrix::laplacianMatrix(G);
-	Diameter diamAlgo(G, estimatedRange, 0);
-	diamAlgo.run();
+void testDynamicColumnApprox() {
+    const double eps = 0.1;
+    
+    for (int seed : {1, 2, 3}) {
+		count n = 50;
+        Aux::Random::setSeed(seed, true);
+        auto G = HyperbolicGenerator(n, 4, 3).generate();
+        G = ConnectedComponents::extractLargestConnectedComponent(G, true);
+		n = G.numberOfNodes();
 
-	// Getting diameter upper bound
-	const double diam = diamAlgo.getDiameter().second;
-	double epsilon = 0.1;
-	double kappa = 0.3;
-	const double tol =
-		epsilon * kappa
-		/ (std::sqrt(static_cast<double>((n * G.numberOfEdges())) * std::log(n)) * diam
-			* 3.);
-	NetworKit::ConjugateGradient<NetworKit::CSRMatrix, NetworKit::DiagonalPreconditioner> cg(tol);
-	cg.setupConnected(L);
-	Vector sol(n);
+        // Create a biconnected component with size 2.
+        G.addNodes(2);
+        G.addEdge(n - 1, n);
+        G.addEdge(n, n + 1);
 
-	for (int i = 0; i < n; i++) {
-		auto col = apx.approxColumn(i);
+        ApproxElectricalCloseness apx(G);
+        apx.run();
+        auto diag = apx.getDiagonal();
+        auto gt = apx.computeExactDiagonal(1e-12);
+        G.forNodes([&](node u) { assert(std::abs(diag[u] - gt[u]) < eps); });
+        assert(apx.scores().size() == G.numberOfNodes());
 
-		Vector rhs(n);
-		G.forNodes([&](node u) { rhs[u] = -1.0 / static_cast<double>(n); });
-		rhs[i] += 1.;
-		cg.solve(rhs, sol);
+        G.forNodes([&] (node u) {
+            auto col = apx.approxColumn(u);
+            auto exactCol = apx.computeExactColumn(u);
+            G.forNodes([&](node v) { 
+				if (std::abs(col[v] - exactCol[v]) > 2*eps)
+					std::cout << "C " << u << ", " << v << ": " << std::abs(col[v] - exactCol[v]) << std::endl;
+            });
+        });
 
-		double sum = 0.0;
-		for (size_t i = 0; i < n; i++) { sum += sol[i]; }
-		sol -= sum/static_cast<double>(n);
+        std::random_device dev;
+        std::mt19937 rng(dev());
+        std::uniform_int_distribution<std::mt19937::result_type> distN(1, n);
 
-		for (int j = 0; j < n; j++) {
-			if (std::abs(sol[j] - col[j]) >= 0.05) {
-				std::cout << i << ", " << j << ": " << sol[j] << ", " << col[j] << "\n";
-				std::cout.flush();
+        node a = seed; 
+        node b = n + 1;
+
+        while (G.hasEdge(a, b)) {
+            a = distN(rng);
+            b = distN(rng);
+        }
+
+        G.addEdge(a, b);
+        apx.edgeAdded(a, b);
+
+		std::cout << "Edge added " << a << ", " << b << std::endl;
+
+        diag = apx.getDiagonal();
+        gt = apx.computeExactDiagonal(1e-12);
+        G.forNodes([&](node u) { 
+			if (std::abs(diag[u] - gt[u]) > eps) {
+				std::cout << u << ": " << std::abs(diag[u] - gt[u]) << std::endl;
 			}
-			assert(std::abs(sol[j] - col[j]) < 0.1);
-		}
-	}
+		});
+        assert(apx.scores().size() == G.numberOfNodes());
+
+        G.forNodes([&] (node u) {
+            auto col = apx.approxColumn(u);
+            auto exactCol = apx.computeExactColumn(u);
+            G.forNodes([&](node v) { 
+                if (std::abs(col[v] - exactCol[v]) > 2*eps) {
+					std::cout << "C " << u << ", " << v << ": " << std::abs(col[v] - exactCol[v]) << std::endl;
+				}
+            });
+        });
+    }
 }
 
 void testRobustnessGreedy() {
@@ -298,7 +336,7 @@ int main(int argc, char* argv[])
 		"\t-a0\t\tRandom Edges\n"
 		"\t-a1\t\tSubmodular Greedy\n"
 		"\t-a2\t\tStochastic submodular greedy\n"
-		"\t-a3\t\tSimulated Annealing\n"
+		//"\t-a3\t\tSimulated Annealing\n"
 		"\t-a4\t\tHill Climbing\n"
 		"\t-a5\t\tGreedy Sq\n"
 		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
@@ -373,7 +411,7 @@ int main(int argc, char* argv[])
 		if (arg == "-a1" || arg == "--submodular-greedy") { run_submodular = true; continue; }
 		if (arg == "-a11") { run_submodular2 = true; continue; }
 		if (arg == "-a2" || arg == "--stochastic-submodular-greedy") { run_stochastic = true; continue; }
-		if (arg == "-a3" || arg == "--simulated-annealing") { run_simulated_annealing = true; continue; }
+		//if (arg == "-a3" || arg == "--simulated-annealing") { run_simulated_annealing = true; continue; }
 		if (arg == "-a0" || arg == "--random-avg") { run_random_avg = true; continue; }
 		if (arg == "-a00" || arg == "--random") { run_random = true; continue; }
 		if (arg == "-a4" || arg == "--combined") { run_combined = true; continue; }
@@ -630,99 +668,10 @@ int main(int argc, char* argv[])
 
 		}
 
-
-		// TODO: Fix duplication in the following section.
-		if (run_simulated_annealing || run_combined) {
-			auto run_and_analyze = [&](RobustnessSimulatedAnnealingBase& rsa, int variant, bool combined) {
-				Aux::Random::setSeed(seed, true);
-				auto t1 = std::chrono::high_resolution_clock::now();
-				int variation;
-	
-				State s;
-				if (combined) {
-					RobustnessGreedy rg;
-					rg.init(g, k);
-					rg.addAllEdges();
-					rg.run();
-					s.edges = rg.getResultItems();
-				} else {
-					s.edges = randomEdges(g, k);
-				}
-				rsa.init(g, k, roundFactor);
-				rsa.setInitialState(s);
-
-				if (vv) { rsa.setVerbose(true); }
-
-				rsa.run();
-				auto t2 = std::chrono::high_resolution_clock::now();
-
-				double value = rsa.getResultResistance();
-
-				std::vector<std::string> variant_names = {"Random", "Resistance-Based", "Resistance-Based, Multiple"};
-
-				std::string name = "Simulated Annealing";
-				if (combined) { name = "Submodular Greedy + Simulated Annealing"; }
-				auto resistance = rsa.getResultResistance();
-				auto edges = rsa.getResultEdges();
-				write_result(name, resistance, t2 - t1, edges, variant_names[variant]);
-			};
-
-			if (heuristic_0) {
-				const int variant = 0;
-				if (run_combined) {
-					RobustnessSimulatedAnnealing<variant> rsa;
-					run_and_analyze(rsa, variant, true);
-					auto resistance = rsa.getResultResistance();
-					auto edges = rsa.getResultEdges();
-					if (verify_result && !result_correct(resistance, edges)) { return 1; }
-				}
-				if (run_simulated_annealing) {
-					RobustnessSimulatedAnnealing<variant> rsa;
-					run_and_analyze(rsa, variant, false);
-					auto resistance = rsa.getResultResistance();
-					auto edges = rsa.getResultEdges();
-					if (verify_result && !result_correct(resistance, edges)) { return 1; }
-				}
-			}
-			if (heuristic_1) {
-				const int variant = 1;
-				if (run_combined) {
-					RobustnessSimulatedAnnealing<variant> rsa;
-					run_and_analyze(rsa, variant, true);
-					auto resistance = rsa.getResultResistance();
-					auto edges = rsa.getResultEdges();
-					if (verify_result && !result_correct(resistance, edges)) { return 1; }
-				}
-				if (run_simulated_annealing) {
-					RobustnessSimulatedAnnealing<variant> rsa;
-					run_and_analyze(rsa, variant, false);
-					auto resistance = rsa.getResultResistance();
-					auto edges = rsa.getResultEdges();
-					if (verify_result && !result_correct(resistance, edges)) { return 1; }
-				}
-			}
-			if (heuristic_2) {
-				const int variant = 2;
-				if (run_combined) {
-					RobustnessSimulatedAnnealing<variant> rsa;
-					run_and_analyze(rsa, variant, true);
-					auto resistance = rsa.getResultResistance();
-					auto edges = rsa.getResultEdges();
-					if (verify_result && !result_correct(resistance, edges)) { return 1; }
-				}
-				if (run_simulated_annealing) {
-					RobustnessSimulatedAnnealing<variant> rsa;
-					run_and_analyze(rsa, variant, false);
-					auto resistance = rsa.getResultResistance();
-					auto edges = rsa.getResultEdges();
-					if (verify_result && !result_correct(resistance, edges)) { return 1; }
-				}
-			}
-		}
 	}
 
 	if (run_tests) {
-		testColumnApprox(seed);
+		testDynamicColumnApprox();
 	}
 
 	//testRobustnessGreedy();

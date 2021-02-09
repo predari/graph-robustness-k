@@ -9,12 +9,18 @@
 #include <set>
 #include <vector>
 
-#include <greedy.hpp>
 #include <laplacian.hpp>
+#include <greedy.hpp>
 
 #include <Eigen/Dense>
-
 #include <networkit/graph/Graph.hpp>
+
+
+namespace NetworKit {
+inline bool operator<(const NetworKit::Edge& lhs, const NetworKit::Edge& rhs) {
+    return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
+}
+};
 
 
 using namespace NetworKit;
@@ -22,11 +28,6 @@ using namespace NetworKit;
 
 
 // The greedy algorithms in this file optimize for large -R_tot.
-
-inline bool operator<(const Edge& lhs, const Edge& rhs) {
-    return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
-}
-
 
 class RobustnessGreedy final : public SubmodularGreedy<Edge>{
 public:
