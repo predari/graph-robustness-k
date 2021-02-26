@@ -8,6 +8,7 @@
 #include <Eigen/SparseCholesky>
 
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
+#include <networkit/graph/Graph.hpp>
 
 using namespace Eigen;
 
@@ -58,6 +59,32 @@ VectorXd laplacianPseudoinverseColumn(SparseMatrix<double> & L, int k) {
 	auto vec = x - VectorXd::Constant(n, avg);
 
 	return vec;
+}
+
+std::vector<VectorXd> laplacianPseudoinverseColumns(SparseMatrix<double> &L, std::vector<NetworKit::node> indices) {
+	std::vector<Eigen::VectorXd> result;
+	ConjugateGradient<SparseMatrix<double>, Lower|Upper> cg;
+	cg.compute(L);
+	if (cg.info() != Success) {
+		// solver failed
+		throw std::logic_error("Solver failed.");
+	}
+	int n = L.cols();
+
+	for (auto ind : indices) {
+		Eigen::VectorXd b = VectorXd::Constant(n, -1.0/n);
+		b(ind) += 1;
+
+		auto x = cg.solve(b);
+		if (cg.info() != Success) {
+			// solving failed
+			throw std::logic_error("Solving failed.!");
+		}
+		double avg = x.sum() / static_cast<double(n);
+		auto vec = x - VectorXd::Constant(n, avg);
+		result.push_back(vec);
+	}
+	return result;
 }
 
 MatrixXd laplacianMatrix(NetworKit::Graph const & g) {

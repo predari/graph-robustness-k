@@ -8,6 +8,7 @@
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/algebraic/Vector.hpp>
+#include <networkit/graph/Graph.hpp>
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
@@ -21,6 +22,7 @@ Eigen::MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(Eigen::MatrixXd laplacian);
 
 Eigen::VectorXd laplacianPseudoinverseColumn(Eigen::SparseMatrix<double> & L, int k);
+std::vector<Eigen::VectorXd> laplacianPseudoinverseColumns(Eigen::SparseMatrix<double> &L, std::vector<NetworKit::node> indices);
 
 
 // Update formula for the pseudoinverse of the Laplacian as an edge is added to the graph.

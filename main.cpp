@@ -147,9 +147,11 @@ void testSampleUSTWithEdge() {
 void testDynamicColumnApprox() {
     const double eps = 0.1;
     
-    for (int seed : {1, 2, 3}) {
+    //for (int seed : {1, 2, 3}) {
+		int seed = 1;
 		count n = 50;
         Aux::Random::setSeed(seed, true);
+		/*
         auto G = HyperbolicGenerator(n, 4, 3).generate();
         G = ConnectedComponents::extractLargestConnectedComponent(G, true);
 		n = G.numberOfNodes();
@@ -158,6 +160,12 @@ void testDynamicColumnApprox() {
         G.addNodes(2);
         G.addEdge(n - 1, n);
         G.addEdge(n, n + 1);
+		*/
+		Graph G = Graph();
+		G.addNodes(4);
+		G.addEdge(0, 1);
+		G.addEdge(1, 2);
+		G.addEdge(2, 3);
 
         ApproxElectricalCloseness apx(G);
         apx.run();
@@ -165,52 +173,54 @@ void testDynamicColumnApprox() {
         auto gt = apx.computeExactDiagonal(1e-12);
         G.forNodes([&](node u) { assert(std::abs(diag[u] - gt[u]) < eps); });
         assert(apx.scores().size() == G.numberOfNodes());
+		n = G.numberOfNodes();
 
         G.forNodes([&] (node u) {
             auto col = apx.approxColumn(u);
             auto exactCol = apx.computeExactColumn(u);
             G.forNodes([&](node v) { 
 				if (std::abs(col[v] - exactCol[v]) > 2*eps)
-					std::cout << "C " << u << ", " << v << ": " << std::abs(col[v] - exactCol[v]) << std::endl;
+					std::cout << "C " << u << ", " << v << ": " << col[v] - exactCol[v] << std::endl;
             });
         });
 
         std::random_device dev;
         std::mt19937 rng(dev());
-        std::uniform_int_distribution<std::mt19937::result_type> distN(1, n);
+        std::uniform_int_distribution<std::mt19937::result_type> distN(0, n - 1);
 
-        node a = seed; 
-        node b = n + 1;
+        node a; 
+        node b;
 
-        while (G.hasEdge(a, b)) {
-            a = distN(rng);
-            b = distN(rng);
-        }
+		for (int i = 0; i < 3; i++) {
+			if (i == 0) { a = 1; b = 3; }
+			else if (i == 1) { a = 2; b = 0; }
+			else { a = 0; b = 3; }
 
-        G.addEdge(a, b);
-        apx.edgeAdded(a, b);
+			G.addEdge(a, b);
+			apx.edgeAdded(a, b);
 
-		std::cout << "Edge added " << a << ", " << b << std::endl;
+			std::cout << "Edge added " << a << ", " << b << std::endl;
 
-        diag = apx.getDiagonal();
-        gt = apx.computeExactDiagonal(1e-12);
-        G.forNodes([&](node u) { 
-			if (std::abs(diag[u] - gt[u]) > eps) {
-				std::cout << u << ": " << std::abs(diag[u] - gt[u]) << std::endl;
-			}
-		});
-        assert(apx.scores().size() == G.numberOfNodes());
-
-        G.forNodes([&] (node u) {
-            auto col = apx.approxColumn(u);
-            auto exactCol = apx.computeExactColumn(u);
-            G.forNodes([&](node v) { 
-                if (std::abs(col[v] - exactCol[v]) > 2*eps) {
-					std::cout << "C " << u << ", " << v << ": " << std::abs(col[v] - exactCol[v]) << std::endl;
+			diag = apx.getDiagonal();
+			gt = apx.computeExactDiagonal(1e-12);
+			G.forNodes([&](node u) { 
+				if (std::abs(diag[u] - gt[u]) > eps) {
+					std::cout << "Diagonal off: " << u << "err: " << diag[u] - gt[u] << " rnd: " << i << " seed: " << seed << std::endl;
 				}
-            });
-        });
-    }
+			});
+			assert(apx.scores().size() == G.numberOfNodes());
+
+			G.forNodes([&] (node u) {
+				auto col = apx.approxColumn(u);
+				auto exactCol = apx.computeExactColumn(u);
+				G.forNodes([&](node v) { 
+					if (std::abs(col[v] - exactCol[v]) > eps) {
+						std::cout << "Column off: " << u << ", " << v << ": " << col[v] - exactCol[v] << " rnd: " << i << " seed:" << seed << std::endl;
+					}
+				});
+			});
+		}
+    //}
 }
 
 void testRobustnessGreedy() {
@@ -284,7 +294,7 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 
 int main(int argc, char* argv[])
 {
-	omp_set_num_threads(8);
+	omp_set_num_threads(4);
 
 	if (argc < 2) {
 		std::cout << "Error: Call without arguments. Use --help for help.\n";
@@ -302,6 +312,7 @@ int main(int argc, char* argv[])
 	bool run_simulated_annealing = false;
 	bool run_combined = false;
 	bool run_a5 = false; 
+	bool run_a6 = false;
 
 	bool heuristic_0 = false;
 	bool heuristic_1 = false;
@@ -317,7 +328,7 @@ int main(int argc, char* argv[])
 	bool km_crt = false;
 
 	Graph g;
-	std::string instance_filename;
+	std::string instance_filename = "";
 	int instance_first_node = 0;
 	char instance_sep_char = ' ';
 	bool instance_directed = false;
@@ -337,8 +348,9 @@ int main(int argc, char* argv[])
 		"\t-a1\t\tSubmodular Greedy\n"
 		"\t-a2\t\tStochastic submodular greedy\n"
 		//"\t-a3\t\tSimulated Annealing\n"
-		"\t-a4\t\tHill Climbing\n"
+		//"\t-a4\t\tHill Climbing\n"
 		"\t-a5\t\tGreedy Sq\n"
+		"\t-a6\t\tTree Greedy\n"
 		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
 		"\n";
 
@@ -414,8 +426,9 @@ int main(int argc, char* argv[])
 		//if (arg == "-a3" || arg == "--simulated-annealing") { run_simulated_annealing = true; continue; }
 		if (arg == "-a0" || arg == "--random-avg") { run_random_avg = true; continue; }
 		if (arg == "-a00" || arg == "--random") { run_random = true; continue; }
-		if (arg == "-a4" || arg == "--combined") { run_combined = true; continue; }
-		if (arg == "-a5") { run_a5 = true; continue;}
+		//if (arg == "-a4" || arg == "--combined") { run_combined = true; continue; }
+		if (arg == "-a5") { run_a5 = true; continue; }
+		if (arg == "-a6") { run_a6 = true; continue; }
 
 		if (arg == "-h0") { heuristic_0 = true; continue; }
 		if (arg == "-h1") { heuristic_1 = true; continue; }
@@ -474,21 +487,23 @@ int main(int argc, char* argv[])
 			return false;
 		}
 	};
-	if (hasEnding(instance_filename, ".gml")) {
-		GMLGraphReader reader;
-		try { g = reader.read(instance_filename); }
-		catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1;}
-		g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
-	} else {
-		try {
-			NetworKit::EdgeListReader reader(instance_sep_char, NetworKit::node(instance_first_node), instance_comment_prefix, true, instance_directed);
-			g = reader.read(instance_filename);
+	if (instance_filename != "") {
+		if (hasEnding(instance_filename, ".gml")) {
+			GMLGraphReader reader;
+			try { g = reader.read(instance_filename); }
+			catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1;}
+			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		} else {
+			try {
+				NetworKit::EdgeListReader reader(instance_sep_char, NetworKit::node(instance_first_node), instance_comment_prefix, true, instance_directed);
+				g = reader.read(instance_filename);
+			}
+			catch (const std::exception& e) { 
+				std::cout << "Failed to open or parse edge list file " + instance_filename << '\n' << e.what() << "\n"; 
+				return 1;
+			}
+			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		}
-		catch (const std::exception& e) { 
-			std::cout << "Failed to open or parse edge list file " + instance_filename << '\n' << e.what() << "\n"; 
-			return 1;
-		}
-		g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 	}
 
 
@@ -548,7 +563,7 @@ int main(int argc, char* argv[])
 			}
 		};
 
-		auto result_correct = [&](double value, std::vector<NetworKit::Edge> edges) {
+		auto result_correct = [&](double value, std::vector<NetworKit::Edge> edges, double epsilon=0.000001) {
 			if (edges.size() != k) { 
 				std::cout << "Error: Output size != k\n"; 
 				return false;
@@ -562,7 +577,7 @@ int main(int argc, char* argv[])
 			auto g_ = g;
 			for (auto e: edges) { g_.addEdge(e.u, e.v); }
 			double v = g_.numberOfNodes() * laplacianPseudoinverse(g_).trace();
-			if (std::abs(value - v) > 0.000001) {
+			if (std::abs(value - v) > epsilon) {
 				std::cout << "Error: Value Test failed. Algorithm output: " << value << ", computed: " << v << "\n";
 				return false;
 			}
@@ -637,7 +652,25 @@ int main(int argc, char* argv[])
 				std::cout << "A5 failed!";
 				return 1;
 			}
+		}
 
+		if (run_a6) {
+			Aux::Random::setSeed(seed, true);
+			Graph g_cpy = g;
+			RobustnessTreeGreedy rg(g_cpy, k, 0.008);
+			auto t1 = std::chrono::high_resolution_clock::now();
+			rg.init();
+			rg.run();
+			auto t2 = std::chrono::high_resolution_clock::now();
+			if (rg.isValidSolution()) {
+				auto resistance = rg.getResultResistance();
+				auto edges = rg.getResultEdges();
+				write_result("UST Greedy", resistance, t2 - t1, edges, "");
+				if (verify_result && !result_correct(resistance, edges, static_cast<double>(k) * static_cast<double>(n) * std::sqrt(n) * 0.01)) { return 1; }
+			} else {
+				std::cout << "A6 failed!";
+				return 1;
+			}
 		}
 		if (run_submodular2) {
 			Aux::Random::setSeed(seed, true);
@@ -670,9 +703,11 @@ int main(int argc, char* argv[])
 
 	}
 
+	
 	if (run_tests) {
 		testDynamicColumnApprox();
 	}
+	
 
 	//testRobustnessGreedy();
 	//experiment(seed);

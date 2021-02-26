@@ -8,12 +8,17 @@
 #include <cmath>
 #include <set>
 #include <vector>
+#include <map>
 
 #include <laplacian.hpp>
 #include <greedy.hpp>
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
+#include <networkit/centrality/ApproxElectricalCloseness.hpp>
+#include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
+#include <networkit/numerics/ConjugateGradient.hpp>
+#include <networkit/numerics/LAMG/Lamg.hpp>
 
 
 namespace NetworKit {
@@ -232,6 +237,212 @@ private:
     Eigen::MatrixXd lpinv;
     std::mt19937 gen;
 
+
+	bool validSolution = false;
+	int round=0;
+	std::vector<Edge> results;
+	double totalValue = 0.0;
+    double epsilon = 0.1;
+    int k;
+};
+
+
+
+
+
+class RobustnessTreeGreedy final : public Algorithm {
+public:
+    RobustnessTreeGreedy(Graph &G, int k, double epsilon=0.1) : G(G), apx(G, epsilon) {
+        this->n = G.numberOfNodes();
+        this->k = k;
+        this->epsilon = epsilon;
+    }
+
+    void init() {
+        gen = std::mt19937(Aux::Random::getSeed());
+
+        // Compute total resistance at start
+        apx.run();
+
+        this->diag = apx.getDiagonal();
+        this->totalValue = 0.;
+        G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * this->diag[u]; });
+    }
+
+    double getResultResistance() {
+        return this->totalValue * (-1.0);
+    }
+
+    std::vector<NetworKit::Edge> getResultEdges() {
+        return this->results;
+    }
+
+    bool isValidSolution() {
+        return this->validSolution;
+    }
+
+    void run() {
+        this->round = 0;
+        this->validSolution = false;
+        this->results.clear();
+        struct edge_cmp {
+            bool operator() (const Edge& lhs, const Edge& rhs) const {
+                return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
+            }
+        };
+        std::set<Edge, edge_cmp> resultSet;
+
+        if (k + G.numberOfEdges() > (n * (n-1) / 8*3)) {
+            this->hasRun = true;
+            std::cout << "Bad call to GreedySq, adding this many edges is not supported! Attempting to have " << k + G.numberOfEdges() << " edges, limit is " << n*(n-1) / 8 *3;
+            return;
+        }
+
+        for (int r = 0; r < k; r++)
+        {
+            double bestGain = -std::numeric_limits<double>::infinity();
+            Edge bestEdge;
+
+            int it = 0;
+
+            do {
+                // Collect nodes set for current round
+                std::set<NetworKit::node> nodes;
+                //int s = (int)std::log2(n)*2;
+                //int s = //std::sqrt((n*(n-1) / 2) / k);
+                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon)) + 2;
+                //if (s > k-round) { s = k - round; }
+                if (s < 10) { s = 10; }
+
+                //if (s < 4) { s = 4; }
+                if (s > n/2) { s = n/2; }
+                double min = std::numeric_limits<double>::infinity();
+
+                std::vector<double> nodeWeights;
+
+                // the random choice following this may fail, we use heuristic information the first time, uniform distribution if it fails
+                if (it++ < 2) { 
+                    double tr = -1. * this->totalValue;
+                    G.forNodes([&](node u) {
+                        double val = static_cast<double>(n) * diag[u] + tr;
+                        if (val < min) { min = val; }
+                        nodeWeights.push_back(val);
+                    });
+                    for (auto &v : nodeWeights) {
+                        auto u = v - min;
+                        v = u*u;
+                    }
+                } else {
+                    G.forNodes([&](node u) {
+                        nodeWeights.push_back(1.0 / static_cast<double>(n));
+                    });
+                }
+
+                std::discrete_distribution<> d_nodes_resistance (nodeWeights.begin(), nodeWeights.end());
+
+                nodeWeights.clear();
+                for (int i = 0; i < n; i++) {
+                nodeWeights.push_back(1.0/n);
+                }
+                std::discrete_distribution<> d_nodes (nodeWeights.begin(), nodeWeights.end());
+
+                while (nodes.size() < s / 2) {
+                    nodes.insert(d_nodes_resistance(gen));
+                }
+                while (nodes.size() < s) {
+                    nodes.insert(d_nodes(gen));
+                }
+                std::vector<node> nodesVec {nodes.begin(), nodes.end()};
+                
+
+                // Determine best edge between nodes from node set
+                auto edgeValid = [&](node u, node v){
+                    if (this->G.hasEdge(u, v)) return false;
+                    if (resultSet.count(Edge(u, v)) > 0 || resultSet.count(Edge(v, u)) > 0) { return false; }
+                    return true;
+                };
+                for (int i = 0; i < s; i++) {
+                    auto u = nodesVec[i];
+                    for (int j = 0; j < i; j++) {
+                        auto v = nodesVec[j];
+                        if (edgeValid(u, v)) {
+                            double gain = objectiveDifference(Edge(u, v));
+                            if (gain > bestGain) {
+                                bestEdge = Edge(u, v);
+                                bestGain = gain;
+                            }
+                        }
+                    }
+                }
+            } while (bestGain == -std::numeric_limits<double>::infinity());
+            // Accept edge
+            resultSet.insert(bestEdge);
+
+            if (this->round == k-1)
+            {
+                this->validSolution = true;
+
+                auto L = laplacianMatrixSparse(G);
+                auto cols = laplacianPseudoinverseColumns(L, {bestEdge.u, bestEdge.v});
+                double traceDiff = laplacianPseudoinverseTraceDifference(cols[0], static_cast<int>(bestEdge.u), cols[1], static_cast<int>(bestEdge.v));
+                this->totalValue -= traceDiff * static_cast<double>(n);
+                G.addEdge(bestEdge.u, bestEdge.v);
+                //this->totalValue = 0.;
+                //G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * diag[u]; });
+
+                break;
+            } else {
+                G.addEdge(bestEdge.u, bestEdge.v);
+                apx.edgeAdded(bestEdge.u, bestEdge.v);
+                auto cols = apx.getEdgeLpinvVectors();
+                Eigen::VectorXd colU(n), colV(n);
+                for (int i = 0; i < n; i++) {
+                    colU(i) = cols.first[i];
+                    colV(i) = cols.second[i];
+                }
+                double traceDiff = laplacianPseudoinverseTraceDifference(colU, static_cast<int>(bestEdge.u), colV, static_cast<int>(bestEdge.v));
+                this->totalValue -= traceDiff * static_cast<double>(n);
+                this->diag = apx.getDiagonal();
+                //this->totalValue = 0.;
+                //G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * diag[u]; });
+                columns.clear();
+            }
+            this->round++;
+        }
+        this->hasRun = true;
+        this->results = {resultSet.begin(), resultSet.end()};
+    }
+
+    
+private:
+    virtual double objectiveDifference(Edge e) {
+        auto i = e.u;
+        auto j = e.v;
+
+        auto getCol = [&] (node k) -> Eigen::VectorXd {
+            auto col_it = columns.find(k);
+            if (col_it == columns.end()) {
+                auto col = apx.approxColumn(k);
+                Eigen::VectorXd col_vec (this->n);
+                G.forNodes([&](node u) { col_vec(u) = col[u]; });
+                columns[k] = col_vec;
+                return col_vec;
+            } else {
+                return col_it->second;
+            }
+        };
+        auto col_i = getCol(i);
+        auto col_j = getCol(j);
+
+        return static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i, i, col_j, j);
+    }
+
+    Graph& G;
+    int n;
+    std::mt19937 gen;
+    std::vector<double> diag;
+    std::map<node, Eigen::VectorXd> columns;
+    ApproxElectricalCloseness apx;
 
 	bool validSolution = false;
 	int round=0;
