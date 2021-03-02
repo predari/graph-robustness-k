@@ -149,9 +149,9 @@ void testDynamicColumnApprox() {
     
     //for (int seed : {1, 2, 3}) {
 		int seed = 1;
-		count n = 50;
+		count n = 30;
         Aux::Random::setSeed(seed, true);
-		/*
+		
         auto G = HyperbolicGenerator(n, 4, 3).generate();
         G = ConnectedComponents::extractLargestConnectedComponent(G, true);
 		n = G.numberOfNodes();
@@ -160,13 +160,14 @@ void testDynamicColumnApprox() {
         G.addNodes(2);
         G.addEdge(n - 1, n);
         G.addEdge(n, n + 1);
-		*/
+		
+		/*
 		Graph G = Graph();
 		G.addNodes(4);
 		G.addEdge(0, 1);
 		G.addEdge(1, 2);
 		G.addEdge(2, 3);
-
+		*/
         ApproxElectricalCloseness apx(G);
         apx.run();
         auto diag = apx.getDiagonal();
@@ -191,10 +192,11 @@ void testDynamicColumnApprox() {
         node a; 
         node b;
 
-		for (int i = 0; i < 3; i++) {
-			if (i == 0) { a = 1; b = 3; }
-			else if (i == 1) { a = 2; b = 0; }
-			else { a = 0; b = 3; }
+		for (int i = 0; i < 20; i++) {
+			do {
+				a = distN(rng);
+				b = distN(rng);
+			} while (G.hasEdge(a, b) || a == b);
 
 			G.addEdge(a, b);
 			apx.edgeAdded(a, b);
@@ -294,7 +296,7 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 
 int main(int argc, char* argv[])
 {
-	omp_set_num_threads(4);
+	omp_set_num_threads(1);
 
 	if (argc < 2) {
 		std::cout << "Error: Call without arguments. Use --help for help.\n";
@@ -327,6 +329,8 @@ int main(int argc, char* argv[])
 	bool km_linear = false;
 	bool km_crt = false;
 
+	double eps = 0.1;
+
 	Graph g;
 	std::string instance_filename = "";
 	int instance_first_node = 0;
@@ -352,6 +356,7 @@ int main(int argc, char* argv[])
 		"\t-a5\t\tGreedy Sq\n"
 		"\t-a6\t\tTree Greedy\n"
 		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
+		"\t-eps\n\tEpsilon value for approximative algorithms. Default: 0.1\n"
 		"\n";
 
 
@@ -413,6 +418,10 @@ int main(int argc, char* argv[])
 		if (arg == "--round-factor" || arg == "-r") {
 			auto rf_string = nextArg(i);
 			roundFactor = std::stod(rf_string);
+			continue;
+		}
+		if (arg == "-eps" || arg == "--eps") {
+			eps = std::stod(nextArg(i));
 			continue;
 		}
 		if (arg == "--seed") {
@@ -533,7 +542,7 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		auto write_result = [&](std::string name, double value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
+		auto write_result = [&](std::string name, double value, double original_value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
 			std::cout << "- Instance: '" << instance_filename << "'\n";
 			std::cout << "  Nodes: " << n << "\n";
 			std::cout << "  Edges: " << g.numberOfEdges() << "\n";
@@ -554,6 +563,8 @@ int main(int argc, char* argv[])
 				std::cout << "  Variant:  '" << variant_name << "'\n";
 			}
 			std::cout << "  Value:  " << value << "\n";
+			std::cout << "  Original Value:  " << original_value << "\n";
+			std::cout << "  Gain:  " << original_value - value << "\n";
 			using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
 			std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
 			if (verbose) {
@@ -563,7 +574,7 @@ int main(int argc, char* argv[])
 			}
 		};
 
-		auto result_correct = [&](double value, std::vector<NetworKit::Edge> edges, double epsilon=0.000001) {
+		auto result_correct = [&](double gain, std::vector<NetworKit::Edge> edges, double epsilon=0.000001) {
 			if (edges.size() != k) { 
 				std::cout << "Error: Output size != k\n"; 
 				return false;
@@ -575,10 +586,11 @@ int main(int argc, char* argv[])
 				}
 			}
 			auto g_ = g;
+			double v0 = g.numberOfNodes() * laplacianPseudoinverse(g).trace();
 			for (auto e: edges) { g_.addEdge(e.u, e.v); }
 			double v = g_.numberOfNodes() * laplacianPseudoinverse(g_).trace();
-			if (std::abs(value - v) > epsilon) {
-				std::cout << "Error: Value Test failed. Algorithm output: " << value << ", computed: " << v << "\n";
+			if (std::abs(gain - std::abs(v0 - v)) > epsilon) {
+				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
 				return false;
 			}
 			return true;
@@ -591,13 +603,15 @@ int main(int argc, char* argv[])
 			auto t2 = std::chrono::high_resolution_clock::now();
 
 			auto G_copy = g;
+			double original_resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
+
 			for (auto e : edges) {
 				G_copy.addEdge(e.u, e.v);
 			}
 			double resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
 
-			write_result("Random Edges", resistance, t2 - t1, edges, "");
-			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+			write_result("Random Edges", resistance, original_resistance, t2 - t1, edges, "");
+			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
 		}
 
 		if (run_random_avg) {
@@ -605,6 +619,8 @@ int main(int argc, char* argv[])
 			double resistance = 0.0;
 			std::chrono::nanoseconds duration;
 			int rnds = 10;
+			double original_resistance = g.numberOfNodes() * laplacianPseudoinverse(g).trace();
+
 			for (int i = 0; i < rnds; i++) {
 				auto t1 = std::chrono::high_resolution_clock::now();
 				auto edges = randomEdges(g, k);
@@ -617,7 +633,7 @@ int main(int argc, char* argv[])
 				duration += (t2 - t1);
 				resistance += G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
 			}
-			write_result("Random Edges averaged", resistance / rnds, duration / rnds, {}, "");
+			write_result("Random Edges averaged", resistance / rnds, original_resistance, duration / rnds, {}, "");
 		}
 
 
@@ -633,8 +649,10 @@ int main(int argc, char* argv[])
 			auto resistance = rg.getResultResistance();
 			auto edges = rg.getResultEdges();
 
-			write_result("Submodular Greedy", rg.getResultResistance(), t2 - t1, rg.getResultEdges(), "");
-			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+			double original_resistance = rg.getOriginalResistance();
+
+			write_result("Submodular Greedy", rg.getResultResistance(), original_resistance, t2 - t1, rg.getResultEdges(), "");
+			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
 		}
 		if (run_a5) {
 			Aux::Random::setSeed(seed, true);
@@ -645,9 +663,10 @@ int main(int argc, char* argv[])
 			auto t2 = std::chrono::high_resolution_clock::now();
 			if (rg.isValidSolution()) {
 				auto resistance = rg.getResultResistance();
+				double original_resistance = rg.getOriginalResistance();
 				auto edges = rg.getResultEdges();
-				write_result("Greedy Sq", resistance, t2 - t1, edges, "");
-				if (verify_result && !result_correct(resistance, edges)) { return 1; }
+				write_result("Greedy Sq", resistance, original_resistance, t2 - t1, edges, "");
+				if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
 			} else {
 				std::cout << "A5 failed!";
 				return 1;
@@ -657,7 +676,7 @@ int main(int argc, char* argv[])
 		if (run_a6) {
 			Aux::Random::setSeed(seed, true);
 			Graph g_cpy = g;
-			RobustnessTreeGreedy rg(g_cpy, k, 0.008);
+			RobustnessTreeGreedy rg(g_cpy, k, eps);
 			auto t1 = std::chrono::high_resolution_clock::now();
 			rg.init();
 			rg.run();
@@ -665,8 +684,9 @@ int main(int argc, char* argv[])
 			if (rg.isValidSolution()) {
 				auto resistance = rg.getResultResistance();
 				auto edges = rg.getResultEdges();
-				write_result("UST Greedy", resistance, t2 - t1, edges, "");
-				if (verify_result && !result_correct(resistance, edges, static_cast<double>(k) * static_cast<double>(n) * std::sqrt(n) * 0.01)) { return 1; }
+				double original_resistance = rg.getOriginalResistance();
+				write_result("UST Greedy", resistance, original_resistance, t2 - t1, edges, "");
+				if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
 			} else {
 				std::cout << "A6 failed!";
 				return 1;
@@ -683,8 +703,9 @@ int main(int argc, char* argv[])
 
 			auto resistance = rg.getResultResistance();
 			auto edges = rg.getResultEdges();
-			write_result("Submodular Greedy", resistance, t2 - t1, edges, "Lpinv Updates On Demand");
-			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+			double original_resistance = rg.getOriginalResistance();
+			write_result("Submodular Greedy", resistance, original_resistance, t2 - t1, edges, "Lpinv Updates On Demand");
+			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
 		}
 		if (run_stochastic) {
 			Aux::Random::setSeed(seed, true);
@@ -696,8 +717,9 @@ int main(int argc, char* argv[])
 			auto resistance = rs.getResultResistance();
 			auto edges = rs.getResultEdges();
 			auto t2 = std::chrono::high_resolution_clock::now();
-			write_result("Stochastic Submodular Greedy", resistance, t2 - t1, edges, "");
-			if (verify_result && !result_correct(resistance, edges)) { return 1; }
+			double original_resistance = rs.getOriginalResistance();
+			write_result("Stochastic Submodular Greedy", resistance, original_resistance, t2 - t1, edges, "");
+			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
 
 		}
 

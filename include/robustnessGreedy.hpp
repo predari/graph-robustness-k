@@ -44,6 +44,7 @@ public:
         // Compute pseudoinverse of laplacian
         this->lpinv = laplacianPseudoinverse(G);
         this->totalValue = this->lpinv.trace() * n * (-1.0);
+        this->originalResistance = this->totalValue * (-1.);
     }
 
     virtual void addAllEdges() {
@@ -66,6 +67,10 @@ public:
         return this->totalValue * (-1.0);
     }
 
+    double getOriginalResistance() {
+        return this->originalResistance;
+    }
+
     std::vector<NetworKit::Edge> getResultEdges() {
         return this->results;
     }
@@ -85,6 +90,8 @@ private:
 
     Eigen::MatrixXd lpinv;
 
+    double originalResistance = 0.;
+
     Graph G;
     int n;
 };
@@ -102,10 +109,15 @@ public:
         // Compute pseudoinverse of laplacian
         this->lpinv = laplacianPseudoinverse(G);
         this->totalValue = this->lpinv.trace() * n * (-1.0);
+        this->originalResistance = -1. * totalValue;
     }
 
     double getResultResistance() {
         return this->totalValue * (-1.0);
+    }
+
+    double getOriginalResistance() {
+        return this->originalResistance;
     }
 
     std::vector<NetworKit::Edge> getResultEdges() {
@@ -242,6 +254,7 @@ private:
 	int round=0;
 	std::vector<Edge> results;
 	double totalValue = 0.0;
+    double originalResistance = 0.;
     double epsilon = 0.1;
     int k;
 };
@@ -267,10 +280,17 @@ public:
         this->diag = apx.getDiagonal();
         this->totalValue = 0.;
         G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * this->diag[u]; });
+        originalResistance = -1. * totalValue;
+        //double exact = -1.0 * static_cast<double>(this->n) * laplacianPseudoinverse(laplacianMatrix(G)).trace();
+        //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
     }
 
     double getResultResistance() {
         return this->totalValue * (-1.0);
+    }
+
+    double getOriginalResistance() {
+        return this->originalResistance;
     }
 
     std::vector<NetworKit::Edge> getResultEdges() {
@@ -292,9 +312,9 @@ public:
         };
         std::set<Edge, edge_cmp> resultSet;
 
-        if (k + G.numberOfEdges() > (n * (n-1) / 8*3)) {
+        if (k + G.numberOfEdges() > (n * (n-1) / 8*3)) { // 3/4 of the complete graph.
             this->hasRun = true;
-            std::cout << "Bad call to GreedySq, adding this many edges is not supported! Attempting to have " << k + G.numberOfEdges() << " edges, limit is " << n*(n-1) / 8 *3;
+            std::cout << "Bad call to TreeGreedy, adding this many edges is not supported! Attempting to have " << k + G.numberOfEdges() << " edges, limit is " << n*(n-1) / 8 *3;
             return;
         }
 
@@ -400,8 +420,12 @@ public:
                     colU(i) = cols.first[i];
                     colV(i) = cols.second[i];
                 }
-                double traceDiff = laplacianPseudoinverseTraceDifference(colU, static_cast<int>(bestEdge.u), colV, static_cast<int>(bestEdge.v));
-                this->totalValue -= traceDiff * static_cast<double>(n);
+
+                // Since these are the columns of the lpinv _after_ adding the new edge, we need to compute the resistance difference by hand.
+                node u = bestEdge.u, v = bestEdge.v;
+                double R_new = colU(u) + colV(v) - 2 * colU(v);
+                double traceDiff = (colU-colV).squaredNorm() * (1. / (1. - R_new));
+                this->totalValue += traceDiff * static_cast<double>(n);
                 this->diag = apx.getDiagonal();
                 //this->totalValue = 0.;
                 //G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * diag[u]; });
@@ -449,6 +473,7 @@ private:
 	std::vector<Edge> results;
 	double totalValue = 0.0;
     double epsilon = 0.1;
+    double originalResistance = 0.;
     int k;
 };
 
@@ -463,6 +488,7 @@ public:
 
         this->lpinv = laplacianPseudoinverse(G);
         this->totalValue = this->lpinv.trace() * n * (-1.0);
+        this->originalResistance = -1. * this->totalValue;
     }
 
     void addAllEdges() {
@@ -487,7 +513,11 @@ public:
     double getResultResistance() {
         return this->totalValue * (-1.0);
     }
-    
+
+    double getOriginalResistance() {
+        return this->originalResistance;
+    }
+
 
 private:
     virtual double objectiveDifference(Edge e) override {
@@ -503,6 +533,7 @@ private:
 
     Graph G;
     int n;
+    double originalResistance = 0.;
 };
 
 
@@ -528,6 +559,7 @@ public:
         for (int i = 0; i < n; i++) {
             this->lpinv_vec.push_back(lpinv.col(i));
         }
+        this->originalResistance = -1. * this->totalValue;
     }
 
     virtual void addAllEdges() {
@@ -549,6 +581,10 @@ public:
     double getResultResistance() {
         return this->totalValue * (-1.0);
     }
+    double getOriginalResistance() {
+        return this->originalResistance;
+    }
+
 
     std::vector<NetworKit::Edge> getResultEdges() {
         return this->results;
@@ -589,6 +625,7 @@ private:
 
     Graph G;
     int n;
+    double originalResistance;
     std::vector<Eigen::VectorXd> updateVec;
     std::vector<double> updateW;
     std::vector<int> age;

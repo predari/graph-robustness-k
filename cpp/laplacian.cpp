@@ -80,7 +80,7 @@ std::vector<VectorXd> laplacianPseudoinverseColumns(SparseMatrix<double> &L, std
 			// solving failed
 			throw std::logic_error("Solving failed.!");
 		}
-		double avg = x.sum() / static_cast<double(n);
+		double avg = x.sum() / static_cast<double>(n);
 		auto vec = x - VectorXd::Constant(n, avg);
 		result.push_back(vec);
 	}
