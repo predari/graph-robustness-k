@@ -296,7 +296,7 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 
 int main(int argc, char* argv[])
 {
-	omp_set_num_threads(1);
+	omp_set_num_threads(4);
 
 	if (argc < 2) {
 		std::cout << "Error: Call without arguments. Use --help for help.\n";
@@ -330,6 +330,7 @@ int main(int argc, char* argv[])
 	bool km_crt = false;
 
 	double eps = 0.1;
+	double eps2 = 0.1;
 
 	Graph g;
 	std::string instance_filename = "";
@@ -424,6 +425,12 @@ int main(int argc, char* argv[])
 			eps = std::stod(nextArg(i));
 			continue;
 		}
+		if (arg == "-eps2" || arg == "--eps2") {
+			eps2 = std::stod(nextArg(i));
+			continue;
+		}
+
+		
 		if (arg == "--seed") {
 			auto s_string = nextArg(i);
 			seed = atoi(s_string);
@@ -574,7 +581,7 @@ int main(int argc, char* argv[])
 			}
 		};
 
-		auto result_correct = [&](double gain, std::vector<NetworKit::Edge> edges, double epsilon=0.000001) {
+		auto result_correct = [&](double gain, std::vector<NetworKit::Edge> edges, double epsilon=0.00001) {
 			if (edges.size() != k) { 
 				std::cout << "Error: Output size != k\n"; 
 				return false;
@@ -589,7 +596,7 @@ int main(int argc, char* argv[])
 			double v0 = g.numberOfNodes() * laplacianPseudoinverse(g).trace();
 			for (auto e: edges) { g_.addEdge(e.u, e.v); }
 			double v = g_.numberOfNodes() * laplacianPseudoinverse(g_).trace();
-			if (std::abs(gain - std::abs(v0 - v)) > epsilon) {
+			if (std::abs(gain - std::abs(v0 - v))/gain > epsilon) {
 				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
 				return false;
 			}
@@ -676,7 +683,7 @@ int main(int argc, char* argv[])
 		if (run_a6) {
 			Aux::Random::setSeed(seed, true);
 			Graph g_cpy = g;
-			RobustnessTreeGreedy rg(g_cpy, k, eps);
+			RobustnessTreeGreedy rg(g_cpy, k, eps, eps2);
 			auto t1 = std::chrono::high_resolution_clock::now();
 			rg.init();
 			rg.run();
@@ -711,7 +718,7 @@ int main(int argc, char* argv[])
 			Aux::Random::setSeed(seed, true);
 			RobustnessStochasticGreedy rs;
 			auto t1 = std::chrono::high_resolution_clock::now();
-			rs.init(g, k, 0.5);
+			rs.init(g, k, eps);
 			rs.addAllEdges();
 			rs.run();
 			auto resistance = rs.getResultResistance();

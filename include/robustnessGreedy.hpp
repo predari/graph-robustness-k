@@ -265,7 +265,7 @@ private:
 
 class RobustnessTreeGreedy final : public Algorithm {
 public:
-    RobustnessTreeGreedy(Graph &G, int k, double epsilon=0.1) : G(G), apx(G, epsilon) {
+    RobustnessTreeGreedy(Graph &G, int k, double epsilon=0.1, double epsilon_tree_count = 0.1) : G(G), apx(G, epsilon_tree_count) {
         this->n = G.numberOfNodes();
         this->k = k;
         this->epsilon = epsilon;
@@ -281,6 +281,9 @@ public:
         this->totalValue = 0.;
         G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * this->diag[u]; });
         originalResistance = -1. * totalValue;
+
+        age.resize(n, -1);
+        lpinvVec.resize(n);
         //double exact = -1.0 * static_cast<double>(this->n) * laplacianPseudoinverse(laplacianMatrix(G)).trace();
         //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
     }
@@ -369,6 +372,7 @@ public:
                 while (nodes.size() < s / 2) {
                     nodes.insert(d_nodes_resistance(gen));
                 }
+                
                 while (nodes.size() < s) {
                     nodes.insert(d_nodes(gen));
                 }
@@ -424,17 +428,21 @@ public:
                 // Since these are the columns of the lpinv _after_ adding the new edge, we need to compute the resistance difference by hand.
                 node u = bestEdge.u, v = bestEdge.v;
                 double R_new = colU(u) + colV(v) - 2 * colU(v);
+
+                updateVec.push_back(1. / (1. - R_new) * (colU - colV));
+                updateW.push_back(1. - R_new);
+
                 double traceDiff = (colU-colV).squaredNorm() * (1. / (1. - R_new));
                 this->totalValue += traceDiff * static_cast<double>(n);
                 this->diag = apx.getDiagonal();
                 //this->totalValue = 0.;
                 //G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * diag[u]; });
-                columns.clear();
             }
             this->round++;
         }
         this->hasRun = true;
         this->results = {resultSet.begin(), resultSet.end()};
+        INFO("Computed columns: ", computedColumns);
     }
 
     
@@ -443,38 +451,51 @@ private:
         auto i = e.u;
         auto j = e.v;
 
-        auto getCol = [&] (node k) -> Eigen::VectorXd {
-            auto col_it = columns.find(k);
-            if (col_it == columns.end()) {
-                auto col = apx.approxColumn(k);
-                Eigen::VectorXd col_vec (this->n);
-                G.forNodes([&](node u) { col_vec(u) = col[u]; });
-                columns[k] = col_vec;
-                return col_vec;
-            } else {
-                return col_it->second;
-            }
-        };
-        auto col_i = getCol(i);
-        auto col_j = getCol(j);
+        updateColumn(i);
+        updateColumn(j);
+        auto& col_i = lpinvVec[i];
+        auto& col_j = lpinvVec[j];
 
         return static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i, i, col_j, j);
     }
 
+    void updateColumn(int i) {
+        if (age[i] == -1)
+        {
+            auto col = apx.approxColumn(i);
+            lpinvVec[i] = Eigen::VectorXd(n);
+            G.forNodes([&](node u) { lpinvVec[i](u) = col[u]; });
+            computedColumns++;
+        }
+        else if (age[i] < this->round) 
+        {
+            for (int r = age[i]; r < this->round; r++)
+                lpinvVec[i] -= updateVec[r] * updateVec[r](i) * updateW[r];
+        }
+        age[i] = this->round;
+    }
+
     Graph& G;
     int n;
-    std::mt19937 gen;
-    std::vector<double> diag;
-    std::map<node, Eigen::VectorXd> columns;
-    ApproxElectricalCloseness apx;
-
-	bool validSolution = false;
+    	bool validSolution = false;
 	int round=0;
 	std::vector<Edge> results;
 	double totalValue = 0.0;
     double epsilon = 0.1;
     double originalResistance = 0.;
     int k;
+
+    std::mt19937 gen;
+    std::vector<double> diag;
+    ApproxElectricalCloseness apx;
+
+    std::vector<Eigen::VectorXd> updateVec;
+    std::vector<double> updateW;
+    std::vector<int> age;
+    std::vector<Eigen::VectorXd> lpinvVec;
+
+    count computedColumns = 0;
+
 };
 
 
@@ -557,7 +578,7 @@ public:
         auto lpinv = laplacianPseudoinverse(G);
         this->totalValue = lpinv.trace() * n * (-1.0);
         for (int i = 0; i < n; i++) {
-            this->lpinv_vec.push_back(lpinv.col(i));
+            this->lpinvVec.push_back(lpinv.col(i));
         }
         this->originalResistance = -1. * this->totalValue;
     }
@@ -598,7 +619,7 @@ private:
         
         this->updateColumn(i);
         this->updateColumn(j);
-        return (-1.0) * this->n * laplacianPseudoinverseTraceDifference(this->lpinv_vec[i], i, this->lpinv_vec[j], j);
+        return (-1.0) * this->n * laplacianPseudoinverseTraceDifference(this->lpinvVec[i], i, this->lpinvVec[j], j);
     }
 
     virtual void useItem(Edge e) override {
@@ -606,10 +627,10 @@ private:
         auto j = e.v;
         this->updateColumn(i);
         this->updateColumn(j);
-        double R_ij = lpinv_vec[i](i) + lpinv_vec[j](j) - 2* lpinv_vec[j](i);
+        double R_ij = lpinvVec[i](i) + lpinvVec[j](j) - 2* lpinvVec[j](i);
         double w = 1.0 / (1.0 + R_ij);
 
-        updateVec.push_back(this->lpinv_vec[i] - this->lpinv_vec[j]);
+        updateVec.push_back(this->lpinvVec[i] - this->lpinvVec[j]);
         updateW.push_back(w);
         //updateLaplacianPseudoinverse(this->lpinv, e);
         //this->G.addEdge(e.u, e.v);
@@ -618,7 +639,7 @@ private:
     void updateColumn(int i) {
         if (age[i] < this->round) {
             for (int r = age[i]; r < this->round; r++)
-                lpinv_vec[i] -= updateVec[r] * updateVec[r](i) * updateW[r];
+                lpinvVec[i] -= updateVec[r] * updateVec[r](i) * updateW[r];
             age[i] = this->round;
         }
     }
@@ -629,7 +650,7 @@ private:
     std::vector<Eigen::VectorXd> updateVec;
     std::vector<double> updateW;
     std::vector<int> age;
-    std::vector<Eigen::VectorXd> lpinv_vec;
+    std::vector<Eigen::VectorXd> lpinvVec;
 };
 
 
