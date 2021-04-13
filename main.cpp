@@ -28,6 +28,7 @@
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/io/EdgeListReader.hpp>
+#include <networkit/io/NetworkitBinaryReader.hpp>
 #include <networkit/io/GMLGraphReader.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
@@ -507,7 +508,12 @@ int main(int argc, char* argv[])
 		if (hasEnding(instance_filename, ".gml")) {
 			GMLGraphReader reader;
 			try { g = reader.read(instance_filename); }
-			catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1;}
+			catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1; }
+			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		} else if (hasEnding(instance_filename, "nkb")) {
+			NetworkitBinaryReader reader;
+			try {g = reader.read(instance_filename); }
+			catch(const std::exception& e) { std::cout << "Failed to open or parse networkit binary file " << instance_filename << '\n'; return 1; }
 			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		} else {
 			try {

@@ -443,6 +443,28 @@ public:
         this->hasRun = true;
         this->results = {resultSet.begin(), resultSet.end()};
         INFO("Computed columns: ", computedColumns);
+
+        auto computeAverage = [&](const std::vector<double> &vec) {
+            return 1.0 * std::accumulate(vec.begin(), vec.end(), 0.) / vec.size();
+        };
+        auto computeVariance = [&](const std::vector<double> &vec) {
+            double squaredSum = 0.;
+            double average = computeAverage(vec);
+            for (auto v: vec) {
+                double a = v - average;
+                squaredSum += a*a;
+            }
+            return squaredSum / (vec.size() - 1);
+        };
+        INFO("Objective Difference avg: ", computeAverage(_objectiveDifference));
+        INFO("Objective Difference variance: ", computeVariance(_objectiveDifference));
+        INFO("Objective Difference LinAlg avg: ", computeAverage(_objectiveDifferenceLinAlg));
+        INFO("Objective Difference LinAlg variance: ", computeVariance(_objectiveDifferenceLinAlg));
+        INFO("Objective Difference Absolute Error avg: ", computeAverage(_objectiveDifferenceAbsErr));
+        INFO("Objective Difference Absolute Error variance: ", computeVariance(_objectiveDifferenceAbsErr));
+        INFO("Objective Difference Relative Error avg: ", computeAverage(_objectiveDifferenceRelErr));
+        INFO("Objective Difference Relative Error variance: ", computeVariance(_objectiveDifferenceRelErr));
+        
     }
 
     
@@ -456,7 +478,25 @@ private:
         auto& col_i = lpinvVec[i];
         auto& col_j = lpinvVec[j];
 
-        return static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i, i, col_j, j);
+        auto L = laplacianMatrixSparse(G);
+
+        auto col_i_exact = laplacianPseudoinverseColumn(L, i);
+        auto col_j_exact = laplacianPseudoinverseColumn(L, j);
+
+        double difference = static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i, i, col_j, j);
+        double exactDifference = static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i_exact, i, col_j_exact, j);
+
+        _objectiveDifference.push_back(difference);
+        _objectiveDifferenceLinAlg.push_back(exactDifference);
+        _objectiveDifferenceAbsErr.push_back(std::abs(difference - exactDifference));
+        _objectiveDifferenceRelErr.push_back(std::abs(difference - exactDifference) / std::abs(exactDifference));
+
+        
+        //if (std::abs(difference - exactDifference) > 0.001) {
+        //    std::cout << "Absolute error: " << std::abs(difference - exactDifference) << ", value: " << exactDifference << std::endl;
+        //}
+
+        return difference;
     }
 
     void updateColumn(int i) {
@@ -466,6 +506,17 @@ private:
             lpinvVec[i] = Eigen::VectorXd(n);
             G.forNodes([&](node u) { lpinvVec[i](u) = col[u]; });
             computedColumns++;
+
+            auto L = laplacianMatrixSparse(G);
+            auto lpinvVecExact = laplacianPseudoinverseColumn(L, i);
+            /*
+            G.forNodes([&](node u) { 
+                double error = std::abs(lpinvVec[i](u) - lpinvVecExact(u));
+                if (error > 0.001) {
+                    std::cout << "Column Error! (" << i << ", " << u << "), absolute error: " << error << ", relative error: " << error / std::abs(lpinvVecExact(u)) <<  std::endl;
+                }
+            });
+            */
         }
         else if (age[i] < this->round) 
         {
@@ -493,6 +544,11 @@ private:
     std::vector<double> updateW;
     std::vector<int> age;
     std::vector<Eigen::VectorXd> lpinvVec;
+
+    std::vector<double> _objectiveDifference;
+    std::vector<double> _objectiveDifferenceLinAlg;
+    std::vector<double> _objectiveDifferenceAbsErr;
+    std::vector<double> _objectiveDifferenceRelErr;
 
     count computedColumns = 0;
 

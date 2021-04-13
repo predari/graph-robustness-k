@@ -25,27 +25,6 @@ def addWS(nNodes, nNeighbors, p):
     writer.write(g, "/dev/stdout")
 
 
-
-import sys
-if len(sys.argv) < 2:
-    print("Error: Graph Generator needs more arguments.")
-if (sys.argv[1] == "-er"):
-    n = int(sys.argv[2])
-    p = float(sys.argv[3])
-    addER(n, p)
-elif (sys.argv[1] == "-ba"):
-    k = int(sys.argv[2])
-    nMax = int(sys.argv[3])
-    n0 = int(sys.argv[4])
-    addBA(k, nMax, n0)
-elif (sys.argv[1] == "-ws"):
-    nNodes = int(sys.argv[2])
-    nNeighbors = int(sys.argv[3])
-    p = float(sys.argv[4])
-    addWS(nNodes, nNeighbors, p)
-
-
-
 def writeER(n, p):
     print("  - generator:\n      args: ['./generator.py', '-er', '{0}', '{1}']\n    items: ErdosRenyi_{0}_{1}.gml".format(n, p))
 def writeWS(a, b, p):
@@ -53,13 +32,34 @@ def writeWS(a, b, p):
 def writeBA(a, b, p):
     print("  - generator:\n      args: ['./generator.py', '-ba', '{0}', '{1}']\n    items: BarabasiAlbert_{0}_{1}_{2}.gml".format(n, p))
 
-if (sys.argv[1] == "-we"):
-    def writeER(n, p):
-        print("  - generator:\n      args: ['./generator.py', '-er', '{0}', '{1}']\n    items:  \n      - ErdosRenyi_{0}_{1}.gml".format(n, p))
-    def writeWS(a, b, p):
-        print("  - generator:\n      args: ['./generator.py', '-ws', '{0}', '{1}', '{2}']\n    items:  \n      - WattsStrogatz_{0}_{1}_{2}.gml".format(a, b, p))
-    def writeBA(a, b, p):
-        print("  - generator:\n      args: ['./generator.py', '-ba', '{0}', '{1}', '{2}']\n    items: \n      - BarabasiAlbert_{0}_{1}_{2}.gml".format(a, b, p))
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Error: Graph Generator needs more arguments.")
+    if (sys.argv[1] == "-er"):
+        n = int(sys.argv[2])
+        p = float(sys.argv[3])
+        addER(n, p)
+    elif (sys.argv[1] == "-ba"):
+        k = int(sys.argv[2])
+        nMax = int(sys.argv[3])
+        n0 = int(sys.argv[4])
+        addBA(k, nMax, n0)
+    elif (sys.argv[1] == "-ws"):
+        nNodes = int(sys.argv[2])
+        nNeighbors = int(sys.argv[3])
+        p = float(sys.argv[4])
+        addWS(nNodes, nNeighbors, p)
+
+
+    if (sys.argv[1] == "-we"):
+        def writeER(n, p):
+            print("  - generator:\n      args: ['./generator.py', '-er', '{0}', '{1}']\n    items:  \n      - ErdosRenyi_{0}_{1}.gml".format(n, p))
+        def writeWS(a, b, p):
+            print("  - generator:\n      args: ['./generator.py', '-ws', '{0}', '{1}', '{2}']\n    items:  \n      - WattsStrogatz_{0}_{1}_{2}.gml".format(a, b, p))
+        def writeBA(a, b, p):
+            print("  - generator:\n      args: ['./generator.py', '-ba', '{0}', '{1}', '{2}']\n    items: \n      - BarabasiAlbert_{0}_{1}_{2}.gml".format(a, b, p))
 
     #writeER(10, 0.4)
     #writeER(30, 0.3)
