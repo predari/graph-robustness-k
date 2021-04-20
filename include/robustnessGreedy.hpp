@@ -236,7 +236,6 @@ public:
         this->results = {resultSet.begin(), resultSet.end()};
     }
 
-    
 private:
     virtual double objectiveDifference(Edge e) {
         auto i = e.u;
@@ -276,6 +275,7 @@ public:
 
         // Compute total resistance at start
         apx.run();
+        INFO("Usts: ", apx.getUstCount());
 
         this->diag = apx.getDiagonal();
         this->totalValue = 0.;
@@ -284,6 +284,7 @@ public:
 
         age.resize(n, -1);
         lpinvVec.resize(n);
+        laplacian = laplacianMatrixSparse(G);
         //double exact = -1.0 * static_cast<double>(this->n) * laplacianPseudoinverse(laplacianMatrix(G)).trace();
         //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
     }
@@ -331,19 +332,16 @@ public:
             do {
                 // Collect nodes set for current round
                 std::set<NetworKit::node> nodes;
-                //int s = (int)std::log2(n)*2;
-                //int s = //std::sqrt((n*(n-1) / 2) / k);
-                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon)) + 2;
-                //if (s > k-round) { s = k - round; }
-                if (s < 10) { s = 10; }
-
-                //if (s < 4) { s = 4; }
+                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon));
+                if (s < 2) { s = 2; }
                 if (s > n/2) { s = n/2; }
+                if (r == 0) { INFO("Columns in round 1: ", s); }
+
                 double min = std::numeric_limits<double>::infinity();
 
                 std::vector<double> nodeWeights;
 
-                // the random choice following this may fail, we use heuristic information the first time, uniform distribution if it fails
+                // the random choice following this may fail if all the vertex pairs are already present as edges, we use heuristic information the first time, uniform distribution if it fails
                 if (it++ < 2) { 
                     double tr = -1. * this->totalValue;
                     G.forNodes([&](node u) {
@@ -357,7 +355,7 @@ public:
                     }
                 } else {
                     G.forNodes([&](node u) {
-                        nodeWeights.push_back(1.0 / static_cast<double>(n));
+                        nodeWeights.push_back(1.0);
                     });
                 }
 
@@ -365,7 +363,7 @@ public:
 
                 nodeWeights.clear();
                 for (int i = 0; i < n; i++) {
-                nodeWeights.push_back(1.0/n);
+                    nodeWeights.push_back(1.0);
                 }
                 std::discrete_distribution<> d_nodes (nodeWeights.begin(), nodeWeights.end());
 
@@ -399,72 +397,42 @@ public:
                     }
                 }
             } while (bestGain == -std::numeric_limits<double>::infinity());
+
             // Accept edge
             resultSet.insert(bestEdge);
 
-            if (this->round == k-1)
-            {
-                this->validSolution = true;
+            auto u = bestEdge.u;
+            auto v = bestEdge.v;
+            G.addEdge(u, v);
+            laplacian.coeffRef(u, u) += 1.;
+            laplacian.coeffRef(v, v) += 1.;
+            laplacian.coeffRef(u, v) -= 1.;
+            laplacian.coeffRef(v, u) -= 1.;
 
-                auto L = laplacianMatrixSparse(G);
-                auto cols = laplacianPseudoinverseColumns(L, {bestEdge.u, bestEdge.v});
-                double traceDiff = laplacianPseudoinverseTraceDifference(cols[0], static_cast<int>(bestEdge.u), cols[1], static_cast<int>(bestEdge.v));
-                this->totalValue -= traceDiff * static_cast<double>(n);
-                G.addEdge(bestEdge.u, bestEdge.v);
-                //this->totalValue = 0.;
-                //G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * diag[u]; });
+            auto& colU = lpinvVec[u];
+            auto& colV = lpinvVec[v];
 
-                break;
-            } else {
-                G.addEdge(bestEdge.u, bestEdge.v);
-                apx.edgeAdded(bestEdge.u, bestEdge.v);
-                auto cols = apx.getEdgeLpinvVectors();
-                Eigen::VectorXd colU(n), colV(n);
-                for (int i = 0; i < n; i++) {
-                    colU(i) = cols.first[i];
-                    colV(i) = cols.second[i];
-                }
+            double R = colU(u) + colV(v) - 2*colU(v);
+            double w = (1. / (1. + R));
+            auto upv = colU - colV;
 
-                // Since these are the columns of the lpinv _after_ adding the new edge, we need to compute the resistance difference by hand.
-                node u = bestEdge.u, v = bestEdge.v;
-                double R_new = colU(u) + colV(v) - 2 * colU(v);
+            double traceDiff = (colU - colV).squaredNorm() * w;
+            this->totalValue += traceDiff * static_cast<double>(n);
 
-                updateVec.push_back(1. / (1. - R_new) * (colU - colV));
-                updateW.push_back(1. - R_new);
 
-                double traceDiff = (colU-colV).squaredNorm() * (1. / (1. - R_new));
-                this->totalValue += traceDiff * static_cast<double>(n);
+            if (this->round < k-1) {
+                apx.edgeAdded(u, v);
                 this->diag = apx.getDiagonal();
-                //this->totalValue = 0.;
-                //G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * diag[u]; });
+                updateVec.push_back(upv);
+                updateW.push_back(w);
+            } else {
+                this->validSolution = true;
             }
             this->round++;
         }
         this->hasRun = true;
         this->results = {resultSet.begin(), resultSet.end()};
-        INFO("Computed columns: ", computedColumns);
-
-        auto computeAverage = [&](const std::vector<double> &vec) {
-            return 1.0 * std::accumulate(vec.begin(), vec.end(), 0.) / vec.size();
-        };
-        auto computeVariance = [&](const std::vector<double> &vec) {
-            double squaredSum = 0.;
-            double average = computeAverage(vec);
-            for (auto v: vec) {
-                double a = v - average;
-                squaredSum += a*a;
-            }
-            return squaredSum / (vec.size() - 1);
-        };
-        INFO("Objective Difference avg: ", computeAverage(_objectiveDifference));
-        INFO("Objective Difference variance: ", computeVariance(_objectiveDifference));
-        INFO("Objective Difference LinAlg avg: ", computeAverage(_objectiveDifferenceLinAlg));
-        INFO("Objective Difference LinAlg variance: ", computeVariance(_objectiveDifferenceLinAlg));
-        INFO("Objective Difference Absolute Error avg: ", computeAverage(_objectiveDifferenceAbsErr));
-        INFO("Objective Difference Absolute Error variance: ", computeVariance(_objectiveDifferenceAbsErr));
-        INFO("Objective Difference Relative Error avg: ", computeAverage(_objectiveDifferenceRelErr));
-        INFO("Objective Difference Relative Error variance: ", computeVariance(_objectiveDifferenceRelErr));
-        
+        INFO("Computed columns: ", computedColumns);        
     }
 
     
@@ -478,63 +446,45 @@ private:
         auto& col_i = lpinvVec[i];
         auto& col_j = lpinvVec[j];
 
-        auto L = laplacianMatrixSparse(G);
-
-        auto col_i_exact = laplacianPseudoinverseColumn(L, i);
-        auto col_j_exact = laplacianPseudoinverseColumn(L, j);
-
         double difference = static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i, i, col_j, j);
-        double exactDifference = static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i_exact, i, col_j_exact, j);
-
-        _objectiveDifference.push_back(difference);
-        _objectiveDifferenceLinAlg.push_back(exactDifference);
-        _objectiveDifferenceAbsErr.push_back(std::abs(difference - exactDifference));
-        _objectiveDifferenceRelErr.push_back(std::abs(difference - exactDifference) / std::abs(exactDifference));
-
         
-        //if (std::abs(difference - exactDifference) > 0.001) {
-        //    std::cout << "Absolute error: " << std::abs(difference - exactDifference) << ", value: " << exactDifference << std::endl;
-        //}
-
         return difference;
     }
 
     void updateColumn(int i) {
         if (age[i] == -1)
         {
-            auto col = apx.approxColumn(i);
-            lpinvVec[i] = Eigen::VectorXd(n);
-            G.forNodes([&](node u) { lpinvVec[i](u) = col[u]; });
+            lpinvVec[i] = laplacianPseudoinverseColumn(laplacian, i);
             computedColumns++;
-
-            auto L = laplacianMatrixSparse(G);
-            auto lpinvVecExact = laplacianPseudoinverseColumn(L, i);
-            /*
-            G.forNodes([&](node u) { 
-                double error = std::abs(lpinvVec[i](u) - lpinvVecExact(u));
-                if (error > 0.001) {
-                    std::cout << "Column Error! (" << i << ", " << u << "), absolute error: " << error << ", relative error: " << error / std::abs(lpinvVecExact(u)) <<  std::endl;
-                }
-            });
-            */
         }
         else if (age[i] < this->round) 
         {
             for (int r = age[i]; r < this->round; r++)
                 lpinvVec[i] -= updateVec[r] * updateVec[r](i) * updateW[r];
+            /*
+            auto col_exact = laplacianPseudoinverseColumn(laplacian, i);
+            G.forNodes([&](node u) {
+                double error = std::abs(lpinvVec[i](u) - col_exact(u));
+                if (error > 0.001) {
+                    std::cout << "Column Error! (" << i << ", " << u << "): " << error << ", rel " << error / std::abs(col_exact(u)) << ", round " << this->round << ", age: " << age[i] << std::endl;
+                }
+            });
+            */
         }
         age[i] = this->round;
     }
 
     Graph& G;
-    int n;
-    	bool validSolution = false;
-	int round=0;
 	std::vector<Edge> results;
+
+    int n;
+    bool validSolution = false;
+	int round=0;
+    int k;
+
 	double totalValue = 0.0;
     double epsilon = 0.1;
     double originalResistance = 0.;
-    int k;
 
     std::mt19937 gen;
     std::vector<double> diag;
@@ -545,13 +495,9 @@ private:
     std::vector<int> age;
     std::vector<Eigen::VectorXd> lpinvVec;
 
-    std::vector<double> _objectiveDifference;
-    std::vector<double> _objectiveDifferenceLinAlg;
-    std::vector<double> _objectiveDifferenceAbsErr;
-    std::vector<double> _objectiveDifferenceRelErr;
-
     count computedColumns = 0;
 
+    Eigen::SparseMatrix<double> laplacian;
 };
 
 
@@ -626,9 +572,6 @@ public:
         this->n = G.numberOfNodes();
         this->k = k;
         this->age = std::vector<int>(n);
-        //for (int i = 0; i < n; i++) {
-        //    age[i] = 0;
-        //}
 
         // Compute pseudoinverse of laplacian
         auto lpinv = laplacianPseudoinverse(G);

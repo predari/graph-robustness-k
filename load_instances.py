@@ -71,6 +71,9 @@ def gen_ws_inst(nNodes, nNeighbors, p):
 
 
 if __name__ == "__main__":
+    if not os.path.isdir("instances"):
+        os.system("mkdir instances")
+
     dl_txt_gz("https://snap.stanford.edu/data/facebook_combined.txt.gz", "facebook_ego_combined")
     txt_to_inst("facebook_ego_combined")
     dl_txt_gz("https://snap.stanford.edu/data/ca-AstroPh.txt.gz", "arxiv-astro-ph")

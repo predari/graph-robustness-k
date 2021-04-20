@@ -359,6 +359,7 @@ int main(int argc, char* argv[])
 		"\t-a6\t\tTree Greedy\n"
 		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
 		"\t-eps\n\tEpsilon value for approximative algorithms. Default: 0.1\n"
+		"\t-j 4\t number of threads"
 		"\n";
 
 
@@ -415,6 +416,11 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 			continue;
+		}
+
+		if (arg == "-j") {
+			auto arg_str = nextArg(i);
+			omp_set_num_threads(atoi(arg_str));
 		}
 
 		if (arg == "--round-factor" || arg == "-r") {
