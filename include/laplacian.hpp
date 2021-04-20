@@ -21,8 +21,11 @@ Eigen::SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(Eigen::MatrixXd laplacian);
 
-Eigen::VectorXd laplacianPseudoinverseColumn(Eigen::SparseMatrix<double> & L, int k);
+Eigen::VectorXd laplacianPseudoinverseColumn(const Eigen::SparseMatrix<double> & L, int k);
 std::vector<Eigen::VectorXd> laplacianPseudoinverseColumns(Eigen::SparseMatrix<double> &L, std::vector<NetworKit::node> indices);
+std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(NetworKit::CSRMatrix laplacian, std::vector<NetworKit::node> indices, double tol=0.1);
+
+void updateLaplacian(Eigen::SparseMatrix<double> &laplacian, NetworKit::node a, NetworKit::node b);
 
 
 // Update formula for the pseudoinverse of the Laplacian as an edge is added to the graph.

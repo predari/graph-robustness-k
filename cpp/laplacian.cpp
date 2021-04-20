@@ -9,6 +9,10 @@
 
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
 #include <networkit/graph/Graph.hpp>
+#include <networkit/algebraic/CSRMatrix.hpp>
+#include <networkit/numerics/ConjugateGradient.hpp>
+#include <networkit/numerics/LAMG/Lamg.hpp>
+#include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
 
 using namespace Eigen;
 
@@ -16,9 +20,11 @@ using namespace Eigen;
 // Does not support multiple parallel edges
 SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g) {
 	auto n = g.numberOfNodes();
+	auto m = g.numberOfEdges();
+
 	typedef Triplet<double> T;
 	std::vector<T> tripletList;
-	tripletList.reserve(3*n);
+	tripletList.reserve(3*m);
 	VectorXd diagonal = VectorXd::Constant(n, 0.0) ;
 	g.forEdges([&](NetworKit::node u, NetworKit::node v, double weight) {
 		if (u == v) {
@@ -38,11 +44,19 @@ SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g) {
 	return laplacian;
 }
 
-VectorXd laplacianPseudoinverseColumn(SparseMatrix<double> & L, int k) {
+
+void updateLaplacian(SparseMatrix<double> &laplacian, NetworKit::node a, NetworKit::node b) {
+	laplacian.coeffRef(a, a) += 1.;
+	laplacian.coeffRef(b, b) += 1.;
+	laplacian.coeffRef(a, b) -= 1.;
+	laplacian.coeffRef(b, a) -= 1.;
+}
+
+VectorXd laplacianPseudoinverseColumn(const SparseMatrix<double> & L, int k) {
 	ConjugateGradient<SparseMatrix<double>, Lower|Upper> cg;
 	int n = L.cols();
 	VectorXd b = VectorXd::Constant(n, -1.0/n);
-	b(k) += 1;
+	b(k) += 1.;
 
 	cg.compute(L);
 	if (cg.info() != Success) {
@@ -59,6 +73,35 @@ VectorXd laplacianPseudoinverseColumn(SparseMatrix<double> & L, int k) {
 	auto vec = x - VectorXd::Constant(n, avg);
 
 	return vec;
+}
+
+std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(NetworKit::CSRMatrix laplacian, std::vector<NetworKit::node> indices, double tol) {
+
+    NetworKit::ConjugateGradient<NetworKit::CSRMatrix, NetworKit::DiagonalPreconditioner> cg(tol);
+    cg.setupConnected(laplacian);
+
+	NetworKit::count n = laplacian.numberOfRows();
+	NetworKit::Vector rhs (n);
+
+	std::vector<NetworKit::Vector> results;
+	for (unsigned int i = 0; i < n; i++) {
+		rhs[i] = 1./ static_cast<double>(n);
+	}
+	for (auto ind : indices) {
+		rhs[ind] += 1.;
+
+		NetworKit::Vector result(n);
+		cg.solve(rhs, result);
+		double sum = 0.;
+		for (unsigned int i = 0; i < n; i++) {
+			sum += result[i];
+		}
+		result -= sum / static_cast<double>(n);
+		results.push_back(result);
+
+		rhs[ind] -= 1.;
+	}
+	return results;
 }
 
 std::vector<VectorXd> laplacianPseudoinverseColumns(SparseMatrix<double> &L, std::vector<NetworKit::node> indices) {

@@ -605,10 +605,10 @@ int main(int argc, char* argv[])
 				}
 			}
 			auto g_ = g;
-			double v0 = g.numberOfNodes() * laplacianPseudoinverse(g).trace();
+			double v0 = static_cast<double>(g.numberOfNodes()) * laplacianPseudoinverse(g).trace();
 			for (auto e: edges) { g_.addEdge(e.u, e.v); }
-			double v = g_.numberOfNodes() * laplacianPseudoinverse(g_).trace();
-			if (std::abs(gain - std::abs(v0 - v))/gain > epsilon) {
+			double v = static_cast<double>(g_.numberOfNodes()) * laplacianPseudoinverse(g_).trace();
+			if (std::abs(gain - std::abs(v0 - v))/std::abs(gain) > epsilon) {
 				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
 				return false;
 			}

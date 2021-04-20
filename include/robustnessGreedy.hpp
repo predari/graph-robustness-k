@@ -183,19 +183,19 @@ public:
                     }
                 }
 
-                std::discrete_distribution<> d_nodes_resistance (nodeWeights.begin(), nodeWeights.end());
+                std::discrete_distribution<> distribution_nodes_heuristic (nodeWeights.begin(), nodeWeights.end());
 
                 nodeWeights.clear();
                 for (int i = 0; i < n; i++) {
                 nodeWeights.push_back(1.0/n);
                 }
-                std::discrete_distribution<> d_nodes (nodeWeights.begin(), nodeWeights.end());
+                std::discrete_distribution<> distribution_nodes_uniform (nodeWeights.begin(), nodeWeights.end());
 
                 while (nodes.size() < s / 2) {
-                    nodes.insert(d_nodes_resistance(gen));
+                    nodes.insert(distribution_nodes_heuristic(gen));
                 }
                 while (nodes.size() < s) {
-                    nodes.insert(d_nodes(gen));
+                    nodes.insert(distribution_nodes_uniform(gen));
                 }
                 std::vector<node> nodesVec {nodes.begin(), nodes.end()};
                 
@@ -359,23 +359,23 @@ public:
                     });
                 }
 
-                std::discrete_distribution<> d_nodes_resistance (nodeWeights.begin(), nodeWeights.end());
+                std::discrete_distribution<> distribution_nodes_heuristic (nodeWeights.begin(), nodeWeights.end());
 
                 nodeWeights.clear();
                 for (int i = 0; i < n; i++) {
                     nodeWeights.push_back(1.0);
                 }
-                std::discrete_distribution<> d_nodes (nodeWeights.begin(), nodeWeights.end());
+                std::discrete_distribution<> distribution_nodes_uniform (nodeWeights.begin(), nodeWeights.end());
 
                 while (nodes.size() < s / 2) {
-                    nodes.insert(d_nodes_resistance(gen));
+                    nodes.insert(distribution_nodes_heuristic(gen));
                 }
                 
                 while (nodes.size() < s) {
-                    nodes.insert(d_nodes(gen));
+                    nodes.insert(distribution_nodes_uniform(gen));
                 }
                 std::vector<node> nodesVec {nodes.begin(), nodes.end()};
-                
+                updateColumns(nodesVec);
 
                 // Determine best edge between nodes from node set
                 auto edgeValid = [&](node u, node v){
@@ -450,6 +450,28 @@ private:
         
         return difference;
     }
+
+    void updateColumns(std::vector<node> indices) {
+        std::vector<node> notComputed;
+        for (auto& ind: indices) {
+            if (age[ind] == -1) {
+                notComputed.push_back(ind);
+            }
+        }
+        
+        auto cols = laplacianPseudoinverseColumns(laplacian, notComputed);
+        
+        for (int i = 0; i < notComputed.size(); i++) {
+            auto index = notComputed[i];
+            lpinvVec[index] = cols[i];
+            age[index] = this->round;
+        }
+        
+        for (auto& ind: indices) {
+            updateColumn(ind);
+        }
+    }
+
 
     void updateColumn(int i) {
         if (age[i] == -1)
