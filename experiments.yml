@@ -50,14 +50,10 @@ instances:
   - repo: local
     items: 
       - facebook_ego_combined.nkb
-      - arxiv-astro-ph.nkb
-      - arxiv-condmat.nkb
       - arxiv-grqc.nkb
       - arxiv-heph.nkb
       - arxiv-hephth.nkb
       - opsahl-powergrid.nkb
-      - marvel.nkb
-      - dimacs-net.nkb
       - erdos_renyi_10_0.4.nkb
       - erdos_renyi_30_0.3.nkb
       - erdos_renyi_128_0.1.nkb
