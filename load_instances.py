@@ -23,12 +23,13 @@ fi""".format(url, name))
 def graph_inst(g, name):
     global instance_str
     instance_str += "\n      - " + name + ".nkb"
-    _g = nk.components.ConnectedComponents.extractLargestConnectedComponent(g)
+    _g = nk.components.ConnectedComponents.extractLargestConnectedComponent(g, True)
+    _g.sortEdges()
     nk.graphio.NetworkitBinaryWriter().write(_g, "instances/"+name+".nkb")
 
 
-def txt_to_inst(name, sep=" ", first_node=0, comment_prefix="#"):
-    g = nk.graphio.EdgeListReader(sep, first_node, comment_prefix).read("instances/"+name+".txt")
+def txt_to_inst(name, sep=" ", first_node=0, comment_prefix="#", continuous=True):
+    g = nk.graphio.EdgeListReader(sep, first_node, comment_prefix, continuous).read("instances/"+name+".txt")
     graph_inst(g, name)
 
 
@@ -77,15 +78,15 @@ if __name__ == "__main__":
     dl_txt_gz("https://snap.stanford.edu/data/facebook_combined.txt.gz", "facebook_ego_combined")
     txt_to_inst("facebook_ego_combined")
     dl_txt_gz("https://snap.stanford.edu/data/ca-AstroPh.txt.gz", "arxiv-astro-ph")
-    txt_to_inst("arxiv-astro-ph", "\t")
+    txt_to_inst("arxiv-astro-ph", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-CondMat.txt.gz", "arxiv-condmat")
-    txt_to_inst("arxiv-condmat", "\t")
+    txt_to_inst("arxiv-condmat", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-GrQc.txt.gz", "arxiv-grqc")
-    txt_to_inst("arxiv-grqc", "\t")
+    txt_to_inst("arxiv-grqc", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepPh.txt.gz", "arxiv-heph")
-    txt_to_inst("arxiv-heph", "\t")
+    txt_to_inst("arxiv-heph", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepTh.txt.gz", "arxiv-hephth")
-    txt_to_inst("arxiv-hephth", "\t")
+    txt_to_inst("arxiv-hephth", "\t", 0, "#", False)
 
     
 
