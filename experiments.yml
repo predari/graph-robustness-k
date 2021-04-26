@@ -20,6 +20,9 @@ experiments:
   - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     output: stdout
+  - name: tree-greedy
+    args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    output: stdout
 
 variants:
   - axis: 'k-size'
@@ -44,6 +47,28 @@ variants:
         extra_args: ['-km', 'linear', '--k-factor', '16.0']
       #- name: 'const'
       #  extra_args: ['--k-factor', '10.0']
+  - axis: 'threads'
+    items:
+      - name: 'singlecore'
+        extra_args: ['-j', '1']
+      - name: 'multicore'
+        extra_args: ['-j', '12']
+  - axis: 'accuracy'
+    items:
+      - name: 'eps_0.1'
+        extra_args: ['-eps', '0.1']
+      - name: 'eps_0.9'
+        extra_args: ['-eps', '0.9']
+  - axis: 'accuracy_trees'
+    items:
+      - name: 'eps2_0.1'
+        extra_args: ['-eps2', '0.1']
+      - name: 'eps2_0.9'
+        extra_args: ['-eps2', '0.9']
+  - axis: 'linalg'
+    items:
+      - name: 'linalg-std'
+        extra_args: []
 
 instdir: "instances"
 instances:
@@ -69,3 +94,17 @@ instances:
       - barabasi_albert_2_100_2.nkb
       - barabasi_albert_2_300_2.nkb
       - barabasi_albert_2_1000_2.nkb
+
+
+matrix:
+  include:
+    - experiments: [random-averaged]
+      axes: [k-size]
+    - experiments: [submodular-greedy]
+      axes: [k-size, linalg]
+    - experiments: [stochastic-greedy]
+      axes: ['k-size', 'threads', 'accuracy', linalg]
+    - experiments: [greedy-3]
+      axes: ['k-size', 'threads', 'accuracy', linalg]
+    - experiments: [tree-greedy]
+      axes: ['k-size', 'threads', 'accuracy', 'accuracy_trees', linalg]
