@@ -106,22 +106,24 @@ if __name__ == "__main__":
     #dl_tar_bz2("http://konect.cc/files/download.tsv.topology.tar.bz2", "topology/out.topology", "topology")
     #txt_to_inst("topology", "\t", 1, "%")
 
-    gen_er_inst(10, 0.4)
-    gen_er_inst(30, 0.3)
+    #gen_er_inst(10, 0.4)
+    #gen_er_inst(30, 0.3)
     gen_er_inst(128, 0.1)
     gen_er_inst(300, 0.05)
     gen_er_inst(600, 0.05)
     gen_er_inst(1000, 0.02)
     gen_er_inst(3000, 0.01)
 
-    gen_ws_inst(10, 3, 0.4)
-    gen_ws_inst(30, 5, 0.4)
+    #gen_ws_inst(10, 3, 0.4)
+    #gen_ws_inst(30, 5, 0.4)
     gen_ws_inst(100, 5, 0.5)
     gen_ws_inst(300, 7, 0.5)
     gen_ws_inst(1000, 7, 0.3)
+    gen_ws_inst(3000, 7, 0.3)
 
     gen_ba_inst(2, 100, 2)
     gen_ba_inst(2, 300, 2)
     gen_ba_inst(2, 1000, 2)
+    gen_ba_inst(2, 3000, 2)
 
     print(instance_str)

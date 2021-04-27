@@ -79,21 +79,19 @@ instances:
       - arxiv-heph.nkb
       - arxiv-hephth.nkb
       - opsahl-powergrid.nkb
-      - erdos_renyi_10_0.4.nkb
-      - erdos_renyi_30_0.3.nkb
       - erdos_renyi_128_0.1.nkb
       - erdos_renyi_300_0.05.nkb
       - erdos_renyi_600_0.05.nkb
       - erdos_renyi_1000_0.02.nkb
       - erdos_renyi_3000_0.01.nkb
-      - watts_strogatz_10_3_0.4.nkb
-      - watts_strogatz_30_5_0.4.nkb
       - watts_strogatz_100_5_0.5.nkb
       - watts_strogatz_300_7_0.5.nkb
       - watts_strogatz_1000_7_0.3.nkb
+      - watts_strogatz_3000_7_0.3.nkb
       - barabasi_albert_2_100_2.nkb
       - barabasi_albert_2_300_2.nkb
       - barabasi_albert_2_1000_2.nkb
+      - barabasi_albert_2_3000_2.nkb
 
 
 matrix:
