@@ -6,6 +6,7 @@
 #include <iostream>
 #include <Eigen/Sparse>
 #include <Eigen/SparseCholesky>
+#include <Eigen/IterativeLinearSolvers>
 
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
 #include <networkit/graph/Graph.hpp>
@@ -53,19 +54,22 @@ void updateLaplacian(SparseMatrix<double> &laplacian, NetworKit::node a, NetworK
 }
 
 VectorXd laplacianPseudoinverseColumn(const SparseMatrix<double> & L, int k) {
-	ConjugateGradient<SparseMatrix<double>, Lower|Upper> cg;
+	SparseLU<SparseMatrix<double>, COLAMDOrdering<int> >   solver;
+	solver.analyzePattern(L); 
+	solver.factorize(L); 
+
 	int n = L.cols();
 	VectorXd b = VectorXd::Constant(n, -1.0/n);
 	b(k) += 1.;
 
-	cg.compute(L);
-	if (cg.info() != Success) {
+	solver.compute(L);
+	if (solver.info() != Success) {
 		// solver failed
 		throw std::logic_error("Solver failed.");
 	}
 
-	auto x = cg.solve(b);
-	if (cg.info() != Success) {
+	auto x = solver.solve(b);
+	if (solver.info() != Success) {
 		// solving failed
 		throw std::logic_error("Solving failed.!");
 	}
@@ -75,7 +79,7 @@ VectorXd laplacianPseudoinverseColumn(const SparseMatrix<double> & L, int k) {
 	return vec;
 }
 
-std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(NetworKit::CSRMatrix laplacian, std::vector<NetworKit::node> indices, double tol) {
+std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(const NetworKit::CSRMatrix & laplacian, std::vector<NetworKit::node> indices, double tol) {
 
     NetworKit::ConjugateGradient<NetworKit::CSRMatrix, NetworKit::DiagonalPreconditioner> cg(tol);
     cg.setupConnected(laplacian);
@@ -104,11 +108,15 @@ std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(NetworKit::CSRMatri
 	return results;
 }
 
-std::vector<VectorXd> laplacianPseudoinverseColumns(SparseMatrix<double> &L, std::vector<NetworKit::node> indices) {
+std::vector<VectorXd> laplacianPseudoinverseColumns(const SparseMatrix<double> &L, std::vector<NetworKit::node> indices) {
 	std::vector<Eigen::VectorXd> result;
-	ConjugateGradient<SparseMatrix<double>, Lower|Upper> cg;
-	cg.compute(L);
-	if (cg.info() != Success) {
+	SparseLU<SparseMatrix<double>, COLAMDOrdering<int> >   solver;
+	solver.analyzePattern(L); 
+	solver.factorize(L); 
+
+	//ConjugateGradient<SparseMatrix<double>, Lower|Upper, IncompleteCholesky> solver;
+	//solver.compute(L);
+	if (solver.info() != Success) {
 		// solver failed
 		throw std::logic_error("Solver failed.");
 	}
@@ -116,12 +124,12 @@ std::vector<VectorXd> laplacianPseudoinverseColumns(SparseMatrix<double> &L, std
 
 	for (auto ind : indices) {
 		Eigen::VectorXd b = VectorXd::Constant(n, -1.0/n);
-		b(ind) += 1;
+		b(ind) += 1.0;
 
-		auto x = cg.solve(b);
-		if (cg.info() != Success) {
+		auto x = solver.solve(b);
+		if (solver.info() != Success) {
 			// solving failed
-			throw std::logic_error("Solving failed.!");
+			throw std::logic_error(std::string("Solving failed! Error code: ") + std::to_string(solver.info()) + std::string(", node: ") + std::to_string(ind));
 		}
 		double avg = x.sum() / static_cast<double>(n);
 		auto vec = x - VectorXd::Constant(n, avg);

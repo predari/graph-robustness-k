@@ -19,6 +19,7 @@
 #include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/LAMG/Lamg.hpp>
+#include <networkit/components/ConnectedComponents.hpp>
 
 
 namespace NetworKit {
@@ -379,7 +380,7 @@ public:
 
                 // Determine best edge between nodes from node set
                 auto edgeValid = [&](node u, node v){
-                    if (this->G.hasEdge(u, v)) return false;
+                    if (this->G.hasEdge(u, v) || this->G.hasEdge(v, u)) return false;
                     if (resultSet.count(Edge(u, v)) > 0 || resultSet.count(Edge(v, u)) > 0) { return false; }
                     return true;
                 };
@@ -458,14 +459,23 @@ private:
                 notComputed.push_back(ind);
             }
         }
-        
-        auto cols = laplacianPseudoinverseColumns(laplacian, notComputed);
-        
-        for (int i = 0; i < notComputed.size(); i++) {
-            auto index = notComputed[i];
-            lpinvVec[index] = cols[i];
-            age[index] = this->round;
+
+        try {
+            auto lpmat = laplacianMatrixSparse(G);
+            auto cols = laplacianPseudoinverseColumns(lpmat, notComputed);
+
+            for (int i = 0; i < notComputed.size(); i++) {
+                auto index = notComputed[i];
+                lpinvVec[index] = cols[i];
+                age[index] = this->round;
+            }
+
+        } catch (const std::logic_error& e) {
+            std::cout << e.what() << std::endl;
+
+            throw(e);
         }
+        
         
         for (auto& ind: indices) {
             updateColumn(ind);
