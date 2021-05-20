@@ -515,12 +515,10 @@ int main(int argc, char* argv[])
 			GMLGraphReader reader;
 			try { g = reader.read(instance_filename); }
 			catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1; }
-			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		} else if (hasEnding(instance_filename, "nkb")) {
 			NetworkitBinaryReader reader;
 			try {g = reader.read(instance_filename); }
 			catch(const std::exception& e) { std::cout << "Failed to open or parse networkit binary file " << instance_filename << '\n'; return 1; }
-			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		} else {
 			try {
 				NetworKit::EdgeListReader reader(instance_sep_char, NetworKit::node(instance_first_node), instance_comment_prefix, true, instance_directed);
@@ -530,8 +528,9 @@ int main(int argc, char* argv[])
 				std::cout << "Failed to open or parse edge list file " + instance_filename << '\n' << e.what() << "\n"; 
 				return 1;
 			}
-			g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		}
+		g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
+		g.removeSelfLoops();
 	}
 
 
