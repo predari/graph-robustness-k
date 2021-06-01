@@ -39,6 +39,7 @@
 #include <greedy.hpp>
 #include <laplacian.hpp>
 #include <robustnessGreedy.hpp>
+#include <robustnessUSTGreedy.hpp>
 //#include <robustnessSimulatedAnnealing.hpp>
 
 

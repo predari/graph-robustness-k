@@ -1,28 +1,28 @@
 experiments:
   - name: submodular-greedy
     args: ['./build/robustness', '-a1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
+    stdout: out
   - name: stochastic-greedy
     args: ['./build/robustness', '-a2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
+    stdout: out
 #  - name: hillclimbing-random
 #    args: ['./build/robustness', '-a3', '-h0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-#    output: stdout
+#    stdout: out
 #  - name: hillclimbing-resistance-based
 #    args: ['./build/robustness', '-a3', '-h1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-#    output: stdout
+#    stdout: out
 #  - name: hillclimbing-resistance-based-multiple
 #    args: ['./build/robustness', '-a3', '-h2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-#    output: stdout
+#    stdout: out
   - name: random-averaged
     args: ['./build/robustness', '-a0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
+    stdout: out
   - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
+    stdout: out
   - name: tree-greedy
     args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
-    output: stdout
+    stdout: out
 
 variants:
   - axis: 'k-size'
@@ -105,4 +105,5 @@ matrix:
     - experiments: [greedy-3]
       axes: ['k-size', 'threads', 'accuracy', linalg]
     - experiments: [tree-greedy]
-      axes: ['k-size', 'threads', 'accuracy', 'accuracy_trees', linalg]
+      axes: ['k-size', 'threads', 'accuracy', 'accuracy_trees', 'linalg']
+      variants: ['eps2_0.9', '2**-4', '2**-2', '2**0']
