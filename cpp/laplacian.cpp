@@ -31,10 +31,10 @@ SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g) {
 		if (u == v) {
 			std::cout << "Warning: Graph has edge with equal target and destination!";
 		}
-		tripletList.push_back(T(u, v, -weight));
-		tripletList.push_back(T(v, u, -weight));
-		diagonal(u) += weight;
-		diagonal(v) += weight;
+		tripletList.push_back(T(u, v, -1.));
+		tripletList.push_back(T(v, u, -1.));
+		diagonal(u) += 1.;
+		diagonal(v) += 1.;
 	});
 	for (int u = 0; u < n; u++) {
 		tripletList.push_back(T(u, u, diagonal(u)));
@@ -138,21 +138,6 @@ std::vector<VectorXd> laplacianPseudoinverseColumns(const SparseMatrix<double> &
 	return result;
 }
 
-MatrixXd laplacianMatrix(NetworKit::Graph const & g) {
-	auto n = g.numberOfNodes();
-	MatrixXd laplacian = MatrixXd::Zero(n, n);
-	g.forEdges([&](NetworKit::node u, NetworKit::node v, double weight) {
-		if (u == v) {
-			std::cout << "Warning: Graph has edge with equal target and destination!";
-		}
-		laplacian(u, u) += weight;
-		laplacian(v, v) += weight;
-		laplacian(u, v) -= weight;
-		laplacian(v, u) -= weight;
-	});
-	return laplacian;
-}
-
 
 MatrixXd laplacianPseudoinverse(MatrixXd lp) {
 	int n = lp.cols();
@@ -162,7 +147,8 @@ MatrixXd laplacianPseudoinverse(MatrixXd lp) {
 	return (lp + J).llt().solve(I) - J;
 }
 MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g) {
-	return laplacianPseudoinverse(laplacianMatrix(g));
+	auto mat = laplacianMatrix<MatrixXd>(g);
+	return laplacianPseudoinverse(mat);
 }
 
 

@@ -20,7 +20,7 @@ experiments:
   - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     stdout: out
-  - name: tree-greedy
+  - name: sq-greedy
     args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
     stdout: out
 
@@ -67,8 +67,22 @@ variants:
         extra_args: ['-eps2', '0.9']
   - axis: 'linalg'
     items:
-      - name: 'linalg-std'
-        extra_args: []
+      - name: 'dense-ldlt'
+        extra_args: ['--dense-ldlt']
+      - name: 'lamg'
+        extra_args: ['--lamg']
+      - name: 'lu'
+        extra_args: ['--lu']
+      - name: 'qr'
+        extra_args: ['--qr']
+  - axis: 'heuristic'
+    items:
+      - name: 'random'
+        extra_args: ['-h0']
+      - name: 'ust-diag'
+        extra_args: ['-h1']
+      - name: 'similarity'
+        extra_args: ['-h2']
 
 instdir: "instances"
 instances:
@@ -99,11 +113,14 @@ matrix:
     - experiments: [random-averaged]
       axes: [k-size]
     - experiments: [submodular-greedy]
-      axes: [k-size, linalg]
+      axes: [k-size, 'threads']
     - experiments: [stochastic-greedy]
-      axes: ['k-size', 'threads', 'accuracy', linalg]
+      axes: ['k-size', 'threads', 'accuracy']
     - experiments: [greedy-3]
-      axes: ['k-size', 'threads', 'accuracy', linalg]
-    - experiments: [tree-greedy]
-      axes: ['k-size', 'threads', 'accuracy', 'accuracy_trees', 'linalg']
-      variants: ['eps2_0.9', '2**-4', '2**-2', '2**0']
+      axes: ['k-size', 'threads', 'accuracy']
+    - experiments: [sq-greedy]
+      axes: ['k-size', 'threads', 'accuracy', 'accuracy_trees', 'linalg', 'heuristic']
+      variants: ['eps_0.9', 'eps2_0.9', '2**-4', '2**-2', '2**0', 'ust-diag']
+    - experiments:  [sq-greedy]
+      axes: ['threads', 'linalg', 'heuristic', 'accuracy']
+      variants: ['random', 'similarity', 'eps_0.9', 'eps2_0.9']

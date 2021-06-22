@@ -38,6 +38,7 @@
 
 #include <greedy.hpp>
 #include <laplacian.hpp>
+#include <dynamicLaplacianSolver.hpp>
 #include <robustnessGreedy.hpp>
 #include <robustnessUSTGreedy.hpp>
 //#include <robustnessSimulatedAnnealing.hpp>
@@ -50,6 +51,7 @@
 using namespace NetworKit;
 
 
+typedef decltype(std::chrono::high_resolution_clock::now()) Time;
 
 char* getCmdOption(int count, char ** begin, const std::string & option)
 {
@@ -93,7 +95,7 @@ void testLaplacian(int seed, bool verbose=false)
 	
 
 	// Test Laplacian pinv update formulas
-	auto Lmat = laplacianMatrix(G);
+	auto Lmat = laplacianMatrix<Eigen::MatrixXd>(G);
 	auto lpinv = laplacianPseudoinverse(G);
 	auto diffvec = laplacianPseudoinverseColumnDifference(lpinv, 0, 3, 0);
 	if (verbose) {
@@ -227,7 +229,7 @@ void testDynamicColumnApprox() {
     //}
 }
 
-void testRobustnessGreedy() {
+void testRobustnessSubmodularGreedy() {
 	
 	Graph G1;
 	G1.addNodes(4);
@@ -244,8 +246,8 @@ void testRobustnessGreedy() {
 		G2.addEdge(p.first, p.second);
 	}
 
-	RobustnessGreedy rg2;
-	rg2.init(G2, 2);
+	GreedyParams args(G2, 2);
+	RobustnessSubmodularGreedy rg2(args);
 	rg2.run();
 	assert(std::abs(rg2.getTotalValue() - 4.351) < 0.01);
 
@@ -261,8 +263,8 @@ void testRobustnessGreedy() {
 	G3.addEdge(4, 13);
 	G3.addEdge(5, 10);
 
-	RobustnessGreedy rg3;
-	rg3.init(G3, 4);
+	GreedyParams args2(G3, 4);
+	RobustnessSubmodularGreedy rg3(args2);
 	rg3.run();
 	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
 	//rg3.summarize();
@@ -296,43 +298,275 @@ std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 	return result;
 }
 
+enum class LinAlgType {
+	none,
+	cg,
+	least_squares,
+	qr,
+	ldlt, 
+	lu,
+	lamg,
+	dense_ldlt
+};
+
+enum class AlgorithmType {
+	none,
+	submodular,
+	submodular2,
+	stochastic,
+	trees,
+	random,
+	random_avg,
+	a5,
+};
+
+class RobustnessExperiment {
+public:
+	NetworKit::count k;
+	NetworKit::count n;
+	double epsilon;
+	double epsilon2;
+	NetworKit::Graph g;
+	NetworKit::Graph g_cpy;
+	LinAlgType linalg;
+	AlgorithmType alg;
+	bool verify_result = false;
+	bool verbose = false;
+	Time beforeInit;
+	int seed;
+	std::string name;
+	unsigned int threads = 1;
+	std::unique_ptr<GreedyParams> params;
+	HeuristicType heuristic;
+
+	std::vector<NetworKit::Edge> edges;
+	double resultResistance;
+	double originalResistance;
+
+	std::string algorithmName;
+	std::string call;
+	std::string instanceFile;
+
+	std::unique_ptr<AbstractOptimizer<NetworKit::Edge>> greedy;
+
+	void createGreedy() {
+		if (alg == AlgorithmType::submodular) {
+			algorithmName = "Submodular";
+			createSpecific<RobustnessSubmodularGreedy>();
+		} else if (alg == AlgorithmType::submodular2) {
+			algorithmName = "Submodular 2";
+			createSpecific<RobustnessSubmodularGreedy2>();
+		} else if (alg == AlgorithmType::stochastic) {
+			algorithmName = "Stochastic";
+			createSpecific<RobustnessStochasticGreedy>();
+		} else if (alg == AlgorithmType::a5) {
+			algorithmName = "A5";
+			createSpecific<RobustnessSqGreedy>();
+		} else if (alg == AlgorithmType::trees) {
+			algorithmName = "UST";
+			createLinAlgGreedy<RobustnessTreeGreedy>();
+		} else if (alg == AlgorithmType::random_avg) {
+			algorithmName = "Random Averaged";
+			createSpecific<RobustnessRandomAveraged>();
+		} else {
+			throw std::logic_error("Algorithm not implemented!");
+		}
+	}
+
+	template <template <typename __Solver> class Greedy> 
+	void createLinAlgGreedy() {
+		if (linalg == LinAlgType::ldlt) {
+			createSpecific<Greedy<SparseLDLTSolver>>();
+		} else if (linalg == LinAlgType::least_squares) {
+			createSpecific<Greedy<SparseLDLTSolver>>();
+		} else if (linalg == LinAlgType::qr) {
+			createSpecific<Greedy<SparseQRSolver>>();
+		} else if (linalg == LinAlgType::lu) {
+			createSpecific<Greedy<SparseLUSolver>>();
+		} else if (linalg == LinAlgType::cg) {
+			createSpecific<Greedy<SparseCGSolver>>();
+		} else if (linalg == LinAlgType::dense_ldlt) {
+			createSpecific<Greedy<DenseLDLTSolver>>();
+		} else if (linalg == LinAlgType::lamg) {
+			createSpecific<Greedy<LamgDynamicLaplacianSolver>>();
+		} else if (linalg == LinAlgType::none) {
+			createSpecific<Greedy<DenseCGSolver>>();
+		} else {
+			throw std::logic_error("Solver not implemented!");
+		}
+	}
+
+	template <class Greedy> 
+	void createSpecific() {
+		auto grdy = new Greedy(*params);
+		greedy = std::unique_ptr<Greedy>(grdy);
+	}
+
+
+	void run() {
+		// Initialize
+		n = g.numberOfNodes();
+		omp_set_num_threads(threads);
+		Aux::Random::setSeed(seed, true);
+		g_cpy = g;
+
+
+		beforeInit = std::chrono::high_resolution_clock::now();
+
+		if (alg == AlgorithmType::none) {
+			throw std::logic_error("Not implemented!");
+		}
+
+		params = std::make_unique<GreedyParams>(g_cpy, k);
+		params->epsilon = epsilon;
+		params->epsilon2 = epsilon2;
+		params->threads = threads;
+		params->heuristic = heuristic;
+
+
+		createGreedy();
+
+
+		// Run greedy
+
+		greedy->run();
+		auto t = std::chrono::high_resolution_clock::now();
+		auto duration = t - beforeInit;
+		
+		// Verify Results
+		if (!greedy->isValidSolution()) {
+			std::cout << name << " failed!\n";
+			throw std::logic_error(std::string("Algorithm") + name + "failed!");
+		}
+		edges = greedy->getResultItems();
+		resultResistance = greedy->getResultValue();
+		originalResistance = greedy->getOriginalValue();		
+
+		bool result_correct = true;
+		if (verify_result) {
+			if (edges.size() != k) {
+				std::cout << "Error: Output size != k\n";
+				throw std::logic_error("Result Error: Output does not contain k edges!");
+			}
+
+			for (auto e : edges) {
+				if (g.hasEdge(e.u, e.v)) {
+					std::cout << "Error: Edge in result is already in original graph!\n";
+					throw std::logic_error("Error: Edge from result already in original graph!");
+				}
+			}
+
+			double gain = originalResistance - resultResistance;
+
+			auto g_ = g;
+			double v0 = static_cast<double>(n) * laplacianPseudoinverse(g).trace();
+			for (auto e: edges) { g_.addEdge(e.u, e.v); }
+			double v = static_cast<double>(n) * laplacianPseudoinverse(g_).trace();
+
+			if (std::abs(gain - std::abs(v0 - v)) / std::abs(originalResistance) / k > 0.00001) {
+				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
+				throw std::logic_error("Error: Gain value inaccurate!");
+			}
+		}
+
+		// Output Results
+
+		std::cout << "Runs: \n";
+		std::cout << "- Instance: '" << instanceFile << "'\n";
+		std::cout << "  Nodes: " << n << "\n";
+		std::cout << "  Edges: " << g.numberOfEdges() << "\n";
+		std::cout << "  k: " << k << "\n";
+		std::cout << "  Call: " << call << "\n";
+		if (verbose) {
+			std::cout << "  EdgeList: [";
+			g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
+			std::cout << "]\n" << std::endl;
+		}
+		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
+		std::cout << "  Value:  " << resultResistance << "\n";
+		std::cout << "  Original Value:  " << originalResistance << "\n";
+		std::cout << "  Gain:  " << originalResistance - resultResistance << "\n";
+
+		using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+		std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+
+		if (verbose) {
+			std::cout << "  AddedEdgeList:  [";
+			for (auto e: edges) { std::cout << "(" << e.u << ", " << e.v << "), "; }
+			std::cout << "]\n" << std::endl;
+		}
+
+		if (alg == AlgorithmType::trees) {
+			std::string linalgName = "";
+			if (linalg == LinAlgType::cg) {
+				linalgName = "CG";
+			} else if (linalg == LinAlgType::qr) {
+				linalgName = "QR";
+			} else if (linalg == LinAlgType::ldlt) {
+				linalgName = "LDLT";
+			} else if (linalg == LinAlgType::lamg) {
+				linalgName = "LAMG";
+			} else if (linalg == LinAlgType::least_squares) {
+				linalgName = "Least Squares";
+			} else if (linalg == LinAlgType::lu) {
+				linalgName = "LU";
+			} else if (linalg == LinAlgType::dense_ldlt) {
+				linalgName = "Dense LDLT";
+			} else if (linalg == LinAlgType::none) {
+				linalgName = "Dense CG";
+			}
+
+			if (linalgName != "") {
+				std::cout << "  Linalg: " << linalgName << "\n";
+			}
+		}
+
+		if (alg == AlgorithmType::trees) {
+			std::string heuristicName;
+			if (heuristic == HeuristicType::lpinvDiag) {
+				heuristicName = "Lpinv Diagonal";
+			}
+			if (heuristic == HeuristicType::similarity) {
+				heuristicName = "Similarity";
+			}
+			if (heuristic == HeuristicType::random) {
+				heuristicName = "Random";
+			}
+			std::cout << "Heuristic: " << heuristicName << "\n";
+		}
+	}
+
+};
+
 int main(int argc, char* argv[])
 {
-	omp_set_num_threads(4);
+	omp_set_num_threads(1);
 
 	if (argc < 2) {
 		std::cout << "Error: Call without arguments. Use --help for help.\n";
 		return 1;
 	}
 
+	RobustnessExperiment experiment;
+
+	for (int i = 0; i < argc; i++) {
+		experiment.call += argv[i]; experiment.call += " ";
+	}
+
+
 	bool run_tests = false;
 	bool run_experiments = true;
 
-	bool run_random = false;
-	bool run_random_avg = false;
-	bool run_submodular = false;
-	bool run_submodular2 = false;
-	bool run_stochastic = false;
-	bool run_simulated_annealing = false;
-	bool run_combined = false;
-	bool run_a5 = false; 
-	bool run_a6 = false;
-
-	bool heuristic_0 = false;
-	bool heuristic_1 = false;
-	bool heuristic_2 = false;
-
 	bool verbose = false;
+
 	bool vv = false;
-	bool verify_result = false;
 
 	double k_factor = 1.0;
 	bool km_sqrt = false;
 	bool km_linear = false;
 	bool km_crt = false;
 
-	double eps = 0.1;
-	double eps2 = 0.1;
+	LinAlgType linalg;
 
 	Graph g;
 	std::string instance_filename = "";
@@ -340,9 +574,6 @@ int main(int argc, char* argv[])
 	char instance_sep_char = ' ';
 	bool instance_directed = false;
 	std::string instance_comment_prefix = "%";
-
-	double roundFactor = 1.0;
-	int seed = 1;
 
 	std::string helpstring = "EXAMPLE CALL\n"
     	"\trobustness -a1 -a2 -i graph.gml\n"
@@ -361,6 +592,7 @@ int main(int argc, char* argv[])
 		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
 		"\t-eps\n\tEpsilon value for approximative algorithms. Default: 0.1\n"
 		"\t-j 4\t number of threads"
+		"\t--lamg\t use lamg (currently only with a6)"
 		"\n";
 
 
@@ -388,6 +620,7 @@ int main(int argc, char* argv[])
 		}
 
 		if (arg == "-v" || arg == "--verbose") {
+			experiment.verbose = true;
 			verbose = true;
 			continue;
 		}
@@ -397,7 +630,9 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		if (arg == "-tr") { verify_result = true; }
+		if (arg == "-tr") { 
+			experiment.verify_result = true;
+		}
 
 		if (arg == "-k" || arg == "--override-k" || arg == "--k-factor") {
 			std::string k_string = nextArg(i);
@@ -419,49 +654,58 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
+
 		if (arg == "-j") {
 			auto arg_str = nextArg(i);
+			experiment.threads = atoi(arg_str);
 			omp_set_num_threads(atoi(arg_str));
 		}
 
-		if (arg == "--round-factor" || arg == "-r") {
-			auto rf_string = nextArg(i);
-			roundFactor = std::stod(rf_string);
-			continue;
-		}
 		if (arg == "-eps" || arg == "--eps") {
-			eps = std::stod(nextArg(i));
+			experiment.epsilon = std::stod(nextArg(i));
 			continue;
 		}
 		if (arg == "-eps2" || arg == "--eps2") {
-			eps2 = std::stod(nextArg(i));
+			experiment.epsilon2 = std::stod(nextArg(i));
 			continue;
 		}
 
 		
 		if (arg == "--seed") {
-			auto s_string = nextArg(i);
-			seed = atoi(s_string);
+			auto seed_string = nextArg(i);
+			experiment.seed = atoi(seed_string);
 			continue;
 		}
-		if (arg == "-a1" || arg == "--submodular-greedy") { run_submodular = true; continue; }
-		if (arg == "-a11") { run_submodular2 = true; continue; }
-		if (arg == "-a2" || arg == "--stochastic-submodular-greedy") { run_stochastic = true; continue; }
-		//if (arg == "-a3" || arg == "--simulated-annealing") { run_simulated_annealing = true; continue; }
-		if (arg == "-a0" || arg == "--random-avg") { run_random_avg = true; continue; }
-		if (arg == "-a00" || arg == "--random") { run_random = true; continue; }
-		//if (arg == "-a4" || arg == "--combined") { run_combined = true; continue; }
-		if (arg == "-a5") { run_a5 = true; continue; }
-		if (arg == "-a6") { run_a6 = true; continue; }
+		if (arg == "-a1" || arg == "--submodular-greedy") { 
+			experiment.alg = AlgorithmType::submodular;
+			continue;
+		}
+		if (arg == "-a11") { 
+			experiment.alg = AlgorithmType::submodular2;
+			continue; 
+		}
+		if (arg == "-a2" || arg == "--stochastic-submodular-greedy") {
+			experiment.alg = AlgorithmType::stochastic;
+			continue; 
+		}
+		if (arg == "-a0" || arg == "--random-avg") { 
+			experiment.alg = AlgorithmType::random_avg;
+			continue; 
+		}
+		//if (arg == "-a00" || arg == "--random") { run_random = true; continue; }
 
-		if (arg == "-h0") { heuristic_0 = true; continue; }
-		if (arg == "-h1") { heuristic_1 = true; continue; }
-		if (arg == "-h2") { heuristic_2 = true; continue; }
+		if (arg == "-a5") { experiment.alg = AlgorithmType::a5; continue; }
+		if (arg == "-a6") { experiment.alg = AlgorithmType::trees; continue; }
+
+		if (arg == "-h1") { experiment.heuristic = HeuristicType::lpinvDiag; }
+		if (arg == "-h2") { experiment.heuristic = HeuristicType::similarity; }
+
 		if (arg == "-t") { run_tests = true; run_experiments = false; continue; }
 
 
 		if (arg == "-i" || arg == "--instance") {
 			instance_filename = nextArg(i);
+			experiment.instanceFile = instance_filename;
 			continue;
 		}
 		if (arg == "-in") {
@@ -480,19 +724,32 @@ int main(int argc, char* argv[])
 		if (arg == "-ic") {
 			instance_comment_prefix = nextArg(i);
 		}
+
+
+		if (arg == "--lamg") {
+			linalg = LinAlgType::lamg;
+		}
+		if (arg == "--cg") {
+			linalg = LinAlgType::cg;
+		}
+		if (arg == "--least_squares") {
+			linalg = LinAlgType::least_squares;
+		}
+		if (arg == "--lu") {
+			linalg = LinAlgType::lu;
+		}
+		if (arg == "--qr") {
+			linalg = LinAlgType::qr;
+		}
+		if (arg == "--ldlt") {
+			linalg = LinAlgType::ldlt;
+		}
+		if (arg == "--dense-ldlt") {
+			linalg = LinAlgType::dense_ldlt;
+		}
+		experiment.linalg = linalg;
 		
 	}
-
-
-	if (!heuristic_1 && !heuristic_2) {
-		heuristic_0 = true;
-	}
-
-	std::string call = "";
-	for (int i = 0; i < argc; i++) {
-		call += argv[i]; call += " ";
-	}
-	//std::cout << "  Call: " << call << "\n";
 
 
 	// Read graph file
@@ -532,26 +789,27 @@ int main(int argc, char* argv[])
 		}
 		g = NetworKit::ConnectedComponents::extractLargestConnectedComponent(g, true);
 		g.removeSelfLoops();
+		assert(g.checkConsistency());
 	}
+
+	int k;
+	int n = g.numberOfNodes();
+	if (km_sqrt) {
+		k = std::sqrt(n) * k_factor;
+	} else if (km_linear) {
+		k = n * k_factor;
+	} else if (km_crt) {
+		k = std::pow(n, 0.33333) * k_factor;
+	} else {
+		k = k_factor;
+	}
+	k = std::min(k, (int)(n*(n-1)/2 - g.numberOfEdges()));
+	k = std::max(k, 1);
+	experiment.k = k;
 
 
 
 	if (run_experiments) {
-		int k;
-		int n = g.numberOfNodes();
-		if (km_sqrt) {
-			k = std::sqrt(n) * k_factor;
-		} else if (km_linear) {
-			k = n * k_factor;
-		} else if (km_crt) {
-			k = std::pow(n, 0.33333) * k_factor;
-		} else {
-			k = k_factor;
-		}
-		k = std::min(k, (int)(n*(n-1)/2 - g.numberOfEdges()));
-		k = std::max(k, 1);
-
-		std::cout << "Runs: \n";
 
 
 		NetworKit::ConnectedComponents comp {g};
@@ -560,197 +818,20 @@ int main(int argc, char* argv[])
 			std::cout << "Error: Instance " << instance_filename << " is not connected!\n";
 			return 1;
 		}
-
-		auto write_result = [&](std::string name, double value, double original_value, std::chrono::nanoseconds duration, std::vector<NetworKit::Edge> edges, std::string variant_name="") {
-			std::cout << "- Instance: '" << instance_filename << "'\n";
-			std::cout << "  Nodes: " << n << "\n";
-			std::cout << "  Edges: " << g.numberOfEdges() << "\n";
-			std::cout << "  k: " << k << "\n";
-			std::string call = "";
-			for (int i = 0; i < argc; i++) {
-				call += argv[i]; call += " ";
-			}
-			std::cout << "  Call: " << call << "\n";
-			if (verbose) {
-				std::cout << "  EdgeList: [";
-				g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
-				std::cout << "]\n" << std::endl;
-			}
-
-			std::cout << "  Algorithm:  " << "'" << name << "'" << "\n";
-			if (variant_name != "") {
-				std::cout << "  Variant:  '" << variant_name << "'\n";
-			}
-			std::cout << "  Value:  " << value << "\n";
-			std::cout << "  Original Value:  " << original_value << "\n";
-			std::cout << "  Gain:  " << original_value - value << "\n";
-			using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-			std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-			if (verbose) {
-				std::cout << "  AddedEdgeList:  [";
-				for (auto e: edges) { std::cout << "(" << e.u << ", " << e.v << "), "; }
-				std::cout << "]\n" << std::endl;
-			}
-		};
-
-		auto result_correct = [&](double gain, std::vector<NetworKit::Edge> edges, double epsilon=0.00001) {
-			if (edges.size() != k) { 
-				std::cout << "Error: Output size != k\n"; 
-				return false;
-			}
-			for (auto e : edges) { 
-				if (g.hasEdge(e.u, e.v)) { 
-					std::cout << "Error: Edge from result already in original graph! (" << e.u << ", " << e.v << ")\n";
-					return false;
-				}
-			}
-			auto g_ = g;
-			double v0 = static_cast<double>(g.numberOfNodes()) * laplacianPseudoinverse(g).trace();
-			for (auto e: edges) { g_.addEdge(e.u, e.v); }
-			double v = static_cast<double>(g_.numberOfNodes()) * laplacianPseudoinverse(g_).trace();
-			if (std::abs(gain - std::abs(v0 - v))/std::abs(gain) > epsilon) {
-				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
-				return false;
-			}
-			return true;
-		};
-
-		if (run_random) {
-			Aux::Random::setSeed(seed, true);
-			auto t1 = std::chrono::high_resolution_clock::now();
-			auto edges = randomEdges(g, k);
-			auto t2 = std::chrono::high_resolution_clock::now();
-
-			auto G_copy = g;
-			double original_resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
-
-			for (auto e : edges) {
-				G_copy.addEdge(e.u, e.v);
-			}
-			double resistance = G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
-
-			write_result("Random Edges", resistance, original_resistance, t2 - t1, edges, "");
-			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
-		}
-
-		if (run_random_avg) {
-			Aux::Random::setSeed(seed, true);
-			double resistance = 0.0;
-			std::chrono::nanoseconds duration;
-			int rnds = 10;
-			double original_resistance = g.numberOfNodes() * laplacianPseudoinverse(g).trace();
-
-			for (int i = 0; i < rnds; i++) {
-				auto t1 = std::chrono::high_resolution_clock::now();
-				auto edges = randomEdges(g, k);
-				auto t2 = std::chrono::high_resolution_clock::now();
-
-				auto G_copy = g;
-				for (auto e : edges) {
-					G_copy.addEdge(e.u, e.v);
-				}
-				duration += (t2 - t1);
-				resistance += G_copy.numberOfNodes() * laplacianPseudoinverse(G_copy).trace();
-			}
-			write_result("Random Edges averaged", resistance / rnds, original_resistance, duration / rnds, {}, "");
-		}
+		experiment.g = g;
 
 
-		if (run_submodular) {
-			Aux::Random::setSeed(seed, true);
-			RobustnessGreedy rg;
-			auto t1 = std::chrono::high_resolution_clock::now();
-			rg.init(g, k);
-			rg.addAllEdges();
-			rg.run();
-			auto t2 = std::chrono::high_resolution_clock::now();
-
-			auto resistance = rg.getResultResistance();
-			auto edges = rg.getResultEdges();
-
-			double original_resistance = rg.getOriginalResistance();
-
-			write_result("Submodular Greedy", rg.getResultResistance(), original_resistance, t2 - t1, rg.getResultEdges(), "");
-			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
-		}
-		if (run_a5) {
-			Aux::Random::setSeed(seed, true);
-			RobustnessSqGreedy rg;
-			auto t1 = std::chrono::high_resolution_clock::now();
-			rg.init(g, k);
-			rg.run();
-			auto t2 = std::chrono::high_resolution_clock::now();
-			if (rg.isValidSolution()) {
-				auto resistance = rg.getResultResistance();
-				double original_resistance = rg.getOriginalResistance();
-				auto edges = rg.getResultEdges();
-				write_result("Greedy Sq", resistance, original_resistance, t2 - t1, edges, "");
-				if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
-			} else {
-				std::cout << "A5 failed!";
-				return 1;
-			}
-		}
-
-		if (run_a6) {
-			Aux::Random::setSeed(seed, true);
-			Graph g_cpy = g;
-			RobustnessTreeGreedy rg(g_cpy, k, eps, eps2);
-			auto t1 = std::chrono::high_resolution_clock::now();
-			rg.init();
-			rg.run();
-			auto t2 = std::chrono::high_resolution_clock::now();
-			if (rg.isValidSolution()) {
-				auto resistance = rg.getResultResistance();
-				auto edges = rg.getResultEdges();
-				double original_resistance = rg.getOriginalResistance();
-				write_result("UST Greedy", resistance, original_resistance, t2 - t1, edges, "");
-				if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
-			} else {
-				std::cout << "A6 failed!";
-				return 1;
-			}
-		}
-		if (run_submodular2) {
-			Aux::Random::setSeed(seed, true);
-			RobustnessGreedy2 rg;
-			auto t1 = std::chrono::high_resolution_clock::now();
-			rg.init(g, k);
-			rg.addAllEdges();
-			rg.run();
-			auto t2 = std::chrono::high_resolution_clock::now();
-
-			auto resistance = rg.getResultResistance();
-			auto edges = rg.getResultEdges();
-			double original_resistance = rg.getOriginalResistance();
-			write_result("Submodular Greedy", resistance, original_resistance, t2 - t1, edges, "Lpinv Updates On Demand");
-			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
-		}
-		if (run_stochastic) {
-			Aux::Random::setSeed(seed, true);
-			RobustnessStochasticGreedy rs;
-			auto t1 = std::chrono::high_resolution_clock::now();
-			rs.init(g, k, eps);
-			rs.addAllEdges();
-			rs.run();
-			auto resistance = rs.getResultResistance();
-			auto edges = rs.getResultEdges();
-			auto t2 = std::chrono::high_resolution_clock::now();
-			double original_resistance = rs.getOriginalResistance();
-			write_result("Stochastic Submodular Greedy", resistance, original_resistance, t2 - t1, edges, "");
-			if (verify_result && !result_correct(original_resistance - resistance, edges)) { return 1; }
-
-		}
+		experiment.run();
 
 	}
 
 	
 	if (run_tests) {
 		testDynamicColumnApprox();
+		//testRobustnessSubmodularGreedy();
+
 	}
 	
 
-	//testRobustnessGreedy();
-	//experiment(seed);
 	return 0;
 }

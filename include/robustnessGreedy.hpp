@@ -12,6 +12,7 @@
 
 #include <laplacian.hpp>
 #include <greedy.hpp>
+#include <greedy_params.hpp>
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
@@ -35,27 +36,96 @@ using namespace NetworKit;
 
 // The greedy algorithms in this file optimize for large -R_tot.
 
-class RobustnessGreedy final : public SubmodularGreedy<Edge>{
+
+class RobustnessRandomAveraged : public virtual AbstractOptimizer<Edge> {
 public:
-    void init(Graph G, int k) {
-        this->G = G;
-        this->n = G.numberOfNodes();
-        this->k = k;
+    RobustnessRandomAveraged(GreedyParams params) : g(params.g), k(params.k) {}
+
+    virtual void run() override {
+        std::set<std::pair<unsigned int, unsigned int>> es;
+        int n = g.numberOfNodes();
+        if (n*(n-1)/2 - g.numberOfEdges() < k) {
+            throw std::logic_error("Graph does not allow requested number of edges.");
+        }
+        auto lpinv = laplacianPseudoinverse(g);
+
+        for (int repetitions = 0; repetitions < 10; repetitions++) {
+            decltype(lpinv) lpinv_copy = lpinv;
+            double r = static_cast<double>(repetitions);
+            originalValue = r / (r+1.) * originalValue + 1. / (r+1.) * lpinv_copy.trace();
+
+            result.clear();
+            es.clear();
+            for (int i = 0; i < k; i++) {
+                do {
+                    int u = std::rand() % n;
+                    int v = std::rand() % n;
+                    if (u > v) {
+                        std::swap(u, v);
+                    }
+
+                    auto e = std::pair<unsigned int, unsigned int> (u, v);
+                    if (u != v && !g.hasEdge(u,v) && !g.hasEdge(v,u) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
+                        es.insert(e);
+                        result.push_back(NetworKit::Edge(u, v));
+                        updateLaplacianPseudoinverse(lpinv_copy, Edge(u, v));
+                        break;
+                    }
+                } while (true);
+            }
+            resultValue = r / (r+1.) * resultValue + 1. / (r+1.) * lpinv_copy.trace();
+        }
+
+        originalValue *= n;
+        resultValue *= n;
+    }
+
+    virtual double getResultValue() override {
+        return resultValue;
+    }
+
+    virtual double getOriginalValue() override {
+        return originalValue;
+    }
+
+    virtual std::vector<Edge> getResultItems() override {
+        return result;
+    }
+
+    virtual bool isValidSolution() {
+        return true;
+    }
+
+private:
+    Graph &g;
+    count k;
+    std::vector<NetworKit::Edge> result;
+    double originalValue = 1.;
+    double resultValue = 1.;
+};
+
+
+class RobustnessSubmodularGreedy final : public SubmodularGreedy<Edge> {
+public:
+    RobustnessSubmodularGreedy(GreedyParams params) {
+        this->g = params.g;
+        this->n = g.numberOfNodes();
+        this->k = params.k;
 
         // Compute pseudoinverse of laplacian
-        this->lpinv = laplacianPseudoinverse(G);
+        this->lpinv = laplacianPseudoinverse(g);
         this->totalValue = this->lpinv.trace() * n * (-1.0);
         this->originalResistance = this->totalValue * (-1.);
     }
 
-    virtual void addAllEdges() {
+    virtual void addDefaultItems() {
         // Add edges to items of greedy
         std::vector<Edge> items;
         for (size_t i = 0; i < this->n; i++)
         {
             for (size_t j = 0; j < i; j++)
             {
-                if (i != j && !this->G.hasEdge(i, j)) {
+                if (i != j && !this->g.hasEdge(i, j)) {
                     items.push_back(Edge(i,j));
                 }
             }
@@ -64,15 +134,15 @@ public:
         this->addItems(items);
     }
 
-    double getResultResistance() {
+    virtual double getResultValue() override {
         return this->totalValue * (-1.0);
     }
 
-    double getOriginalResistance() {
+    virtual double getOriginalValue() override {
         return this->originalResistance;
     }
 
-    std::vector<NetworKit::Edge> getResultEdges() {
+    virtual std::vector<NetworKit::Edge> getResultItems() override {
         return this->results;
     }
     
@@ -86,50 +156,50 @@ private:
 
     virtual void useItem(Edge e) override {
         updateLaplacianPseudoinverse(this->lpinv, e);
-        //this->G.addEdge(e.u, e.v);
+        //this->g.addEdge(e.u, e.v);
     }
 
     Eigen::MatrixXd lpinv;
 
     double originalResistance = 0.;
 
-    Graph G;
+    Graph g;
     int n;
 };
 
 
-class RobustnessSqGreedy final : public Algorithm {
+class RobustnessSqGreedy final : public AbstractOptimizer<NetworKit::Edge> {
 public:
-    void init(Graph G, int k, double epsilon = 0.1) {
-        this->G = G;
-        this->n = G.numberOfNodes();
-        this->k = k;
-        this->epsilon = epsilon;
+    RobustnessSqGreedy(GreedyParams params) {
+        this->g = params.g;
+        this->n = g.numberOfNodes();
+        this->k = params.k;
+        this->epsilon = params.epsilon;
         gen = std::mt19937(Aux::Random::getSeed());
 
         // Compute pseudoinverse of laplacian
-        this->lpinv = laplacianPseudoinverse(G);
+        this->lpinv = laplacianPseudoinverse(g);
         this->totalValue = this->lpinv.trace() * n * (-1.0);
         this->originalResistance = -1. * totalValue;
     }
 
-    double getResultResistance() {
+    virtual double getResultValue() override {
         return this->totalValue * (-1.0);
     }
 
-    double getOriginalResistance() {
+    virtual double getOriginalValue() override {
         return this->originalResistance;
     }
 
-    std::vector<NetworKit::Edge> getResultEdges() {
+    virtual std::vector<NetworKit::Edge> getResultItems() override {
         return this->results;
     }
 
-    bool isValidSolution() {
+    virtual bool isValidSolution() override {
         return this->validSolution;
     }
 
-    void run() {
+    virtual void run() override {
         this->round = 0;
         this->validSolution = false;
         this->results.clear();
@@ -140,9 +210,9 @@ public:
         };
         std::set<Edge, edge_cmp> resultSet;
 
-        if (k + G.numberOfEdges() > (n * (n-1) / 8*3)) {
+        if (k + g.numberOfEdges() > (n * (n-1) / 8*3)) {
             this->hasRun = true;
-            std::cout << "Bad call to GreedySq, adding this many edges is not supported! Attempting to have " << k + G.numberOfEdges() << " edges, limit is " << n*(n-1) / 8 *3;
+            std::cout << "Bad call to GreedySq, adding this many edges is not supported! Attempting to have " << k + g.numberOfEdges() << " edges, limit is " << n*(n-1) / 8 *3;
             return;
         }
 
@@ -156,9 +226,7 @@ public:
             do {
                 // Collect nodes set for current round
                 std::set<NetworKit::node> nodes;
-                //int s = (int)std::log2(n)*2;
-                //int s = //std::sqrt((n*(n-1) / 2) / k);
-                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon)) + 2;
+                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->g.numberOfEdges() - this->round) / k * std::log(1.0/epsilon)) + 2;
                 //if (s > k-round) { s = k - round; }
                 if (s < 10) { s = 10; }
 
@@ -203,7 +271,7 @@ public:
 
                 // Determine best edge between nodes from node set
                 auto edgeValid = [&](node u, node v){
-                    if (this->G.hasEdge(u, v)) return false;
+                    if (this->g.hasEdge(u, v)) return false;
                     if (resultSet.count(Edge(u, v)) > 0 || resultSet.count(Edge(v, u)) > 0) { return false; }
                     return true;
                 };
@@ -244,7 +312,7 @@ private:
         return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
     }
 
-    Graph G;
+    Graph g;
     int n;
     Eigen::MatrixXd lpinv;
     std::mt19937 gen;
@@ -264,25 +332,25 @@ private:
 
 class RobustnessStochasticGreedy : public StochasticGreedy<Edge>{
 public:
-    void init(Graph G, int k, double epsilon=0.1) {
-        this->G = G;
-        this->n = G.numberOfNodes();
-        this->k = k;
-        this->epsilon = epsilon;
+    RobustnessStochasticGreedy(GreedyParams params) {
+        this->g = params.g;
+        this->n = g.numberOfNodes();
+        this->k = params.k;
+        this->epsilon = params.epsilon;
 
-        this->lpinv = laplacianPseudoinverse(G);
+        this->lpinv = laplacianPseudoinverse(g);
         this->totalValue = this->lpinv.trace() * n * (-1.0);
         this->originalResistance = -1. * this->totalValue;
     }
 
-    void addAllEdges() {
+    virtual void addDefaultItems() override {
         // Add edges to items of greedy
         std::vector<Edge> items;
         for (size_t i = 0; i < this->n; i++)
         {
             for (size_t j = 0; j < i; j++)
             {
-                if (!this->G.hasEdge(i, j)) {
+                if (!this->g.hasEdge(i, j)) {
                     items.push_back(Edge(i,j));
                 }
             }
@@ -291,14 +359,14 @@ public:
         this->addItems(items);
     }
 
-    std::vector<Edge> getResultEdges() {
+    virtual std::vector<Edge> getResultItems() override {
         return this->results;
     }
-    double getResultResistance() {
+    virtual double getResultValue() override {
         return this->totalValue * (-1.0);
     }
 
-    double getOriginalResistance() {
+    virtual double getOriginalValue() override {
         return this->originalResistance;
     }
 
@@ -310,12 +378,12 @@ private:
 
     virtual void useItem(Edge e) override {
         updateLaplacianPseudoinverse(this->lpinv, e);
-        //this->G.addEdge(e);
+        //this->g.addEdge(e);
     }
 
     Eigen::MatrixXd lpinv;
 
-    Graph G;
+    Graph g;
     int n;
     double originalResistance = 0.;
 };
@@ -326,16 +394,16 @@ private:
 
 
 // Store laplacian as std::vector instead of Eigen::Matrix and update on demand. Appears to slightly improve performance over the normal submodular greedy; very slightly improved cache access properties
-class RobustnessGreedy2 final : public SubmodularGreedy<Edge>{
+class RobustnessSubmodularGreedy2 final : public SubmodularGreedy<Edge>{
 public:
-    void init(Graph G, int k) {
-        this->G = G;
-        this->n = G.numberOfNodes();
-        this->k = k;
+    RobustnessSubmodularGreedy2(GreedyParams params) {
+        this->g = params.g;
+        this->n = g.numberOfNodes();
+        this->k = params.k;
         this->age = std::vector<int>(n);
 
         // Compute pseudoinverse of laplacian
-        auto lpinv = laplacianPseudoinverse(G);
+        auto lpinv = laplacianPseudoinverse(g);
         this->totalValue = lpinv.trace() * n * (-1.0);
         for (int i = 0; i < n; i++) {
             this->lpinvVec.push_back(lpinv.col(i));
@@ -343,14 +411,14 @@ public:
         this->originalResistance = -1. * this->totalValue;
     }
 
-    virtual void addAllEdges() {
+    virtual void addDefaultItems() {
         // Add edges to items of greedy
         std::vector<Edge> items;
         for (size_t i = 0; i < this->n; i++)
         {
             for (size_t j = 0; j < i; j++)
             {
-                if (i != j && !this->G.hasEdge(i, j)) {
+                if (i != j && !this->g.hasEdge(i, j)) {
                     items.push_back(Edge(i,j));
                 }
             }
@@ -359,15 +427,15 @@ public:
         this->addItems(items);
     }
 
-    double getResultResistance() {
+    virtual double getResultValue() override {
         return this->totalValue * (-1.0);
     }
-    double getOriginalResistance() {
+    virtual double getOriginalValue() override {
         return this->originalResistance;
     }
 
 
-    std::vector<NetworKit::Edge> getResultEdges() {
+    virtual std::vector<NetworKit::Edge> getResultItems() override{
         return this->results;
     }
     
@@ -393,7 +461,7 @@ private:
         updateVec.push_back(this->lpinvVec[i] - this->lpinvVec[j]);
         updateW.push_back(w);
         //updateLaplacianPseudoinverse(this->lpinv, e);
-        //this->G.addEdge(e.u, e.v);
+        //this->g.addEdge(e.u, e.v);
     }
 
     void updateColumn(int i) {
@@ -404,7 +472,7 @@ private:
         }
     }
 
-    Graph G;
+    Graph g;
     int n;
     double originalResistance;
     std::vector<Eigen::VectorXd> updateVec;

@@ -12,6 +12,8 @@
 
 #include <laplacian.hpp>
 #include <greedy.hpp>
+#include <dynamicLaplacianSolver.hpp>
+#include <greedy_params.hpp>
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
@@ -22,67 +24,66 @@
 #include <networkit/components/ConnectedComponents.hpp>
 
 
+
 using namespace NetworKit;
 
 
-enum class heuristicType {
-    lpinvDiag,
-    centrality
-};
-
-enum class linalgType {
-    lu,
-    lamg
-};
 
 
-template <linalgType linalg=linalgType::lu>
-class RobustnessTreeGreedy final : public Algorithm {
+template <class DynamicLaplacianSolver=LamgDynamicLaplacianSolver>
+//using DynamicLaplacianSolver = LeastSquaresDynamicLaplacianSolver;
+class RobustnessTreeGreedy final : public AbstractOptimizer<NetworKit::Edge> {
 public:
-    RobustnessTreeGreedy(Graph &G, int k, double epsilon=0.1, double epsilon_tree_count = 0.1, heuristicType h=heuristicType::lpinvDiag) : G(G), apx(G, epsilon_tree_count) {
+    RobustnessTreeGreedy(GreedyParams params) : G(params.g) {
         this->n = G.numberOfNodes();
-        this->k = k;
-        this->epsilon = epsilon;
-        this->heuristic = h;
-    }
+        this->k = params.k;
+        this->epsilon = params.epsilon;
+        this->heuristic = params.heuristic;
+        this->round = 0;
 
-    void init() {
+        solver.setup(G, 0.1, numberOfNodeCandidates());
+        this->totalValue = 0.;
+        this->originalResistance = 0.;
+
         gen = std::mt19937(Aux::Random::getSeed());
 
-        // Compute total resistance at start
-        apx.run();
-        INFO("Usts: ", apx.getUstCount());
-
-        this->diag = apx.getDiagonal();
-        this->totalValue = 0.;
-        G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * this->diag[u]; });
-        originalResistance = -1. * totalValue;
-
-        age.resize(n, -1);
-        lpinvVec.resize(n);
-        laplacian = laplacianMatrixSparse(G);
-        //double exact = -1.0 * static_cast<double>(this->n) * laplacianPseudoinverse(laplacianMatrix(G)).trace();
-        //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
-
-        if (linalg == linalgType::lamg) {
-            lamg = SolverLamg()
+        if (heuristic == HeuristicType::lpinvDiag) {
+            apx = std::make_unique<ApproxElectricalCloseness>(params.g, params.epsilon2);
+            apx->run();
+            this->diag = apx->getDiagonal();
+            G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * this->diag[u]; });
+            originalResistance = -1. * totalValue;
+            INFO("Usts: ", apx->getUstCount());
+        } else {
+            similarityPhi = params.similarityPhi;
+            similarityIterations = params.similarityIterations;
+            // pass
         }
+        //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
     }
 
-    double getResultResistance() {
+
+    double getResultValue() {
         return this->totalValue * (-1.0);
     }
 
-    double getOriginalResistance() {
+    double getOriginalValue() {
         return this->originalResistance;
     }
 
-    std::vector<NetworKit::Edge> getResultEdges() {
+    std::vector<NetworKit::Edge> getResultItems() {
         return this->results;
     }
 
     bool isValidSolution() {
         return this->validSolution;
+    }
+
+    count numberOfNodeCandidates() {
+        unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon));
+        if (s < 2) { s = 2; }
+        if (s > n/2) { s = n/2; }
+        return s;
     }
 
     void run() {
@@ -112,30 +113,54 @@ public:
             do {
                 // Collect nodes set for current round
                 std::set<NetworKit::node> nodes;
-                unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon));
-                if (s < 2) { s = 2; }
-                if (s > n/2) { s = n/2; }
+                unsigned int s = numberOfNodeCandidates();
                 if (r == 0) { INFO("Columns in round 1: ", s); }
 
                 double min = std::numeric_limits<double>::infinity();
 
-                std::vector<double> nodeWeights;
+                std::vector<double> nodeWeights(n);
 
                 // the random choice following this may fail if all the vertex pairs are already present as edges, we use heuristic information the first time, uniform distribution if it fails
-                if (it++ < 2) { 
+                if (heuristic == HeuristicType::lpinvDiag && it++ < 2) {
                     double tr = -1. * this->totalValue;
                     G.forNodes([&](node u) {
                         double val = static_cast<double>(n) * diag[u] + tr;
                         if (val < min) { min = val; }
-                        nodeWeights.push_back(val);
+                        nodeWeights[u] = val;
                     });
                     for (auto &v : nodeWeights) {
                         auto u = v - min;
                         v = u*u;
                     }
+                } else if (heuristic == HeuristicType::similarity && it++ < 2) {
+                    // TODO test this
+                    // TODO export the parameters ...
+                    double phi = similarityPhi;
+                    count iterations = similarityIterations;
+                    Eigen::SparseMatrix<double> A = adjacencyMatrix(G);
+                    Eigen::VectorXd d (n);
+                    G.forNodes([&](node i) { d(i) = 1. / G.degree(i); });
+                    Eigen::VectorXd u = d;
+                    for (int i = 0; i < iterations; i++) {
+                        u = phi * A * u + d;
+                    }
+                    Eigen::VectorXd summedSimilarity = u;
+
+                    // We are interested in nodes that are dissimilar to other nodes i.e. the summed similarity score should be small.
+                    double max = -std::numeric_limits<double>::infinity();
+                    G.forNodes([&](node i) { 
+                        summedSimilarity(i) /= G.degree(i); 
+                        double val = summedSimilarity(i);
+                        if (val > max) { max = val; }
+                        nodeWeights[i] = val;
+                    });
+                    for (auto &v : nodeWeights) {
+                        auto w = max - v;
+                        v = w * w;
+                    }
                 } else {
                     G.forNodes([&](node u) {
-                        nodeWeights.push_back(1.0);
+                        nodeWeights[u] = 1.;
                     });
                 }
 
@@ -155,7 +180,8 @@ public:
                     nodes.insert(distribution_nodes_uniform(gen));
                 }
                 std::vector<node> nodesVec {nodes.begin(), nodes.end()};
-                updateColumns(nodesVec);
+
+                solver.computeColumns(nodesVec);
 
                 // Determine best edge between nodes from node set
                 auto edgeValid = [&](node u, node v){
@@ -184,27 +210,16 @@ public:
             auto u = bestEdge.u;
             auto v = bestEdge.v;
             G.addEdge(u, v);
-            laplacian.coeffRef(u, u) += 1.;
-            laplacian.coeffRef(v, v) += 1.;
-            laplacian.coeffRef(u, v) -= 1.;
-            laplacian.coeffRef(v, u) -= 1.;
 
-            auto& colU = lpinvVec[u];
-            auto& colV = lpinvVec[v];
-
-            double R = colU(u) + colV(v) - 2*colU(v);
-            double w = (1. / (1. + R));
-            auto upv = colU - colV;
-
-            double traceDiff = (colU - colV).squaredNorm() * w;
-            this->totalValue += traceDiff * static_cast<double>(n);
-
+            this->totalValue += bestGain;
 
             if (this->round < k-1) {
-                apx.edgeAdded(u, v);
-                this->diag = apx.getDiagonal();
-                updateVec.push_back(upv);
-                updateW.push_back(w);
+                solver.addEdge(u, v);
+
+                if (heuristic == HeuristicType::lpinvDiag) {
+                    apx->edgeAdded(u, v);
+                    this->diag = apx->getDiagonal();
+                }
             } else {
                 this->validSolution = true;
             }
@@ -212,89 +227,17 @@ public:
         }
         this->hasRun = true;
         this->results = {resultSet.begin(), resultSet.end()};
-        INFO("Computed columns: ", computedColumns);        
+        INFO("Computed columns: ", solver.getComputedColumnCount());        
     }
 
     
 private:
     virtual double objectiveDifference(Edge e) {
-        auto i = e.u;
-        auto j = e.v;
-
-        updateColumn(i);
-        updateColumn(j);
-        auto& col_i = lpinvVec[i];
-        auto& col_j = lpinvVec[j];
-
-        double difference = static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(col_i, i, col_j, j);
-        
-        return difference;
+        auto u = e.u;
+        auto v = e.v;
+        return solver.totalResistanceDifference(u, v);
     }
 
-    void updateColumns(std::vector<node> indices) {
-
-        if (linalg == linalgType::lu) {
-            std::vector<node> notComputed;
-            for (auto& ind: indices) {
-                if (age[ind] == -1) {
-                    notComputed.push_back(ind);
-                }
-            }
-            try {
-                auto cols = laplacianPseudoinverseColumns(laplacian, notComputed);
-
-                for (int i = 0; i < notComputed.size(); i++) {
-                    auto index = notComputed[i];
-                    lpinvVec[index] = cols[i];
-                    age[index] = this->round;
-                }
-
-            } catch (const std::logic_error& e) {
-                std::cout << e.what() << std::endl;
-
-                throw(e);
-            }
-            for (auto& ind: indices) {
-                updateColumn(ind);
-            }
-
-        } else if (linalg == linalgType::lamg) {
-            std::vector<node> notComputed;
-            for (auto& ind: indices) {
-                if (age[ind] == -1) {
-                    notComputed.push_back(ind);
-                }
-            }
-
-
-        }
-        
-        
-    }
-
-
-    void updateColumn(int i) {
-        if (age[i] == -1)
-        {
-            lpinvVec[i] = laplacianPseudoinverseColumn(laplacian, i);
-            this->computedColumns++;
-        }
-        else if (age[i] < this->round) 
-        {
-            for (int r = age[i]; r < this->round; r++)
-                lpinvVec[i] -= updateVec[r] * updateVec[r](i) * updateW[r];
-            /*
-            auto col_exact = laplacianPseudoinverseColumn(laplacian, i);
-            G.forNodes([&](node u) {
-                double error = std::abs(lpinvVec[i](u) - col_exact(u));
-                if (error > 0.001) {
-                    std::cout << "Column Error! (" << i << ", " << u << "): " << error << ", rel " << error / std::abs(col_exact(u)) << ", round " << this->round << ", age: " << age[i] << std::endl;
-                }
-            });
-            */
-        }
-        age[i] = this->round;
-    }
 
     Graph& G;
 	std::vector<Edge> results;
@@ -308,21 +251,15 @@ private:
     double epsilon = 0.1;
     double originalResistance = 0.;
 
+    count similarityIterations = 100;
+    double similarityPhi = 0.5;
     std::mt19937 gen;
     std::vector<double> diag;
-    ApproxElectricalCloseness apx;
 
-    std::vector<Eigen::VectorXd> updateVec;
-    std::vector<double> updateW;
-    std::vector<int> age;
-    std::vector<Eigen::VectorXd> lpinvVec;
+    std::unique_ptr<ApproxElectricalCloseness> apx;
+    DynamicLaplacianSolver solver;
 
-    count computedColumns = 0;
-
-    Eigen::SparseMatrix<double> laplacian;
-    heuristicType heuristic;
-
-    std::unique_ptr<SolverLamg<CSRMatrix>> lamg;
+    HeuristicType heuristic;
 };
 
 

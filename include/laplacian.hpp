@@ -13,9 +13,102 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
+#include <iostream>
 
 
-Eigen::MatrixXd laplacianMatrix(NetworKit::Graph const & g);
+template <class MatrixType>
+MatrixType laplacianMatrix(NetworKit::Graph const & g);
+
+template <>
+inline Eigen::MatrixXd laplacianMatrix<Eigen::MatrixXd>(NetworKit::Graph const & g) {
+	auto n = g.numberOfNodes();
+	Eigen::MatrixXd laplacian = Eigen::MatrixXd::Zero(n, n);
+	g.forEdges([&](NetworKit::node u, NetworKit::node v, double weight) {
+		if (u == v) {
+			std::cout << "Warning: Graph has edge with equal target and destination!";
+		}
+		laplacian(u, u) += weight;
+		laplacian(v, v) += weight;
+		laplacian(u, v) -= weight;
+		laplacian(v, u) -= weight;
+	});
+	return laplacian;
+}
+
+template <>
+inline Eigen::SparseMatrix<double> laplacianMatrix<Eigen::SparseMatrix<double>>(NetworKit::Graph const & g) {
+	auto n = g.numberOfNodes();
+	auto m = g.numberOfEdges();
+
+	typedef Eigen::Triplet<double> T;
+	std::vector<T> tripletList;
+	tripletList.reserve(3*m);
+	Eigen::VectorXd diagonal = Eigen::VectorXd::Constant(n, 0.0) ;
+	g.forEdges([&](NetworKit::node u, NetworKit::node v, double weight) {
+		if (u == v) {
+			std::cout << "Warning: Graph has edge with equal target and destination!";
+		}
+		tripletList.push_back(T(u, v, -1.));
+		tripletList.push_back(T(v, u, -1.));
+		diagonal(u) += 1.;
+		diagonal(v) += 1.;
+	});
+	for (int u = 0; u < n; u++) {
+		tripletList.push_back(T(u, u, diagonal(u)));
+	}
+	Eigen::SparseMatrix<double> laplacian(n, n);
+	laplacian.setFromTriplets(tripletList.begin(), tripletList.end());
+
+	return laplacian;
+}
+
+
+inline Eigen::SparseMatrix<double> adjacencyMatrix(NetworKit::Graph const & g) {
+	auto n = g.numberOfNodes();
+	auto m = g.numberOfEdges();
+
+	typedef Eigen::Triplet<double> T;
+	std::vector<T> tripletList;
+	tripletList.reserve(3*m);
+	g.forEdges([&](NetworKit::node u, NetworKit::node v, double weight) {
+		if (u == v) {
+			std::cout << "Warning: Graph has edge with equal target and destination!";
+		}
+		tripletList.push_back(T(u, v, 1.));
+		tripletList.push_back(T(v, u, 1.));
+	});
+	Eigen::SparseMatrix<double> adjacency(n, n);
+	adjacency.setFromTriplets(tripletList.begin(), tripletList.end());
+
+	return adjacency;
+}
+
+inline Eigen::SparseMatrix<double> degreeMatrix(NetworKit::Graph const & g) {
+	auto n = g.numberOfNodes();
+	auto m = g.numberOfEdges();
+
+	typedef Eigen::Triplet<double> T;
+	std::vector<T> tripletList;
+	tripletList.reserve(3*n);
+	Eigen::VectorXd diagonal = Eigen::VectorXd::Constant(n, 0.0) ;
+	g.forEdges([&](NetworKit::node u, NetworKit::node v, double weight) {
+		if (u == v) {
+			std::cout << "Warning: Graph has edge with equal target and destination!";
+		}
+		diagonal(u) += 1.;
+		diagonal(v) += 1.;
+	});
+	for (int u = 0; u < n; u++) {
+		tripletList.push_back(T(u, u, diagonal(u)));
+	}
+	Eigen::SparseMatrix<double> dmat(n, n);
+	dmat.setFromTriplets(tripletList.begin(), tripletList.end());
+
+	return dmat;
+}
+
+
+
 Eigen::SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g);
 
 Eigen::MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g);
