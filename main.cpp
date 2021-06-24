@@ -486,6 +486,7 @@ public:
 		std::cout << "  Value:  " << resultResistance << "\n";
 		std::cout << "  Original Value:  " << originalResistance << "\n";
 		std::cout << "  Gain:  " << originalResistance - resultResistance << "\n";
+		std::cout << "  Threads:  " << threads << "\n";
 
 		using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
 		std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
@@ -533,6 +534,11 @@ public:
 				heuristicName = "Random";
 			}
 			std::cout << "Heuristic: " << heuristicName << "\n";
+			std::cout << "Epsilon2: " << epsilon2 << "\n";
+		}
+
+		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::trees) {
+			std::cout << "Epsilon: " << epsilon << "\n";
 		}
 	}
 
