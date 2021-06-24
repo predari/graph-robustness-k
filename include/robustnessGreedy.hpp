@@ -37,6 +37,7 @@ using namespace NetworKit;
 // The greedy algorithms in this file optimize for large -R_tot.
 
 
+template <class DynamicLaplacianSolver>
 class RobustnessRandomAveraged : public virtual AbstractOptimizer<Edge> {
 public:
     RobustnessRandomAveraged(GreedyParams params) : g(params.g), k(params.k) {}
@@ -47,37 +48,36 @@ public:
         if (n*(n-1)/2 - g.numberOfEdges() < k) {
             throw std::logic_error("Graph does not allow requested number of edges.");
         }
-        auto lpinv = laplacianPseudoinverse(g);
+        //auto lpinv = laplacianPseudoinverse(g);
+        solver.setup(g, 0.0001, 2);
 
         for (int repetitions = 0; repetitions < 10; repetitions++) {
-            decltype(lpinv) lpinv_copy = lpinv;
-            double r = static_cast<double>(repetitions);
-            originalValue = r / (r+1.) * originalValue + 1. / (r+1.) * lpinv_copy.trace();
-
+            double resistance = 0.;
             result.clear();
             es.clear();
             for (int i = 0; i < k; i++) {
                 do {
-                    int u = std::rand() % n;
-                    int v = std::rand() % n;
+                    NetworKit::count u = std::rand() % n;
+                    NetworKit::count v = std::rand() % n;
                     if (u > v) {
                         std::swap(u, v);
                     }
 
+
                     auto e = std::pair<unsigned int, unsigned int> (u, v);
                     if (u != v && !g.hasEdge(u,v) && !g.hasEdge(v,u) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
+                        solver.computeColumns({u, v});
+                        resistance += solver.totalResistanceDifference(u, v);
                         es.insert(e);
+                        solver.addEdge(u, v);
                         result.push_back(NetworKit::Edge(u, v));
-                        updateLaplacianPseudoinverse(lpinv_copy, Edge(u, v));
                         break;
                     }
                 } while (true);
             }
-            resultValue = r / (r+1.) * resultValue + 1. / (r+1.) * lpinv_copy.trace();
+            double r = static_cast<double>(repetitions);
+            resultValue = r / (r+1.) * resultValue + 1. / (r+1.) * resistance;
         }
-
-        originalValue *= n;
-        resultValue *= n;
     }
 
     virtual double getResultValue() override {
@@ -100,8 +100,9 @@ private:
     Graph &g;
     count k;
     std::vector<NetworKit::Edge> result;
-    double originalValue = 1.;
+    double originalValue = 0.;
     double resultValue = 1.;
+    DynamicLaplacianSolver solver;
 };
 
 

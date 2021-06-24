@@ -24,6 +24,7 @@ def graph_inst(g, name):
     global instance_str
     instance_str += "\n      - " + name + ".nkb"
     _g = nk.components.ConnectedComponents.extractLargestConnectedComponent(g, True)
+    _g.removeMultiEdges()
     _g.sortEdges()
     nk.graphio.NetworkitBinaryWriter().write(_g, "instances/"+name+".nkb")
 

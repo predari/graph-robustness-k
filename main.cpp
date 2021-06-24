@@ -367,7 +367,7 @@ public:
 			createLinAlgGreedy<RobustnessTreeGreedy>();
 		} else if (alg == AlgorithmType::random_avg) {
 			algorithmName = "Random Averaged";
-			createSpecific<RobustnessRandomAveraged>();
+			createSpecific<RobustnessRandomAveraged<SparseLeastSquaresSolver>>();
 		} else {
 			throw std::logic_error("Algorithm not implemented!");
 		}
@@ -463,7 +463,7 @@ public:
 			for (auto e: edges) { g_.addEdge(e.u, e.v); }
 			double v = static_cast<double>(n) * laplacianPseudoinverse(g_).trace();
 
-			if (std::abs(gain - std::abs(v0 - v)) / std::abs(originalResistance) / k > 0.00001) {
+			if (std::abs(gain - std::abs(v0 - v)) / std::abs(originalResistance) / k > 0.001) {
 				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
 				throw std::logic_error("Error: Gain value inaccurate!");
 			}
