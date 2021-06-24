@@ -16,7 +16,7 @@ experiments:
     stdout: out
 
 variants:
-  - axis: 'k-size'
+  - axis: 'k-size-linear'
     items:
       # - name: 'crt'
       #   extra_args: ['-km', 'crt', '--k-factor', '3.0']
@@ -36,7 +36,9 @@ variants:
         extra_args: ['-km', 'linear', '--k-factor', '4.0']
       - name: 2**4
         extra_args: ['-km', 'linear', '--k-factor', '16.0']
-      - name: 'k-50'
+  - axis: 'k-size-const'
+    items:
+      - name: 'k-50'      
         extra_args: ['--k-factor 50']
       - name: 'k-300'
         extra_args: ['--k-factor 300']
@@ -89,45 +91,49 @@ instances:
       - erdos_renyi_128_0.1.nkb
       - erdos_renyi_300_0.05.nkb
       - erdos_renyi_600_0.05.nkb
-      - erdos_renyi_1000_0.02.nkb
-      - erdos_renyi_3000_0.01.nkb
       - watts_strogatz_100_5_0.5.nkb
       - watts_strogatz_300_7_0.5.nkb
-      - watts_strogatz_1000_7_0.3.nkb
-      - watts_strogatz_3000_7_0.3.nkb
       - barabasi_albert_2_100_2.nkb
       - barabasi_albert_2_300_2.nkb
+  - repo: local
+    items:
+      - erdos_renyi_1000_0.02.nkb
+      - erdos_renyi_3000_0.01.nkb
+      - watts_strogatz_1000_7_0.3.nkb
+      - watts_strogatz_3000_7_0.3.nkb
       - barabasi_albert_2_1000_2.nkb
       - barabasi_albert_2_3000_2.nkb
+    set: [medium-graphs]
+
 
 
 matrix:
   include:
     - experiments: [random-averaged, submodular-greedy]
-      instances: [erdos_renyi_1000_0.02.nkb, erdos_renyi_3000_0.01.nkb, watts_strogatz_1000_7_0.3.nkb, watts_strogatz_3000_7_0.3.nkb]
-      axes: ['k-size', threads]
+      instsets: [medium-graphs]
+      axes: ['k-size-linear', threads]
     - experiments: [stochastic-greedy, greedy-3]
-      instances: [erdos_renyi_1000_0.02.nkb, erdos_renyi_3000_0.01.nkb, watts_strogatz_1000_7_0.3.nkb, watts_strogatz_3000_7_0.3.nkb]
-      axes: ['k-size', threads, 'accuracy']
-    - experiments: [stochastic-greedy, greedy-3, sq-greedy]
-      instances: [erdos_renyi_1000_0.02.nkb, erdos_renyi_3000_0.01.nkb, watts_strogatz_1000_7_0.3.nkb, watts_strogatz_3000_7_0.3.nkb]
-      axes: ['k-size', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
+      instsets: [medium-graphs]
+      axes: ['k-size-linear', threads, 'accuracy']
+    - experiments: [sq-greedy]
+      instsets: [medium-graphs]
+      axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag']
     
-    - experiments: [facebook_ego_combined.nkb]
+    # - experiments: [facebook_ego_combined.nkb]
 
 
-    - experiments: [random-averaged]
-      axes: [k-size]
-    - experiments: [submodular-greedy]
-      axes: [k-size, 'threads']
-    - experiments: [stochastic-greedy]
-      axes: ['k-size', 'threads', 'accuracy']
-    - experiments: [greedy-3]
-      axes: ['k-size', 'threads', 'accuracy']
-    - experiments: [sq-greedy]
-      axes: ['k-size', 'threads', 'accuracy', 'accuracy_trees', 'linalg', 'heuristic']
-      variants: ['eps_0.9', 'eps2_0.9', '2**-4', '2**-2', '2**0', 'ust-diag']
-    - experiments:  [sq-greedy]
-      axes: ['k-size', 'threads', 'linalg', 'heuristic', 'accuracy']
-      variants: ['2**0', 'random', 'similarity', 'eps_0.9', 'eps2_0.9']
+    # - experiments: [random-averaged]
+    #   axes: [k-size-linear]
+    # - experiments: [submodular-greedy]
+    #   axes: [k-size-linear, 'threads']
+    # - experiments: [stochastic-greedy]
+    #   axes: ['k-size-linear', 'threads', 'accuracy']
+    # - experiments: [greedy-3]
+    #   axes: ['k-size-linear', 'threads', 'accuracy']
+    # - experiments: [sq-greedy]
+    #   axes: ['k-size-linear', 'threads', 'accuracy', 'accuracy_trees', 'linalg', 'heuristic']
+    #   variants: ['eps_0.9', 'eps2_0.9', '2**-4', '2**-2', '2**0', 'ust-diag']
+    # - experiments:  [sq-greedy]
+    #   axes: ['k-size-linear', 'threads', 'linalg', 'heuristic', 'accuracy']
+    #   variants: ['2**0', 'random', 'similarity', 'eps_0.9', 'eps2_0.9']
