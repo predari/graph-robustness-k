@@ -36,10 +36,10 @@ variants:
         extra_args: ['-km', 'linear', '--k-factor', '4.0']
   - axis: 'k-size-const'
     items:
-      - name: 'k-50'      
-        extra_args: ['--k-factor 20']
-      - name: 'k-300'
-        extra_args: ['--k-factor 200']
+      - name: 'k-20'      
+        extra_args: ['--k-factor', '20']
+      - name: 'k-200'
+        extra_args: ['--k-factor', '200']
   - axis: 'threads'
     items:
       - name: 'singlecore'
@@ -126,11 +126,11 @@ matrix:
       axes: ['k-size-const', threads]
     - experiments: [stochastic-greedy, greedy-3]
       instsets: [large-graphs]
-      axes: ['k-size-linear', threads, 'accuracy']
+      axes: ['k-size-const', threads, 'accuracy']
       variants: [eps_0.9]
     - experiments: [sq-greedy]
       instsets: [large-graphs]
-      axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
+      axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', eps_0.9, eps2_0.9]
 
   

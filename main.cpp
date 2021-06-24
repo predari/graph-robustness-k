@@ -533,12 +533,12 @@ public:
 			if (heuristic == HeuristicType::random) {
 				heuristicName = "Random";
 			}
-			std::cout << "Heuristic: " << heuristicName << "\n";
-			std::cout << "Epsilon2: " << epsilon2 << "\n";
+			std::cout << "  Heuristic: " << heuristicName << "\n";
+			std::cout << "  Epsilon2: " << epsilon2 << "\n";
 		}
 
 		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::trees) {
-			std::cout << "Epsilon: " << epsilon << "\n";
+			std::cout << "  Epsilon: " << epsilon << "\n";
 		}
 	}
 

@@ -173,7 +173,7 @@ class DynamicSparseLaplacianSolver : public DynamicLaplacianSolver<Eigen::Sparse
         this->solverLaplacian.makeCompressed();
         this->solver.compute(this->solverLaplacian);
         if (this->solver.info() != Eigen::Success) {
-            throw std::logic_error("Solver failed.");
+            throw std::logic_error("Solver Setup failed.");
         }
         this->solverAge = this->round;
     }
@@ -198,7 +198,7 @@ protected:
         this->solverLaplacian = this->laplacian;
         this->solver.compute(this->solverLaplacian);
         if (this->solver.info() != Eigen::Success) {
-            throw std::logic_error("Solver failed.");
+            throw std::logic_error("Solver Setup failed.");
         }
         this->solverAge = this->round;
     }
