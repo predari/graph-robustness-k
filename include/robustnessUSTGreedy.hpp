@@ -9,6 +9,7 @@
 #include <set>
 #include <vector>
 #include <map>
+#include <thread>
 
 #include <laplacian.hpp>
 #include <greedy.hpp>
@@ -41,7 +42,7 @@ public:
         this->heuristic = params.heuristic;
         this->round = 0;
 
-        solver.setup(G, 0.1, numberOfNodeCandidates());
+        solver.setup(G, 0.0001, numberOfNodeCandidates());
         this->totalValue = 0.;
         this->originalResistance = 0.;
 
@@ -57,6 +58,7 @@ public:
         } else {
             similarityPhi = params.similarityPhi;
             similarityIterations = params.similarityIterations;
+            totalValue = 0.;
             // pass
         }
         //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
@@ -195,6 +197,7 @@ public:
                         auto v = nodesVec[j];
                         if (edgeValid(u, v)) {
                             double gain = objectiveDifference(Edge(u, v));
+
                             if (gain > bestGain) {
                                 bestEdge = Edge(u, v);
                                 bestGain = gain;
@@ -203,6 +206,7 @@ public:
                     }
                 }
             } while (bestGain == -std::numeric_limits<double>::infinity());
+
 
             // Accept edge
             resultSet.insert(bestEdge);
@@ -214,11 +218,15 @@ public:
             this->totalValue += bestGain;
 
             if (this->round < k-1) {
-                solver.addEdge(u, v);
 
                 if (heuristic == HeuristicType::lpinvDiag) {
+                    std::thread solverThread([&](){ solver.addEdge(u, v); });
+
                     apx->edgeAdded(u, v);
                     this->diag = apx->getDiagonal();
+                    solverThread.join();
+                } else {
+                    solver.addEdge(u, v);
                 }
             } else {
                 this->validSolution = true;

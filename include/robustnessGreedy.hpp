@@ -49,7 +49,7 @@ public:
             throw std::logic_error("Graph does not allow requested number of edges.");
         }
         //auto lpinv = laplacianPseudoinverse(g);
-        solver.setup(g, 0.0001, 2);
+        solver.setup(g, 0.1, 2);
 
         for (int repetitions = 0; repetitions < 10; repetitions++) {
             double resistance = 0.;
@@ -78,6 +78,7 @@ public:
             double r = static_cast<double>(repetitions);
             resultValue = r / (r+1.) * resultValue + 1. / (r+1.) * resistance;
         }
+        resultValue *= -1.;
     }
 
     virtual double getResultValue() override {
@@ -456,7 +457,7 @@ private:
         auto j = e.v;
         this->updateColumn(i);
         this->updateColumn(j);
-        double R_ij = lpinvVec[i](i) + lpinvVec[j](j) - 2* lpinvVec[j](i);
+        double R_ij = lpinvVec[i](i) + lpinvVec[j](j) - 2.* lpinvVec[j](i);
         double w = 1.0 / (1.0 + R_ij);
 
         updateVec.push_back(this->lpinvVec[i] - this->lpinvVec[j]);

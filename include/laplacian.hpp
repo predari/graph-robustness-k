@@ -114,7 +114,87 @@ Eigen::SparseMatrix<double> laplacianMatrixSparse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(NetworKit::Graph const & g);
 Eigen::MatrixXd laplacianPseudoinverse(Eigen::MatrixXd laplacian);
 
-Eigen::VectorXd laplacianPseudoinverseColumn(const Eigen::SparseMatrix<double> & L, int k);
+
+
+template <class MatrixType = Eigen::SparseMatrix<double> >
+Eigen::VectorXd laplacianPseudoinverseColumn(const MatrixType & L, int k);
+
+
+// solver is expected to be already set up
+// rhs is expected to be Eigen::VectorXd::Constant(n, -1. / static_cast<double>(n))
+template <class Solver> 
+Eigen::VectorXd solveLaplacianPseudoinverseColumn(Solver &solver, Eigen::VectorXd &rhs, int n, int k) {
+	if (rhs.size() != n) {
+		rhs = Eigen::VectorXd::Constant(n, -1.0 / static_cast<double>(n));
+	}
+
+	rhs(k) = 1. - 1.0 / static_cast<double>(n);
+	Eigen::VectorXd x = solver.solve(rhs);
+	rhs(k) = -1. / static_cast<double>(n);
+
+	if (solver.info() != Eigen::Success) {
+		// solving failed
+		throw std::logic_error("Solving failed.!");
+	}
+	double avg = x.sum() / n;
+	return x - Eigen::VectorXd::Constant(n, avg);
+}
+
+
+
+template <>
+inline Eigen::VectorXd laplacianPseudoinverseColumn<Eigen::MatrixXd>(const Eigen::MatrixXd & L, int k) {
+	Eigen::ConjugateGradient<Eigen::MatrixXd, Eigen::Lower|Eigen::Upper> solver;
+	solver.compute(L);
+
+	int n = L.cols();
+	Eigen::VectorXd b = Eigen::VectorXd::Constant(n, -1.0/n);
+	b(k) += 1.;
+
+	solver.compute(L);
+	if (solver.info() != Eigen::Success) {
+		// solver failed
+		throw std::logic_error("Solver failed.");
+	}
+
+	Eigen::VectorXd x = solver.solve(b);
+	if (solver.info() != Eigen::Success) {
+		// solving failed
+		throw std::logic_error("Solving failed.!");
+	}
+	double avg = x.sum() / n;
+	Eigen::VectorXd vec = x - Eigen::VectorXd::Constant(n, avg);
+
+	return vec;
+}
+
+template <class MatrixType = Eigen::SparseMatrix<double> >
+inline Eigen::VectorXd laplacianPseudoinverseColumn(const MatrixType & L, int k) {
+	Eigen::SparseLU<MatrixType, Eigen::COLAMDOrdering<int> > solver;
+	solver.analyzePattern(L); 
+	solver.factorize(L); 
+
+	int n = L.cols();
+	Eigen::VectorXd b = Eigen::VectorXd::Constant(n, -1.0/n);
+	b(k) += 1.;
+
+	solver.compute(L);
+	if (solver.info() != Eigen::Success) {
+		// solver failed
+		throw std::logic_error("Solver failed.");
+	}
+
+	Eigen::VectorXd x = solver.solve(b);
+	if (solver.info() != Eigen::Success) {
+		// solving failed
+		throw std::logic_error("Solving failed.!");
+	}
+	double avg = x.sum() / n;
+	Eigen::VectorXd vec = x - Eigen::VectorXd::Constant(n, avg);
+
+	return vec;
+}
+
 std::vector<Eigen::VectorXd> laplacianPseudoinverseColumns(const Eigen::SparseMatrix<double> &L, std::vector<NetworKit::node> indices);
 std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(const NetworKit::CSRMatrix &laplacian, std::vector<NetworKit::node> indices, double tol=0.1);
 

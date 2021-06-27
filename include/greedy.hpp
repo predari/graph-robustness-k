@@ -315,7 +315,6 @@ void StochasticGreedy<Item>::run() {
                     }
                 }
             }
-
         }
 
 

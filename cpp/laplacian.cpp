@@ -53,32 +53,6 @@ void updateLaplacian(SparseMatrix<double> &laplacian, NetworKit::node a, NetworK
 	laplacian.coeffRef(b, a) -= 1.;
 }
 
-VectorXd laplacianPseudoinverseColumn(const SparseMatrix<double> & L, int k) {
-	SparseLU<SparseMatrix<double>, COLAMDOrdering<int> >   solver;
-	solver.analyzePattern(L); 
-	solver.factorize(L); 
-
-	int n = L.cols();
-	VectorXd b = VectorXd::Constant(n, -1.0/n);
-	b(k) += 1.;
-
-	solver.compute(L);
-	if (solver.info() != Success) {
-		// solver failed
-		throw std::logic_error("Solver failed.");
-	}
-
-	auto x = solver.solve(b);
-	if (solver.info() != Success) {
-		// solving failed
-		throw std::logic_error("Solving failed.!");
-	}
-	double avg = x.sum() / n;
-	auto vec = x - VectorXd::Constant(n, avg);
-
-	return vec;
-}
-
 std::vector<NetworKit::Vector> laplacianPseudoinverseColumns(const NetworKit::CSRMatrix & laplacian, std::vector<NetworKit::node> indices, double tol) {
 
     NetworKit::ConjugateGradient<NetworKit::CSRMatrix, NetworKit::DiagonalPreconditioner> cg(tol);
@@ -137,6 +111,7 @@ std::vector<VectorXd> laplacianPseudoinverseColumns(const SparseMatrix<double> &
 	}
 	return result;
 }
+
 
 
 MatrixXd laplacianPseudoinverse(MatrixXd lp) {

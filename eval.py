@@ -16,11 +16,27 @@ def parse(run, f):
         'k': exp['k'],
         'algorithm': exp['Algorithm'],
         'value': exp['Value'],
-        'time': exp['Time']
+        'time': exp['Time'],
+        'gain': exp['Gain'],
 	}
 
     if 'Variant' in exp:
         d['variant'] = exp['Variant']
+
+    if 'Linalg' in exp:
+        d['linalg'] = exp['Linalg']
+    
+    if "Epsilon" in exp:
+        d['epsilon'] = exp['Epsilon']
+    
+    if "Epsilon2" in exp:
+        d['epsilon2'] = exp['Epsilon2']
+    
+    if "Heuristic" in exp:
+        d['heuristic'] = exp['Heuristic']
+
+    if "Threads" in exp:
+        d['threads'] = exp['Threads']
 
     return d
 	
@@ -52,11 +68,24 @@ import matplotlib.pyplot as plt
 #fig, (ax1, ax2) = plt.subplots(2, 1)
 #fig.suptitle('A tale of 2 subplots')
 
+
+def project(df, col, value):
+    cols = [c for c in df.columns if c != col]
+    return df[df[col] == value].filter(items=cols)
+
 def plot_instance(df, instance_name):
     instanceframe = df[df['instance'] == instance_name]
     results = {}
     for index, row in instanceframe.iterrows():
-        exp = row['experiment']
+        experiment = row['experiment']
+        key = experiment
+        key += " j"+str(row["threads"])
+
+        if experiment in ["Stochastic", "A5", "UST"]:
+            key += " eps" + str(row["epsilon"])
+        if experiment in ["UST"]:
+            key += "eps2" + str(row["epsilon2"])
+
         if exp not in results:
             results[exp] = []
         results[exp].append((row['k'], row['value'], row['time']))
@@ -105,9 +134,9 @@ def plot_instance(df, instance_name):
     fig.savefig(instance_name + ".png")
     #plt.show()
 
-plot_instance(df, "WattsStrogatz_1000_7_0.3")
-plot_instance(df, "BarabasiAlbert_200_400_8")
-plot_instance(df, "opsahl-usairport")
+#plot_instance(df, "WattsStrogatz_1000_7_0.3")
+#plot_instance(df, "BarabasiAlbert_200_400_8")
+#plot_instance(df, "opsahl-usairport")
 #plot_instance(df, "facebook_combined")
-plot_instance(df, "dimacs10-netscience")
-plot_instance(df, "ErdosRenyi_3000_0.01")
+#plot_instance(df, "dimacs10-netscience")
+#plot_instance(df, "ErdosRenyi_3000_0.01")

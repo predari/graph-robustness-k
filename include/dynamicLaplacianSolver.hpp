@@ -42,12 +42,12 @@ public:
         colAge.resize(n, -1);
         cols.resize(n);
         round = 0;
-        rhs = Eigen::VectorXd::Constant(n, -1.0/n);
 
+        rhs.resize(omp_get_max_threads(), Eigen::VectorXd::Constant(n, -1.0/n));
 
         auto t0 = std::chrono::high_resolution_clock::now();
 
-        setup_solver();
+        setup_solver(solver);
         
         auto t1 = std::chrono::high_resolution_clock::now();
         computeColumnSingle(0);
@@ -76,38 +76,33 @@ public:
 
     virtual void computeColumnSingle(node i) {
         if (colAge[i] == -1 || round - colAge[i] > ageToRecompute) {
-            rhs(i) = 1.0 - 1.0/static_cast<double>(n);
-            Eigen::VectorXd &x = cols[i];
-            x = solver.solve(rhs);
-            rhs(i) = -1.0 / static_cast<double>(n);
-
-            if (solver.info() != Eigen::Success) {                    
-                throw std::logic_error(std::string("Solving failed! Error code: ") + std::to_string(solver.info()) + std::string(", node: ") + std::to_string(i));
-            }
-            double avg = x.sum() / static_cast<double>(n);
-            cols[i] = x - Eigen::VectorXd::Constant(n, avg);
+            cols[i] = solveLaplacianPseudoinverseColumn(solver, rhs[omp_get_thread_num()], n, i);
             computedColumns++;
             colAge[i] = solverAge;
         } 
-        for  (; colAge[i] < round; colAge[i]++) {
-            cols[i] -= updateVec[colAge[i]] * (updateVec[colAge[i]](i) * updateW[colAge[i]]);
+        for (auto &age = colAge[i]; age < round; age++) {
+            cols[i] -= updateVec[age] * updateVec[age](i) * updateW[age];
         }
     }
 
     virtual void computeColumns(std::vector<node> nodes) override {
-        for (auto i: nodes) {
-            computeColumnSingle(i);
-        }        
+        #pragma omp parallel for
+        for (auto it = nodes.begin(); it < nodes.end(); it++) {
+            computeColumnSingle(*it);
+        }
     }
 
     virtual void addEdge(node u, node v) override {
         computeColumns({u, v});
-        auto& colU = cols[u];
-        auto& colV = cols[v];
+        const Eigen::VectorXd& colU = cols[u];
+        const Eigen::VectorXd& colV = cols[v];
 
-        double R = colU(u) + colV(v) - 2*colU(v);
-        double w = (1. / (1. + R));
-        auto upv = colU - colV;
+        volatile double R = colU(u) + colV(v) - 2. * colU(v);
+        double w = 1. / (1. + R);
+        assert(w < 1);
+
+        updateVec.push_back(colU - colV);
+        updateW.push_back(w);
 
         rChange = (colU - colV).squaredNorm() * w * static_cast<double>(n);
 
@@ -117,15 +112,13 @@ public:
         laplacian.coeffRef(u, v) -= 1.;
         laplacian.coeffRef(v, u) -= 1.;
 
+        round++;
+
         if (round % roundsPerSolverUpdate == 0) {
             solver.~Solver();
             new (&solver) Solver();
             setup_solver();
         }
-
-        updateVec.push_back(upv);
-        updateW.push_back(w);
-        round++;
     }
 
     virtual count getComputedColumnCount() override {
@@ -140,7 +133,7 @@ public:
 protected:
     virtual void setup_solver() = 0;
 
-    std::vector<count> colAge;
+    std::vector<int> colAge;
     std::vector<Eigen::VectorXd> cols;
     std::vector<Eigen::VectorXd> updateVec;
     std::vector<double> updateW;
@@ -148,13 +141,13 @@ protected:
     count n;
     count round = 0;
 
-    Eigen::VectorXd rhs;
+    std::vector<Eigen::VectorXd> rhs;
     MatrixType laplacian;
     MatrixType solverLaplacian;
 
 	Solver solver; 
     double rChange = 0.;
-    count computedColumns;
+    count computedColumns = 0;
 
     // Update solver every n rounds
     count roundsPerSolverUpdate = 1;
@@ -168,11 +161,10 @@ protected:
 
 template <class Solver>
 class DynamicSparseLaplacianSolver : public DynamicLaplacianSolver<Eigen::SparseMatrix<double>, Solver> {
-    virtual void setup_solver() override {
-        this->solverLaplacian = this->laplacian;
-        this->solverLaplacian.makeCompressed();
-        this->solver.compute(this->solverLaplacian);
-        if (this->solver.info() != Eigen::Success) {
+    virtual void setup_solver(Solver& solver) override {
+        this->laplacian.makeCompressed();
+        solver.compute(this->laplacian);
+        if (solver.info() != Eigen::Success) {
             throw std::logic_error("Solver Setup failed.");
         }
         this->solverAge = this->round;
@@ -194,10 +186,10 @@ typedef DynamicSparseLaplacianSolver <Eigen::ConjugateGradient <Eigen::SparseMat
 template <class Solver>
 class DynamicDenseLaplacianSolver : public DynamicLaplacianSolver<Eigen::MatrixXd, Solver> {
 protected:
-    virtual void setup_solver() override {
+    virtual void setup_solver(Solver& solver) override {
         this->solverLaplacian = this->laplacian;
-        this->solver.compute(this->solverLaplacian);
-        if (this->solver.info() != Eigen::Success) {
+        solver.compute(this->solverLaplacian);
+        if (solver.info() != Eigen::Success) {
             throw std::logic_error("Solver Setup failed.");
         }
         this->solverAge = this->round;
@@ -288,6 +280,7 @@ public:
 
         double R = colU(u) + colV(v) - 2*colU(v);
         double w = (1. / (1. + R));
+        assert(w < 1.);
         auto upv = colU - colV;
 
         rChange = (colU - colV).squaredNorm() * w * static_cast<double>(n);
@@ -297,6 +290,10 @@ public:
         laplacian.setValue(u, v, laplacian(u, v) - 1.);
         laplacian.setValue(v, u, laplacian(v, u) - 1.);
 
+        updateVec.push_back(upv);
+        updateW.push_back(w);
+        round++;
+
         if (round % roundsPerSolverUpdate == 0) {
             lamg.~Lamg<CSRMatrix>();
             new (&lamg) Lamg<CSRMatrix>();
@@ -304,10 +301,6 @@ public:
 
             solverAge = round;
         }
-
-        updateVec.push_back(upv);
-        updateW.push_back(w);
-        round++;
     }
 
     virtual count getComputedColumnCount() override {
