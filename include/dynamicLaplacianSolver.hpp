@@ -47,7 +47,7 @@ public:
 
         auto t0 = std::chrono::high_resolution_clock::now();
 
-        setup_solver(solver);
+        setup_solver();
         
         auto t1 = std::chrono::high_resolution_clock::now();
         computeColumnSingle(0);
@@ -161,10 +161,10 @@ protected:
 
 template <class Solver>
 class DynamicSparseLaplacianSolver : public DynamicLaplacianSolver<Eigen::SparseMatrix<double>, Solver> {
-    virtual void setup_solver(Solver& solver) override {
+    virtual void setup_solver() override {
         this->laplacian.makeCompressed();
-        solver.compute(this->laplacian);
-        if (solver.info() != Eigen::Success) {
+        this->solver.compute(this->laplacian);
+        if (this->solver.info() != Eigen::Success) {
             throw std::logic_error("Solver Setup failed.");
         }
         this->solverAge = this->round;
@@ -186,10 +186,10 @@ typedef DynamicSparseLaplacianSolver <Eigen::ConjugateGradient <Eigen::SparseMat
 template <class Solver>
 class DynamicDenseLaplacianSolver : public DynamicLaplacianSolver<Eigen::MatrixXd, Solver> {
 protected:
-    virtual void setup_solver(Solver& solver) override {
+    virtual void setup_solver() override {
         this->solverLaplacian = this->laplacian;
-        solver.compute(this->solverLaplacian);
-        if (solver.info() != Eigen::Success) {
+        this->solver.compute(this->solverLaplacian);
+        if (this->solver.info() != Eigen::Success) {
             throw std::logic_error("Solver Setup failed.");
         }
         this->solverAge = this->round;
