@@ -457,7 +457,7 @@ private:
         auto j = e.v;
         this->updateColumn(i);
         this->updateColumn(j);
-        double R_ij = lpinvVec[i](i) + lpinvVec[j](j) - 2.* lpinvVec[j](i);
+        double R_ij = lpinvVec[i](i) + lpinvVec[j](j) - 2. * lpinvVec[j](i);
         double w = 1.0 / (1.0 + R_ij);
 
         updateVec.push_back(this->lpinvVec[i] - this->lpinvVec[j]);

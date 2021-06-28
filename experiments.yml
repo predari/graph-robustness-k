@@ -46,6 +46,7 @@ variants:
         extra_args: ['-j', '1']
       - name: 'multicore'
         extra_args: ['-j', '12']
+        num_threads: 12
   - axis: 'accuracy'
     items:
       - name: 'eps_0.1'

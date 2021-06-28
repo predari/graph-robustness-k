@@ -86,8 +86,8 @@ if __name__ == "__main__":
     txt_to_inst("arxiv-grqc", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepPh.txt.gz", "arxiv-heph")
     txt_to_inst("arxiv-heph", "\t", 0, "#", False)
-    #dl_txt_gz("https://snap.stanford.edu/data/ca-HepTh.txt.gz", "arxiv-hephth")
-    #txt_to_inst("arxiv-hephth", "\t", 0, "#", False)
+    dl_txt_gz("https://snap.stanford.edu/data/ca-HepTh.txt.gz", "arxiv-hephth")
+    txt_to_inst("arxiv-hephth", "\t", 0, "#", False)
 
     
 

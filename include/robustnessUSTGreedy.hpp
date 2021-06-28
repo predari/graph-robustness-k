@@ -220,11 +220,14 @@ public:
             if (this->round < k-1) {
 
                 if (heuristic == HeuristicType::lpinvDiag) {
+                    int threads = omp_get_num_threads();
+                    omp_set_num_threads(threads - 1);
                     std::thread solverThread([&](){ solver.addEdge(u, v); });
 
                     apx->edgeAdded(u, v);
                     this->diag = apx->getDiagonal();
                     solverThread.join();
+                    omp_set_num_threads(threads);
                 } else {
                     solver.addEdge(u, v);
                 }

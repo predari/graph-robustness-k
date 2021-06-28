@@ -73,6 +73,9 @@ def project(df, col, value):
     cols = [c for c in df.columns if c != col]
     return df[df[col] == value].filter(items=cols)
 
+def print_df(df):
+    print(df.to_string())
+
 def plot_instance(df, instance_name):
     instanceframe = df[df['instance'] == instance_name]
     results = {}

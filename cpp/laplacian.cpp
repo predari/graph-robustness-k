@@ -222,6 +222,7 @@ void updateLaplacianPseudoinverse(MatrixXd & lpinv, NetworKit::Edge e, double co
 	//VectorXd col_j = lpinv.col(j);
 
 	int n = lpinv.cols();
+	#pragma omp parallel for
 	for (int i = 0; i < n; i++) {
 		lpinv.col(i) += v(i) * w_negative * v;
 	}
