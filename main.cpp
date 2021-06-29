@@ -367,7 +367,7 @@ public:
 			createLinAlgGreedy<RobustnessTreeGreedy>();
 		} else if (alg == AlgorithmType::random_avg) {
 			algorithmName = "Random Averaged";
-			createSpecific<RobustnessRandomAveraged<SparseLeastSquaresSolver>>();
+			createSpecific<RobustnessRandomAveraged<SparseLUSolver>>();
 		} else {
 			throw std::logic_error("Algorithm not implemented!");
 		}

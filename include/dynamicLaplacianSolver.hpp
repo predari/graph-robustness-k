@@ -162,8 +162,10 @@ protected:
 template <class Solver>
 class DynamicSparseLaplacianSolver : public DynamicLaplacianSolver<Eigen::SparseMatrix<double>, Solver> {
     virtual void setup_solver() override {
-        this->laplacian.makeCompressed();
-        this->solver.compute(this->laplacian);
+        this->solverLaplacian = this->laplacian;
+        this->solverLaplacian.makeCompressed();
+        this->solver.compute(this->solverLaplacian);
+
         if (this->solver.info() != Eigen::Success) {
             throw std::logic_error("Solver Setup failed.");
         }
