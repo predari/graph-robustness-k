@@ -79,6 +79,7 @@ instances:
       - arxiv-heph.nkb
       - arxiv-hephth.nkb
       - opsahl-powergrid.nkb
+      - deezer_europe.nkb
     set: [large-graphs]
   - repo: local
     items:

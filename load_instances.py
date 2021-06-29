@@ -52,6 +52,16 @@ def dl_tar_bz2(url, archive_path_to_instance, name):
     os.system('tar -xf /tmp/{0}.tar.bz2 -C /tmp/'.format(name))
     os.system('mv /tmp/{0} instances/{1}.txt'.format(archive_path_to_instance, name))
 
+def load_deezer_europe_instance():
+    if os.path.isfile("instances/deezer_europe.nkb"):
+        return False
+    dl("https://snap.stanford.edu/data/deezer_europe.zip", "deezer_europe.zip")
+    os.system("unzip /tmp/deezer_europe.zip -d /tmp/")
+    csv_to_inst("/tmp/deezer_europe/deezer_europe_edges.csv", "deezer_europe")
+
+
+
+
 
 def gen_er_inst(n, p):
     nk.setSeed(1, True)
@@ -71,6 +81,7 @@ def gen_ws_inst(nNodes, nNeighbors, p):
     name = "watts_strogatz_{0}_{1}_{2}".format(nNodes, nNeighbors, p)
     graph_inst(g, name)
 
+    
 
 if __name__ == "__main__":
     if not os.path.isdir("instances"):
@@ -106,6 +117,8 @@ if __name__ == "__main__":
     #txt_to_inst("dimacs-net", "\t", 1, "%")
     #dl_tar_bz2("http://konect.cc/files/download.tsv.topology.tar.bz2", "topology/out.topology", "topology")
     #txt_to_inst("topology", "\t", 1, "%")
+
+    load_deezer_europe_instance()
 
     #gen_er_inst(10, 0.4)
     #gen_er_inst(30, 0.3)
