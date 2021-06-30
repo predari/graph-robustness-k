@@ -56,7 +56,6 @@ public:
             originalResistance = -1. * totalValue;
             INFO("Usts: ", apx->getUstCount());
         } else {
-            similarityPhi = params.similarityPhi;
             similarityIterations = params.similarityIterations;
             totalValue = 0.;
             // pass
@@ -137,7 +136,9 @@ public:
                 } else if (heuristic == HeuristicType::similarity && it++ < 2) {
                     // TODO test this
                     // TODO export the parameters ...
-                    double phi = similarityPhi;
+                    count maxDegree = 0;
+                    G.forNodes([&](node u) { if (G.degree(u) > maxDegree) maxDegree = G.degree(u); });
+                    double phi = 1. / maxDegree;
                     count iterations = similarityIterations;
                     Eigen::SparseMatrix<double> A = adjacencyMatrix(G);
                     Eigen::VectorXd d (n);
@@ -264,7 +265,6 @@ private:
     double originalResistance = 0.;
 
     count similarityIterations = 100;
-    double similarityPhi = 0.5;
     std::mt19937 gen;
     std::vector<double> diag;
 
