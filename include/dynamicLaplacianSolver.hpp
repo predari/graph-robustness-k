@@ -39,10 +39,15 @@ public:
         this->laplacian = laplacianMatrix<MatrixType>(g);
         n = laplacian.rows();
 
+        colAge.clear();
         colAge.resize(n, -1);
+        cols.clear();
         cols.resize(n);
+        updateVec.clear();
+        updateW.clear();
         round = 0;
 
+        rhs.clear();
         rhs.resize(omp_get_max_threads(), Eigen::VectorXd::Constant(n, -1.0/n));
 
         auto t0 = std::chrono::high_resolution_clock::now();

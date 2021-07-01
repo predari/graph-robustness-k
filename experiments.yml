@@ -53,14 +53,14 @@ variants:
         extra_args: ['-eps2', '0.9']
   - axis: 'linalg'
     items:
-      - name: 'dense-ldlt'
-        extra_args: ['--dense-ldlt']
+#      - name: 'dense-ldlt'
+#        extra_args: ['--dense-ldlt']
       - name: 'lamg'
         extra_args: ['--lamg']
       - name: 'lu'
         extra_args: ['--lu']
-      - name: 'qr'
-        extra_args: ['--qr']
+#      - name: 'qr'
+#        extra_args: ['--qr']
   - axis: 'heuristic'
     items:
       - name: 'random'
@@ -115,7 +115,7 @@ matrix:
       axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', eps_0.9, eps2_0.9]
 
-    - experiments: [random-averaged]
+    - experiments: [random-averaged, submodular-greedy]
       instsets: [large-graphs]
       axes: ['k-size-const', threads]
     - experiments: [stochastic-greedy, greedy-3]
@@ -125,7 +125,7 @@ matrix:
     - experiments: [sq-greedy]
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: ['ust-diag', eps_0.9, eps2_0.9]
+      variants: ['ust-diag', eps_0.9, eps2_0.9,]
     - experiments: [sq-greedy]
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']

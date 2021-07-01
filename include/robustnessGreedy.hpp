@@ -49,9 +49,9 @@ public:
             throw std::logic_error("Graph does not allow requested number of edges.");
         }
         //auto lpinv = laplacianPseudoinverse(g);
-        solver.setup(g, 0.1, 2);
 
         for (int repetitions = 0; repetitions < 10; repetitions++) {
+            solver.setup(g, 0.1, 2);
             double resistance = 0.;
             result.clear();
             es.clear();
@@ -76,6 +76,7 @@ public:
                 } while (true);
             }
             double r = static_cast<double>(repetitions);
+            std::cout << resistance << "\n";
             resultValue = r / (r+1.) * resultValue + 1. / (r+1.) * resistance;
         }
         resultValue *= -1.;
