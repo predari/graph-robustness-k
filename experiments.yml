@@ -37,8 +37,8 @@ variants:
         extra_args: ['--k-factor', '200']
   - axis: 'threads'
     items:
-      - name: 'singlecore'
-        extra_args: ['-j', '1']
+      #- name: 'singlecore'
+      #  extra_args: ['-j', '1']
       - name: 'multicore'
         extra_args: ['-j', '12']
         num_threads: 12
@@ -107,7 +107,7 @@ instances:
 
 matrix:
   include:
-    - experiments: [random-averaged, submodular-greedy]
+    - experiments: [submodular-greedy]
       instsets: [medium-graphs]
       axes: ['k-size-linear', threads]
     - experiments: [stochastic-greedy, greedy-3]
@@ -117,10 +117,6 @@ matrix:
       instsets: [medium-graphs]
       axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', eps_0.9, eps2_0.9]
-
-    - experiments: [random-averaged, submodular-greedy]
-      instsets: [large-graphs]
-      axes: ['k-size-const', threads]
     - experiments: [stochastic-greedy, greedy-3]
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy']
