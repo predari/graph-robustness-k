@@ -67,7 +67,7 @@ public:
                     auto e = std::pair<unsigned int, unsigned int> (u, v);
                     if (u != v && !g.hasEdge(u,v) && !g.hasEdge(v,u) && es.count(std::pair<unsigned int, unsigned int>(u, v)) == 0) {
                         solver.computeColumns({u, v});
-                        resistance += solver.totalResistanceDifference(u, v);
+                        resistance += solver.totalResistanceDifferenceApprox(u, v);
                         es.insert(e);
                         solver.addEdge(u, v);
                         result.push_back(NetworKit::Edge(u, v));
@@ -76,7 +76,6 @@ public:
                 } while (true);
             }
             double r = static_cast<double>(repetitions);
-            std::cout << resistance << "\n";
             resultValue = r / (r+1.) * resultValue + 1. / (r+1.) * resistance;
         }
         resultValue *= -1.;

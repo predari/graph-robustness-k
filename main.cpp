@@ -272,6 +272,55 @@ void testRobustnessSubmodularGreedy() {
 	//rgd3.summarize();
 }
 
+
+void testJLT(NetworKit::Graph g, std::string instanceFile) {
+	int n = g.numberOfNodes();
+
+	auto B = incidenceMatrix(g);
+	//Eigen::SparseMatrix<double> L = laplacianMatrix(g);
+	Eigen::SparseMatrix<double> L2 = B * B.transpose();
+
+	JLTLUSolver jlt_solver;
+	SparseLUSolver reference_solver;
+
+	double epsilon = 0.5;
+	jlt_solver.setup(g, epsilon);
+	reference_solver.setup(g, 0.1);
+
+
+    std::mt19937 gen(1);
+    std::uniform_int_distribution<> distrib(0, n - 1);
+
+	for (int i = 0 ; i < 5; i++) {
+		node u = distrib(gen);
+		node v = distrib(gen);
+		if (!g.hasEdge(u, v)) {
+			g.addEdge(u, v);
+			jlt_solver.addEdge(u, v);
+			reference_solver.addEdge(u, v);
+		}
+	}
+	std::cout << "Runs: \n";
+	std::cout << "- Instance: '" << instanceFile << "'\n";
+	std::cout << "  Nodes: " << n << "\n";
+	std::cout << "  Edges: " << g.numberOfEdges() << "\n";
+
+	std::cout << "  JLT-Test: true \n";
+	std::cout << "  Rel-Errors: [";
+
+	for (int i = 0; i < 1000; i++) {
+		node u = distrib(gen);
+		node v = distrib(gen);
+		if (!g.hasEdge(u, v) && u != v) {
+			auto approx_gain = jlt_solver.totalResistanceDifferenceApprox(u, v);
+			auto reference_gain = reference_solver.totalResistanceDifferenceExact(u, v);
+			auto rel_error = std::abs(reference_gain - approx_gain) / reference_gain;
+			std::cout << rel_error << ", ";
+		}
+	}
+	std::cout << "] \n";
+}
+
 std::vector<NetworKit::Edge> randomEdges(NetworKit::Graph const & G, int k) {
 	std::vector<NetworKit::Edge> result;
 	result.clear();
@@ -306,7 +355,8 @@ enum class LinAlgType {
 	ldlt, 
 	lu,
 	lamg,
-	dense_ldlt
+	dense_ldlt,
+	jlt_lu_sparse
 };
 
 enum class AlgorithmType {
@@ -391,6 +441,8 @@ public:
 			createSpecific<Greedy<LamgDynamicLaplacianSolver>>();
 		} else if (linalg == LinAlgType::none) {
 			createSpecific<Greedy<DenseCGSolver>>();
+		} else if (linalg == LinAlgType::jlt_lu_sparse) {
+			createSpecific<Greedy<JLTLUSolver>>();
 		} else {
 			throw std::logic_error("Solver not implemented!");
 		}
@@ -515,6 +567,8 @@ public:
 				linalgName = "Dense LDLT";
 			} else if (linalg == LinAlgType::none) {
 				linalgName = "Dense CG";
+			} else if (linalg == LinAlgType::jlt_lu_sparse) {
+				linalgName = "JLT via Sparse LU";
 			}
 
 			if (linalgName != "") {
@@ -571,6 +625,8 @@ int main(int argc, char* argv[])
 	bool km_sqrt = false;
 	bool km_linear = false;
 	bool km_crt = false;
+
+	bool test_jlt = false;
 
 	LinAlgType linalg;
 
@@ -634,6 +690,10 @@ int main(int argc, char* argv[])
 			verbose = true;
 			vv = true;
 			continue;
+		}
+
+		if (arg == "--test-jlt") {
+			test_jlt = true;
 		}
 
 		if (arg == "-tr") { 
@@ -753,6 +813,9 @@ int main(int argc, char* argv[])
 		if (arg == "--dense-ldlt") {
 			linalg = LinAlgType::dense_ldlt;
 		}
+		if (arg == "--jlt_lu") {
+			linalg = LinAlgType::jlt_lu_sparse;
+		}
 		experiment.linalg = linalg;
 		
 	}
@@ -815,9 +878,12 @@ int main(int argc, char* argv[])
 
 
 
+	if (test_jlt) {
+		run_experiments = false;
+		testJLT(g, instance_filename);
+	}
+
 	if (run_experiments) {
-
-
 		NetworKit::ConnectedComponents comp {g};
 		comp.run();
 		if (comp.numberOfComponents() != 1) {
@@ -833,7 +899,8 @@ int main(int argc, char* argv[])
 
 	
 	if (run_tests) {
-		testDynamicColumnApprox();
+		//testJLT();
+		//testDynamicColumnApprox();
 		//testRobustnessSubmodularGreedy();
 
 	}

@@ -14,6 +14,9 @@ experiments:
   - name: sq-greedy
     args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
+  - name: test-jlt
+    args: ['./build/robustness', '--test-jlt', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
+    stdout: out
 
 variants:
   - axis: 'k-size-linear'
@@ -130,5 +133,9 @@ matrix:
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: [similarity, random, eps_0.9, eps2_0.9, lu, multicore]
+    - experiments: ['test-jlt']
+      axes: [threads]
+      variants: [multicore]
+      instsets: ['large-graphs']
 
   

@@ -197,7 +197,7 @@ public:
                     for (int j = 0; j < i; j++) {
                         auto v = nodesVec[j];
                         if (edgeValid(u, v)) {
-                            double gain = objectiveDifference(Edge(u, v));
+                            double gain = solver.totalResistanceDifferenceApprox(u, v);
 
                             if (gain > bestGain) {
                                 bestEdge = Edge(u, v);
@@ -215,6 +215,8 @@ public:
             auto u = bestEdge.u;
             auto v = bestEdge.v;
             G.addEdge(u, v);
+
+            bestGain = solver.totalResistanceDifferenceExact(u, v);
 
             this->totalValue += bestGain;
 
@@ -245,13 +247,6 @@ public:
 
     
 private:
-    virtual double objectiveDifference(Edge e) {
-        auto u = e.u;
-        auto v = e.v;
-        return solver.totalResistanceDifference(u, v);
-    }
-
-
     Graph& G;
 	std::vector<Edge> results;
 

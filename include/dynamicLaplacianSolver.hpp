@@ -16,6 +16,9 @@
 
 #include <iostream>
 #include <chrono>
+#include <algorithm>
+#include <random>
+
 
 using namespace NetworKit;
 
@@ -23,11 +26,11 @@ using namespace NetworKit;
 class IDynamicLaplacianSolver {
 public:
     virtual void setup(const Graph &g, double tolerance, count eqnsPerRound=200) = 0;
-    virtual Eigen::VectorXd getColumn(node i) = 0;
     virtual void computeColumns(std::vector<node> nodes) = 0;
     virtual void addEdge(node u, node v) = 0;
     virtual count getComputedColumnCount() = 0;
-    virtual double totalResistanceDifference(node u, node v) = 0;
+    virtual double totalResistanceDifferenceApprox(node u, node v) = 0;
+    virtual double totalResistanceDifferenceExact(node u, node v) = 0;
     virtual ~IDynamicLaplacianSolver() {}
 };
 
@@ -74,9 +77,28 @@ public:
     }
 
 
-    virtual Eigen::VectorXd getColumn(node i) override {
+    Eigen::VectorXd getColumn(node i) {
         computeColumnSingle(i);
         return cols[i];
+    }
+
+    Eigen::MatrixXd solve(const Eigen::MatrixXd& rhs) {
+        Eigen::MatrixXd sol = solver.solve(rhs);
+        if (solver.info() != Eigen::Success) {
+            // solving failed
+            throw std::logic_error("Solving failed.!");
+        }
+
+
+        Eigen::MatrixXd avgs = Eigen::VectorXd::Constant(n, 1. / n).transpose() * sol;
+        sol -= Eigen::VectorXd::Constant(n, 1.) * avgs;
+        computedColumns += rhs.cols();
+
+        for (count age = solverAge; age < round; age++) {
+            auto upv = updateVec[age];
+            sol -= upv * upv.transpose() * rhs * updateW[age];
+        }
+        return sol;
     }
 
     virtual void computeColumnSingle(node i) {
@@ -130,9 +152,14 @@ public:
         return computedColumns;
     }
 
-    virtual double totalResistanceDifference(node u, node v) {
+    virtual double totalResistanceDifferenceApprox(node u, node v) {
         return static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(getColumn(u), u, getColumn(v), v);
     }
+
+    virtual double totalResistanceDifferenceExact(node u, node v) {
+        return totalResistanceDifferenceApprox(u, v);
+    }
+
 
 
 protected:
@@ -263,7 +290,7 @@ public:
     }
 
 
-    virtual Eigen::VectorXd getColumn(node u) override {
+    Eigen::VectorXd getColumn(node u) {
         computeColumns({u});
         return cols[u];
     }
@@ -314,9 +341,14 @@ public:
         return computedColumns;
     }
 
-    virtual double totalResistanceDifference(node u, node v) {
+    virtual double totalResistanceDifferenceApprox(node u, node v) {
         return static_cast<double>(this->n) * (-1.0) * laplacianPseudoinverseTraceDifference(getColumn(u), u, getColumn(v), v);
     }
+
+    virtual double totalResistanceDifferenceExact(node u, node v) {
+        return totalResistanceDifferenceApprox(u, v);
+    }
+
 
 
 private:
@@ -341,5 +373,122 @@ private:
 
     Lamg<CSRMatrix> lamg;
 };
+
+
+
+
+template <class MatrixType, class DynamicSolver>
+class JLTSolver : virtual public IDynamicLaplacianSolver {
+public:
+    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound=200) override {
+        n = g.numberOfNodes();
+        m = g.numberOfEdges();
+
+        epsilon = tolerance;
+
+        l = jltDimension(n, epsilon);
+
+        G = g;
+
+        solver.setup(g, tolerance, 2*l + 2);
+        incidence = incidenceMatrix(g);
+
+        computeIntermediateMatrices();
+    }
+
+    virtual void computeColumns(std::vector<node> nodes) override {
+        // pass
+    }
+
+
+    virtual void addEdge(node u, node v) override {
+        G.addEdge(u, v);
+        solver.addEdge(u, v);
+        m++;
+
+        incidence = incidenceMatrix(G);
+        //updateIncidenceMatrix(incidence, u, v);
+        computeIntermediateMatrices();
+    }
+
+    virtual count getComputedColumnCount() override {
+        return solver.getComputedColumnCount();
+    }
+
+    virtual double totalResistanceDifferenceApprox(node u, node v) override {
+        double R = effR(u, v);
+        double phiNormSq = phiNormSquared(u, v);
+
+        return n / (1. + R) * phiNormSq;
+    }
+
+    virtual double totalResistanceDifferenceExact(node u, node v) override {
+        return solver.totalResistanceDifferenceExact(u, v);
+    }
+
+    double effR(node u, node v) {
+        return (PBL.col(u) - PBL.col(v)).squaredNorm();
+    }
+
+    double phiNormSquared(node u, node v) {
+        return (PL.col(u) - PL.col(v)).squaredNorm();
+    }
+
+
+private:
+    int jltDimension(int n, double epsilon) {
+        return 2 * std::max(std::log(n) / (epsilon * epsilon / 2 - epsilon * epsilon * epsilon / 3), 1.);
+    }
+
+    void computeIntermediateMatrices() {
+        // Generate projection matrices
+
+        auto random_projection = [&](count n_rows, count n_cols) {
+            auto normal = [&](int) { return d(gen) / std::sqrt(n_rows); };
+            Eigen::MatrixXd P = Eigen::MatrixXd::NullaryExpr(n_rows, n_cols, normal);
+            Eigen::VectorXd avg = P * Eigen::VectorXd::Constant(n_cols, 1. / n_cols);
+            P -= avg * Eigen::MatrixXd::Constant(1, n_cols, 1.);
+            return P;
+        };
+
+        P_n = random_projection(l, n);
+        P_m = random_projection(l, m);
+
+
+        // Compute columns of P L^\dagger and P' B^T L^\dagger where B is the incidence matrix of G
+        // We first compute the transposes of the targets. For the first, solve LX = P^T, for the second solve LX = B P^T
+
+        Eigen::MatrixXd rhs1 = P_n.transpose(); 
+        Eigen::MatrixXd rhs2 = incidence * P_m.transpose();
+
+        PL = solver.solve(rhs1);
+        PBL = solver.solve(rhs2);
+
+        PL.transposeInPlace();
+        PBL.transposeInPlace();
+    }
+
+
+
+    DynamicSolver solver;
+
+    count n, m;
+    count l;
+
+    Eigen::MatrixXd P_n, P_m;
+    Eigen::MatrixXd PL, PBL;
+
+    double epsilon;
+
+
+    std::mt19937 gen{1};
+    std::normal_distribution<> d{0, 1};
+
+    Graph G;
+    Eigen::SparseMatrix<double> incidence;
+};
+
+
+typedef JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver> JLTLUSolver;
 
 #endif // DYNAMIC_LAPLACIAN_SOLVER_HPP

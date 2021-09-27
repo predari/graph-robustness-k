@@ -14,6 +14,8 @@
 #include <Eigen/Sparse>
 
 #include <iostream>
+#include <algorithm>
+#include <stdexcept>
 
 
 template <class MatrixType>
@@ -34,6 +36,28 @@ inline Eigen::MatrixXd laplacianMatrix<Eigen::MatrixXd>(NetworKit::Graph const &
 	});
 	return laplacian;
 }
+
+inline Eigen::SparseMatrix<double> sparseFromDense(Eigen::MatrixXd dense) {
+	typedef Eigen::Triplet<double> T;
+	std::vector<T> tripletList;
+
+	auto m = dense.rows();
+	auto n = dense.cols();
+
+	tripletList.reserve(3*m*n);
+
+	for (unsigned int x = 0; x < n; x++) {
+		for (unsigned int y = 0; y < m; y++) {
+			tripletList.push_back(T(x, y, dense(x, y)));
+		}
+	}
+
+	Eigen::SparseMatrix<double> sparse(m, n);
+	sparse.setFromTriplets(tripletList.begin(), tripletList.end());
+
+	return sparse;
+}
+
 
 template <>
 inline Eigen::SparseMatrix<double> laplacianMatrix<Eigen::SparseMatrix<double>>(NetworKit::Graph const & g) {
@@ -60,6 +84,28 @@ inline Eigen::SparseMatrix<double> laplacianMatrix<Eigen::SparseMatrix<double>>(
 	laplacian.setFromTriplets(tripletList.begin(), tripletList.end());
 
 	return laplacian;
+}
+
+
+inline Eigen::SparseMatrix<double> incidenceMatrix(const NetworKit::Graph& g) {
+	auto m = g.numberOfEdges();
+	auto n = g.numberOfNodes();
+	Eigen::SparseMatrix<double> incidence (n, m);
+
+	typedef Eigen::Triplet<double> T;
+	std::vector<T> tripletList;
+	tripletList.reserve(3*2*m);
+
+	int eid = 0;
+	g.forEdges([&](NetworKit::node u, NetworKit::node v) {
+		if (u > v) { std::swap(u, v); }
+		tripletList.push_back(T(u, eid,  1.));
+		tripletList.push_back(T(v, eid, -1.));
+		eid++;
+	});
+	
+	incidence.setFromTriplets(tripletList.begin(), tripletList.end());
+	return incidence;
 }
 
 
