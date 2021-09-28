@@ -380,13 +380,13 @@ private:
 template <class MatrixType, class DynamicSolver>
 class JLTSolver : virtual public IDynamicLaplacianSolver {
 public:
-    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound=200) override {
+    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound) override {
         n = g.numberOfNodes();
         m = g.numberOfEdges();
 
         epsilon = tolerance;
 
-        l = jltDimension(n, epsilon);
+        l = jltDimension(eqnsPerRound, epsilon);
 
         G = g;
 

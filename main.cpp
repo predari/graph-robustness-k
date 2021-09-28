@@ -273,24 +273,23 @@ void testRobustnessSubmodularGreedy() {
 }
 
 
-void testJLT(NetworKit::Graph g, std::string instanceFile) {
+void testJLT(NetworKit::Graph g, std::string instanceFile, int k) {
 	int n = g.numberOfNodes();
-
-	auto B = incidenceMatrix(g);
-	//Eigen::SparseMatrix<double> L = laplacianMatrix(g);
-	Eigen::SparseMatrix<double> L2 = B * B.transpose();
 
 	JLTLUSolver jlt_solver;
 	SparseLUSolver reference_solver;
 
 	double epsilon = 0.5;
-	jlt_solver.setup(g, epsilon);
+	jlt_solver.setup(g, epsilon, n);
 	reference_solver.setup(g, 0.1);
 
 
+	
     std::mt19937 gen(1);
-    std::uniform_int_distribution<> distrib(0, n - 1);
+    std::uniform_int_distribution<> distrib_n(0, n - 1);
 
+
+	/*
 	for (int i = 0 ; i < 5; i++) {
 		node u = distrib(gen);
 		node v = distrib(gen);
@@ -300,6 +299,8 @@ void testJLT(NetworKit::Graph g, std::string instanceFile) {
 			reference_solver.addEdge(u, v);
 		}
 	}
+	*/
+
 	std::cout << "Runs: \n";
 	std::cout << "- Instance: '" << instanceFile << "'\n";
 	std::cout << "  Nodes: " << n << "\n";
@@ -309,8 +310,8 @@ void testJLT(NetworKit::Graph g, std::string instanceFile) {
 	std::cout << "  Rel-Errors: [";
 
 	for (int i = 0; i < 1000; i++) {
-		node u = distrib(gen);
-		node v = distrib(gen);
+		node u = distrib_n(gen);
+		node v = distrib_n(gen);
 		if (!g.hasEdge(u, v) && u != v) {
 			auto approx_gain = jlt_solver.totalResistanceDifferenceApprox(u, v);
 			auto reference_gain = reference_solver.totalResistanceDifferenceExact(u, v);
@@ -318,6 +319,37 @@ void testJLT(NetworKit::Graph g, std::string instanceFile) {
 			std::cout << rel_error << ", ";
 		}
 	}
+	std::cout << "] \n";
+
+
+	std::cout << "  Rel-Errors-2: [";
+
+	JLTLUSolver jlt_solver2;
+	SparseLUSolver reference_solver2;
+
+
+	epsilon = 0.5;
+	int c = std::max(n / std::sqrt(2) / k * std::log(1. / 0.9), 3.);
+	jlt_solver2.setup(g, epsilon, c);
+    std::uniform_int_distribution<> distrib_c(0, c - 1);
+	std::set<int> node_subset;
+	while (node_subset.size() < c) {
+		node_subset.insert(distrib_n(gen));
+	}
+	std::vector<NetworKit::node> node_subset_vec(node_subset.begin(), node_subset.end());
+	assert(node_subset_vec.size() == c);
+
+	for (int i = 0; i < 1000; i++) {
+		node u = node_subset_vec[distrib_c(gen)];
+		node v = node_subset_vec[distrib_c(gen)];
+		if (!g.hasEdge(u, v) && u != v) {
+			auto approx_gain = jlt_solver.totalResistanceDifferenceApprox(u, v);
+			auto reference_gain = reference_solver.totalResistanceDifferenceExact(u, v);
+			auto rel_error = std::abs(reference_gain - approx_gain) / reference_gain;
+			std::cout << rel_error << ", ";
+		}
+	}
+
 	std::cout << "] \n";
 }
 
@@ -861,7 +893,7 @@ int main(int argc, char* argv[])
 		assert(g.checkConsistency());
 	}
 
-	int k;
+	int k = 1;
 	int n = g.numberOfNodes();
 	if (km_sqrt) {
 		k = std::sqrt(n) * k_factor;
@@ -880,7 +912,7 @@ int main(int argc, char* argv[])
 
 	if (test_jlt) {
 		run_experiments = false;
-		testJLT(g, instance_filename);
+		testJLT(g, instance_filename, k);
 	}
 
 	if (run_experiments) {
@@ -899,7 +931,6 @@ int main(int argc, char* argv[])
 
 	
 	if (run_tests) {
-		//testJLT();
 		//testDynamicColumnApprox();
 		//testRobustnessSubmodularGreedy();
 

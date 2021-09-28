@@ -3,7 +3,7 @@
 import simexpal
 import pandas as pd
 import yaml
-
+import math
 
 
 def parse(run, f):
@@ -14,54 +14,47 @@ def parse(run, f):
     exp = exps[0]
 
     d = {}
+    d = copy(exp)
+    d['Instance'] = run.instance.shortname
+    d["Experiment"] =  run.experiment.name
+
     if "JLT-Test" in exp:
-        d = {
-            "instance": run.instance.shortname,
-            'experiment': "JLT-Test",
-            'nodes': exp['Nodes'],
-            'edges': exp['Edges'],
-            'rel-errors': exp['Rel-Errors']
-        }
+        d["Experiment"] = "JLT-Test"
+        d["JLT-Test"] = True
+
+        # d = {
+        #     "instance": run.instance.shortname,
+        #     'experiment': "JLT-Test",
+        #     'nodes': exp['Nodes'],
+        #     'edges': exp['Edges'],
+        #     'rel-error': exp['Rel-Error'],
+        #     'jlt-test': True
+        # }
     else:
-        d = {
-            'experiment': run.experiment.name,
-            'instance': run.instance.shortname,
-            'nodes': exp['Nodes'],
-            'edges': exp['Edges'],
-            'k': exp['k'],
-            'algorithm': exp['Algorithm'],
-            'value': exp['Value'],
-            'time': exp['Time'],
-            'gain': exp['Gain'],
-        }
+        pass
+        # d = {
+        #     'experiment': run.experiment.name,
+        #     'instance': run.instance.shortname,
+        #     'nodes': exp['Nodes'],
+        #     'edges': exp['Edges'],
+        #     'k': exp['k'],
+        #     'algorithm': exp['Algorithm'],
+        #     'value': exp['Value'],
+        #     'time': exp['Time'],
+        #     'gain': exp['Gain'],
+        # }
 
-        if d['gain'] < 0:
-            d['gain'] *= -1.
+    if d['gain'] < 0:
+        d['gain'] *= -1.
 
-        if 'Variant' in exp:
-            d['variant'] = exp['Variant']
-
-        if 'Linalg' in exp:
-            d['linalg'] = exp['Linalg']
-        
-        if "Epsilon" in exp:
-            d['epsilon'] = exp['Epsilon']
-        
-        if "Epsilon2" in exp:
-            d['epsilon2'] = exp['Epsilon2']
-        
-        if "Heuristic" in exp:
-            d['heuristic'] = exp['Heuristic']
-
-        if "Threads" in exp:
-            d['threads'] = exp['Threads']
 
     return d
 
 
+
 cfg = simexpal.config_for_dir()
 df = pd.DataFrame(cfg.collect_successful_results(parse))
-#print(df.groupby('experiment').agg('mean'))
+#print(df.groupby('Experiment').agg('mean'))
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -91,6 +84,57 @@ def restrict_frame(restrictions):
         restricted_frame = project(restricted_frame, k[0], k[1])
     return restricted_frame
 
+def output_file(fig, filename):
+    fig.savefig(filename + ".pgf", transparent=True)
+    fig.savefig(filename + ".png")
+
+
+def draw_jlt(df):
+    jlt_test_results = project(df, "JLT-Test", True)
+    instances = set(jlt_test_results["Instance"].tolist())
+
+    err_data = []
+    err_data_2 = []
+        
+    for instance_name in instances:
+        inst_fr = project(jlt_test_results, "Instance", instance_name)
+        err_data.append(np.array(inst_fr["Rel-Error"].tolist()[0]))
+        err_data2.append(np.array(inst_fr['Rel-Error-2']))
+
+
+    fig, ax = plt.subplots()
+
+    ax.set_title('JLT Approximated Gain')
+    ax.boxplot(err_data, labels=instances, whis=[2.5,97.5])
+    plt.ylabel('relative error')
+    plt.xticks(rotation=90)
+
+
+    output_file(fig, "jlt-test")    
+    
+    plt.cla()
+    plt.clf()
+
+
+    ns = np.arange(1000, 50000, 200)
+    epsilon = 0.5
+    k = 10
+    col1 = 2 / (epsilon**2/2 - epsilon**3/3) * np.log(ns)
+    fig, ax = plt.subplots()
+    col3 = ns / (2**0.5) / k * math.log(1. / 0.9)
+    col2 = 2 + 2 * 2 / (epsilon**2/2 - epsilon**3/3) * np.log(col3)
+    ax.plot(ns, col1)
+    ax.plot(ns, col2)
+    ax.plot(ns, col3)
+    plt.legend(["JLT", "JLT-UST", "UST"])
+    plt.xlabel("n")
+    plt.ylabel("Columns")
+    ax.set_title("Number of columns comparison. ")
+
+    output_file(fig, "jlt-cols")
+
+
+
 
 def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, filename=None):
     colors = ['b', 'g', 'r', (0.0, 0.7, 0.7)]
@@ -106,7 +150,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
         restricted_frame = restrict_frame(restrictions)
         for instance_name in instance_names:
-            instance_frame = project(restricted_frame, "instance", instance_name)
+            instance_frame = project(restricted_frame, "Instance", instance_name)
 
             def insert(d, k1, v):
                 if k1 not in d:
@@ -119,8 +163,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
                 k = row['k']
                 ks.add(k)
 
-                insert(resistances, k, row['gain'])
-                insert(times, k, row['time'])
+                insert(resistances, k, row['Gain'])
+                insert(times, k, row['Time'])
 
         return resistances, times
 
@@ -132,7 +176,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         result_resistances.append(res)
         result_times.append(times)
     
-    submodular_resistances, submodular_times = analyze_experiment([["threads", 12], ["experiment", "submodular-greedy"]])
+    submodular_resistances, submodular_times = analyze_experiment([["Threads", 12], ["Experiment", "Submodular-greedy"]])
 
 
     x_pos = np.arange(len(ks))
@@ -209,23 +253,26 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
 
 
+draw_jlt(df)
 
-plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
-    [["experiment", "sq-greedy"], ["heuristic", "Lpinv Diagonal"], ["linalg", "LU"], ["threads", 12]] \
-    ], ["Main-Resistances-Approx"], "results_aggregated_1")
 
-plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
-    [["experiment", "sq-greedy"], ["heuristic", "Lpinv Diagonal"], ["linalg", "LU"], ["threads", 12]], \
-    [["experiment", "stochastic-greedy"], ["threads", 12]], \
-    [["experiment", "sq-greedy"], ["heuristic", "Similarity"], ["linalg", "LU"], ["threads", 12]], \
-    ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity"], "results_aggregated_3")
+if False:
+    plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
+        [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]] \
+        ], ["Main-Resistances-Approx"], "results_aggregated_1")
 
-plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
-    [["experiment", "sq-greedy"], ["heuristic", "Lpinv Diagonal"], ["linalg", "LU"], ["threads", 12]], \
-    [["experiment", "stochastic-greedy"], ["threads", 12]], \
-    [["experiment", "sq-greedy"], ["heuristic", "Similarity"], ["linalg", "LU"], ["threads", 12]], \
-    [["experiment", "sq-greedy"], ["heuristic", "Random"], ["linalg", "LU"], ["threads", 12]] \
-    ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity", "Main-Random"], "results_aggregated_4")
+    plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
+        [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]], \
+        [["Experiment", "stochastic-greedy"], ["Threads", 12]], \
+        [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "LU"], ["Threads", 12]], \
+        ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity"], "results_aggregated_3")
+
+    plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
+        [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]], \
+        [["Experiment", "stochastic-greedy"], ["Threads", 12]], \
+        [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "LU"], ["Threads", 12]], \
+        [["Experiment", "sq-greedy"], ["Heuristic", "Random"], ["Linalg", "LU"], ["Threads", 12]] \
+        ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity", "Main-Random"], "results_aggregated_4")
 
 
 
@@ -235,7 +282,7 @@ plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_
 
 
 def plot_instance(df, instance_name, restrictions=[], filename=None):
-    restricted_frame = project(df, "instance", instance_name)
+    restricted_frame = project(df, "Instance", instance_name)
     for k in restrictions:
         restricted_frame = project(restricted_frame, k[0], k[1])
         
@@ -245,7 +292,7 @@ def plot_instance(df, instance_name, restrictions=[], filename=None):
     result_k = next(restricted_frame.iterrows())
 
     for index, row in restricted_frame.iterrows():
-        experiment = row['experiment']
+        experiment = row['Experiment']
         algorithm_name = experiment
         heuristic = row['heuristic']
         if heuristic and pd.notnull(heuristic):
@@ -345,9 +392,9 @@ def plot_instance(df, instance_name, restrictions=[], filename=None):
     #fig.legend(handles, labels, loc='upper center')
     #plt.show()
 
-#eval.plot_instance(eval.df, "arxiv-hephth", [["threads", 12], ["k", 20]])
+#eval.plot_instance(eval.df, "arxiv-hephth", [["Threads", 12], ["k", 20]])
 def quick_plot(name, threads, k):
-    plot_instance(df, name, [["threads", threads], ["k", k]], name + "-" + str(k))
+    plot_instance(df, name, [["Threads", threads], ["k", k]], name + "-" + str(k))
 
 if False:
     quick_plot("arxiv-hephth", 12, 20)
