@@ -42,7 +42,7 @@ public:
         this->heuristic = params.heuristic;
         this->round = 0;
 
-        solver.setup(G, 0.0001, numberOfNodeCandidates());
+        solver.setup(G, params.solverEpsilon, numberOfNodeCandidates());
         this->totalValue = 0.;
         this->originalResistance = 0.;
 

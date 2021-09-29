@@ -14,7 +14,7 @@ def parse(run, f):
     exp = exps[0]
 
     d = {}
-    d = copy(exp)
+    d = exp.copy()
     d['Instance'] = run.instance.shortname
     d["Experiment"] =  run.experiment.name
 
@@ -27,11 +27,12 @@ def parse(run, f):
         #     'experiment': "JLT-Test",
         #     'nodes': exp['Nodes'],
         #     'edges': exp['Edges'],
-        #     'rel-error': exp['Rel-Error'],
+        #     'rel-errors': exp['Rel-Errors'],
         #     'jlt-test': True
         # }
     else:
-        pass
+        if 'gain' in d and d['gain'] < 0:
+            d['gain'] *= -1.
         # d = {
         #     'experiment': run.experiment.name,
         #     'instance': run.instance.shortname,
@@ -44,8 +45,6 @@ def parse(run, f):
         #     'gain': exp['Gain'],
         # }
 
-    if d['gain'] < 0:
-        d['gain'] *= -1.
 
 
     return d
@@ -94,24 +93,39 @@ def draw_jlt(df):
     instances = set(jlt_test_results["Instance"].tolist())
 
     err_data = []
-    err_data_2 = []
+    err_data2 = []
         
     for instance_name in instances:
         inst_fr = project(jlt_test_results, "Instance", instance_name)
-        err_data.append(np.array(inst_fr["Rel-Error"].tolist()[0]))
-        err_data2.append(np.array(inst_fr['Rel-Error-2']))
+        if not "Rel-Errors" in inst_fr:
+            print_df(inst_fr)
+        err_data.append(np.array(inst_fr["Rel-Errors"].tolist()[0]))
+        err_data2.append(np.array(inst_fr['Rel-Errors-2'].tolist()[0]))
 
 
     fig, ax = plt.subplots()
 
-    ax.set_title('JLT Approximated Gain')
     ax.boxplot(err_data, labels=instances, whis=[2.5,97.5])
-    plt.ylabel('relative error')
+    plt.ylabel('Relative Error')
     plt.xticks(rotation=90)
+    fig.tight_layout()
 
+    output_file(fig, "jlt-test-2")    
+    
+    plt.cla()
+    plt.clf()
+
+
+    fig, ax = plt.subplots()
+
+    ax.boxplot(err_data2, labels=instances, whis=[2.5, 97.5])
+    plt.ylabel('Relative Error')
+    fig.tight_layout()
+    plt.xticks(rotation=90)
+    fig.tight_layout()
 
     output_file(fig, "jlt-test")    
-    
+
     plt.cla()
     plt.clf()
 

@@ -62,6 +62,8 @@ variants:
         extra_args: ['--lamg']
       - name: 'lu'
         extra_args: ['--lu']
+      - name: 'jlt-lu'
+        extra_args: ['--jlt-lu']
 #      - name: 'qr'
 #        extra_args: ['--qr']
   - axis: 'heuristic'
@@ -116,7 +118,7 @@ matrix:
     - experiments: [sq-greedy]
       instsets: [medium-graphs]
       axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: ['ust-diag', eps_0.9, eps2_0.9]
+      variants: ['ust-diag', eps_0.9, eps2_0.9, lu, lamg]
     - experiments: [stochastic-greedy, greedy-3]
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy']
@@ -129,10 +131,11 @@ matrix:
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: [similarity, random, eps_0.9, eps2_0.9, lu, multicore]
-
     - experiments: ['test-jlt']
       axes: [threads, 'k-size-const']
       variants: [multicore]
       instsets: ['large-graphs']
-
-  
+    - experiments: ['sq-greedy']
+      instsets: [large-graphs]
+      axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
+      variants: [similarity, ust-diag, random, eps_0.9, eps2_0.9, jlt-lu, multicore]

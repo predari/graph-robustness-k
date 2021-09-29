@@ -390,7 +390,7 @@ public:
 
         G = g;
 
-        solver.setup(g, tolerance, 2*l + 2);
+        solver.setup(g, 0.01, 2*l + 2);
         incidence = incidenceMatrix(g);
 
         computeIntermediateMatrices();

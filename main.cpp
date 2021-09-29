@@ -431,6 +431,7 @@ public:
 
 	std::unique_ptr<AbstractOptimizer<NetworKit::Edge>> greedy;
 
+
 	void createGreedy() {
 		if (alg == AlgorithmType::submodular) {
 			algorithmName = "Submodular";
@@ -506,10 +507,11 @@ public:
 		params->epsilon2 = epsilon2;
 		params->threads = threads;
 		params->heuristic = heuristic;
-
+		if (linalg == LinAlgType::jlt_lu_sparse) {
+			params->solverEpsilon = 0.5;
+		}
 
 		createGreedy();
-
 
 		// Run greedy
 
@@ -548,6 +550,7 @@ public:
 			double v = static_cast<double>(n) * laplacianPseudoinverse(g_).trace();
 
 			if (std::abs(gain - std::abs(v0 - v)) / std::abs(originalResistance) / k > 0.001) {
+				std::cout << originalResistance << "\n";
 				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
 				throw std::logic_error("Error: Gain value inaccurate!");
 			}
@@ -845,7 +848,7 @@ int main(int argc, char* argv[])
 		if (arg == "--dense-ldlt") {
 			linalg = LinAlgType::dense_ldlt;
 		}
-		if (arg == "--jlt_lu") {
+		if (arg == "--jlt-lu") {
 			linalg = LinAlgType::jlt_lu_sparse;
 		}
 		experiment.linalg = linalg;
