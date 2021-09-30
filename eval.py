@@ -5,6 +5,10 @@ import pandas as pd
 import yaml
 import math
 
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+
 
 def parse(run, f):
     output = yaml.load(f, Loader=yaml.Loader)
@@ -53,12 +57,10 @@ def parse(run, f):
 
 cfg = simexpal.config_for_dir()
 df = pd.DataFrame(cfg.collect_successful_results(parse))
+jlt_df = df[df['JLT-Test'] == True]
+df = df[df['JLT-Test'].isnull()]
 #print(df.groupby('Experiment').agg('mean'))
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-import pandas as pd
 
 matplotlib.use("pgf")
 matplotlib.rcParams.update({
@@ -77,7 +79,7 @@ def project(df, col, value):
 def print_df(df):
     print(df.to_string())
 
-def restrict_frame(restrictions):
+def restrict_frame(df, restrictions):
     restricted_frame = df
     for k in restrictions:
         restricted_frame = project(restricted_frame, k[0], k[1])
@@ -86,6 +88,7 @@ def restrict_frame(restrictions):
 def output_file(fig, filename):
     fig.savefig(filename + ".pgf", transparent=True)
     fig.savefig(filename + ".png")
+    print("Wrote " + filename + ".pgf, " + filename + ".png")
 
 
 def draw_jlt(df):
@@ -94,7 +97,8 @@ def draw_jlt(df):
 
     err_data = []
     err_data2 = []
-        
+
+
     for instance_name in instances:
         inst_fr = project(jlt_test_results, "Instance", instance_name)
         if not "Rel-Errors" in inst_fr:
@@ -104,9 +108,11 @@ def draw_jlt(df):
 
 
     fig, ax = plt.subplots()
+    ax.set_ylim(0., 1.)
 
+    ax.set_title("Relative Errors of JLT ")
     ax.boxplot(err_data, labels=instances, whis=[2.5,97.5])
-    plt.ylabel('Relative Error')
+    plt.ylabel('Rel. Error')
     plt.xticks(rotation=90)
     fig.tight_layout()
 
@@ -115,11 +121,13 @@ def draw_jlt(df):
     plt.cla()
     plt.clf()
 
+    ax.set_ylim(0., 1.)
 
     fig, ax = plt.subplots()
 
+    ax.set_title("Relative Errors of JLT wrt. node subset. ")
     ax.boxplot(err_data2, labels=instances, whis=[2.5, 97.5])
-    plt.ylabel('Relative Error')
+    plt.ylabel('Rel. Error')
     fig.tight_layout()
     plt.xticks(rotation=90)
     fig.tight_layout()
@@ -130,29 +138,32 @@ def draw_jlt(df):
     plt.clf()
 
 
+def draw_jlt_comparison(k):
     ns = np.arange(1000, 50000, 200)
     epsilon = 0.5
-    k = 10
-    col1 = 2 / (epsilon**2/2 - epsilon**3/3) * np.log(ns)
+    col1 = 2 + 2 * 2 / (epsilon**2/2 - epsilon**3/3) * np.log(ns)
     fig, ax = plt.subplots()
     col3 = ns / (2**0.5) / k * math.log(1. / 0.9)
+    epsilon = 0.75
     col2 = 2 + 2 * 2 / (epsilon**2/2 - epsilon**3/3) * np.log(col3)
     ax.plot(ns, col1)
     ax.plot(ns, col2)
     ax.plot(ns, col3)
-    plt.legend(["JLT", "JLT-UST", "UST"])
+    plt.legend(["JLT", "JLT subset", "Main"])
     plt.xlabel("n")
-    plt.ylabel("Columns")
-    ax.set_title("Number of columns comparison. ")
+    plt.ylabel("count")
+    ax.set_title("Solved linear eqns. ")
 
-    output_file(fig, "jlt-cols")
+    output_file(fig, "jlt-cols"+str(k))
+
+    plt.cla()
+    plt.clf()
 
 
 
 
 def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, filename=None):
-    colors = ['b', 'g', 'r', (0.0, 0.7, 0.7)]
-    restricted_frame = df
+    colors = ['b', 'g', 'r', (0.0, 0.7, 0.7), (0.7, 0.7, 0.)]
     
     ks = set()
     resistances_by_k = {}
@@ -162,7 +173,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         resistances = {}
         times = {}
 
-        restricted_frame = restrict_frame(restrictions)
+        restricted_frame = restrict_frame(df, restrictions)
         for instance_name in instance_names:
             instance_frame = project(restricted_frame, "Instance", instance_name)
 
@@ -190,11 +201,13 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         result_resistances.append(res)
         result_times.append(times)
     
-    submodular_resistances, submodular_times = analyze_experiment([["Threads", 12], ["Experiment", "Submodular-greedy"]])
+    submodular_resistances, submodular_times = analyze_experiment([["Threads", 12], ["Experiment", "submodular-greedy"]])
+
+
+    ks = sorted(list(ks))
 
 
     x_pos = np.arange(len(ks))
-    ks = sorted(list(ks))
 
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -218,10 +231,16 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
 
     def mean(l):
+        found_any = False
+        length = 0
         p = 1.
         for v in l:
-            p *= v
-        return p ** (1. / len(l))
+            if v or v == 0.:
+                p *= v
+                length += 1
+        if l == 0:
+            return 0
+        return p ** (1. / length)
     
     def offset(l, k):
         width = 0.8 / k
@@ -233,13 +252,17 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         resistance_means = []
         time_means = []
         for k in ks:
+            if k not in submodular_resistances and k not in submodular_times:
+                continue
             algorithm_k_resistances = algorithm_resistances[k]
             algorithm_k_times = algorithm_times[k]
             relative_resistances = []
             relative_times = []
             for instance_name in instance_names:
-                relative_resistances.append(algorithm_k_resistances[instance_name] / submodular_resistances[k][instance_name])
-                relative_times.append(algorithm_k_times[instance_name] / submodular_times[k][instance_name])
+                if instance_name in algorithm_k_resistances and instance_name in submodular_resistances[k]:
+                    relative_resistances.append(algorithm_k_resistances[instance_name] / submodular_resistances[k][instance_name])
+                if instance_name in algorithm_k_times and instance_name in submodular_times[k]:
+                    relative_times.append(algorithm_k_times[instance_name] / submodular_times[k][instance_name])
 
             res_mean = mean(relative_resistances)
             time_mean = mean(relative_times)
@@ -259,34 +282,34 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     if filename == None:
         filename = "results_aggregated"
     
-    fig.savefig(filename + ".pgf", transparent=True)
-    fig.savefig(filename + ".png")
-    #plt.show()
+    output_file(fig, filename)
 
     plt.close(fig)
 
 
 
-draw_jlt(df)
+draw_jlt(jlt_df)
+draw_jlt_comparison(5)
+draw_jlt_comparison(20)
 
 
-if False:
-    plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
-        [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]] \
-        ], ["Main-Resistances-Approx"], "results_aggregated_1")
+plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]] \
+    ], ["Main-Resistances-Approx"], "results_aggregated_1")
 
-    plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
-        [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]], \
-        [["Experiment", "stochastic-greedy"], ["Threads", 12]], \
-        [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "LU"], ["Threads", 12]], \
-        ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity"], "results_aggregated_3")
+plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]], \
+    [["Experiment", "stochastic-greedy"], ["Threads", 12]], \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "LU"], ["Threads", 12]], \
+    ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity"], "results_aggregated_3")
 
-    plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
-        [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]], \
-        [["Experiment", "stochastic-greedy"], ["Threads", 12]], \
-        [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "LU"], ["Threads", 12]], \
-        [["Experiment", "sq-greedy"], ["Heuristic", "Random"], ["Linalg", "LU"], ["Threads", 12]] \
-        ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity", "Main-Random"], "results_aggregated_4")
+plot_averaged(df, ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"], [ \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Lpinv Diagonal"], ["Linalg", "LU"], ["Threads", 12]], \
+    [["Experiment", "stochastic-greedy"], ["Threads", 12]], \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "LU"], ["Threads", 12]], \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Random"], ["Linalg", "LU"], ["Threads", 12]], \
+    [["Experiment", "sq-greedy"], ["Heuristic", "Similarity"], ["Linalg", "JLT via Sparse LU"], ["Threads", 12]] \
+    ], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "results_aggregated_5")
 
 
 
@@ -377,8 +400,8 @@ def plot_instance(df, instance_name, restrictions=[], filename=None):
     fig.tight_layout()
     if filename == None:
         filename = instance_name
-    fig.savefig(filename + ".png", transparent=True)
-    #plt.show()
+        output_file(fig, filename)
+
     plt.close(fig)
 
 

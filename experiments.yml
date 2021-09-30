@@ -31,8 +31,14 @@ variants:
         extra_args: ['-km', 'linear', '--k-factor', '4.0']
   - axis: 'k-size-const'
     items:
-      - name: 'k-20'      
+      - name: 'k-2'
+        extra_args: ['--k-factor', '2']
+      - name: 'k-5'
+        extra_args: ['--k-factor', '5']
+      - name: 'k-20'
         extra_args: ['--k-factor', '20']
+      - name: 'k-50'
+        extra_args: ['--k-factor', '50']
       - name: 'k-200'
         extra_args: ['--k-factor', '200']
   - axis: 'threads'
@@ -119,6 +125,9 @@ matrix:
       instsets: [medium-graphs]
       axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', eps_0.9, eps2_0.9, lu, lamg]
+    - experiments: [submodular-greedy]
+      instsets: [large-graphs]
+      axes: ['k-size-const', threads]
     - experiments: [stochastic-greedy, greedy-3]
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy']
@@ -138,4 +147,4 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: [similarity, ust-diag, random, eps_0.9, eps2_0.9, jlt-lu, multicore]
+      variants: [similarity, ust-diag, random, eps_0.9, eps2_0.9, jlt-lu, multicore, k-2, k-5, k-20]

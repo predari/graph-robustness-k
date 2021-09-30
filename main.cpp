@@ -328,7 +328,7 @@ void testJLT(NetworKit::Graph g, std::string instanceFile, int k) {
 	SparseLUSolver reference_solver2;
 
 
-	epsilon = 0.5;
+	epsilon = 0.75;
 	int c = std::max(n / std::sqrt(2) / k * std::log(1. / 0.9), 3.);
 	jlt_solver2.setup(g, epsilon, c);
     std::uniform_int_distribution<> distrib_c(0, c - 1);
@@ -508,7 +508,7 @@ public:
 		params->threads = threads;
 		params->heuristic = heuristic;
 		if (linalg == LinAlgType::jlt_lu_sparse) {
-			params->solverEpsilon = 0.5;
+			params->solverEpsilon = 0.7;
 		}
 
 		createGreedy();
