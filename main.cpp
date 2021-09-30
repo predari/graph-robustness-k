@@ -508,7 +508,7 @@ public:
 		params->threads = threads;
 		params->heuristic = heuristic;
 		if (linalg == LinAlgType::jlt_lu_sparse) {
-			params->solverEpsilon = 0.7;
+			params->solverEpsilon = 0.75;
 		}
 
 		createGreedy();

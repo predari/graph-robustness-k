@@ -96,7 +96,9 @@ public:
 
         for (count age = solverAge; age < round; age++) {
             auto upv = updateVec[age];
-            sol -= upv * upv.transpose() * rhs * updateW[age];
+            Eigen::MatrixXd intermediate1 = upv.transpose() * rhs;
+            Eigen::VectorXd intermediate2 = updateW[age] * upv;
+            sol -= intermediate2 * intermediate1;
         }
         return sol;
     }
@@ -490,5 +492,6 @@ private:
 
 
 typedef JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver> JLTLUSolver;
+template class JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver>;
 
 #endif // DYNAMIC_LAPLACIAN_SOLVER_HPP
