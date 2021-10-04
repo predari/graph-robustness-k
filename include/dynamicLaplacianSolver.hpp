@@ -110,7 +110,7 @@ public:
             colAge[i] = solverAge;
         } 
         for (auto &age = colAge[i]; age < round; age++) {
-            cols[i] -= updateVec[age] * updateVec[age](i) * updateW[age];
+            cols[i] -= updateVec[age] * (updateVec[age](i) * updateW[age]);
         }
     }
 
@@ -292,11 +292,12 @@ public:
     }
 
 
-    Eigen::VectorXd getColumn(node u) {
+    Eigen::VectorXd& getColumn(node u) {
         computeColumns({u});
         return cols[u];
     }
 
+    // TODO make this parallel
     virtual void computeColumns(std::vector<node> nodes) override {
         for (auto i: nodes) {
             if (colAge[i] == -1 || round - colAge[i] > ageToRecompute) {

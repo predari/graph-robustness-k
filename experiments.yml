@@ -56,10 +56,11 @@ variants:
         extra_args: ['-eps', '0.9']
   - axis: 'accuracy_trees'
     items:
-      - name: 'eps2_0.1'
-        extra_args: ['-eps2', '0.1']
-      - name: 'eps2_0.9'
-        extra_args: ['-eps2', '0.9']
+      - name: 'eps2_1.0'
+        extra_args: ['-eps2', '1.0']
+      - name: 'eps2_10'
+        extra_args: ['-eps2', '10']
+
   - axis: 'linalg'
     items:
 #      - name: 'dense-ldlt'
@@ -124,7 +125,7 @@ matrix:
     - experiments: [sq-greedy]
       instsets: [medium-graphs]
       axes: ['k-size-linear', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: ['ust-diag', eps_0.9, eps2_0.9, lu, lamg]
+      variants: ['ust-diag', eps_0.9, eps2_1.0, lu, lamg]
     - experiments: [submodular-greedy]
       instsets: [large-graphs]
       axes: ['k-size-const', threads]
@@ -135,11 +136,11 @@ matrix:
     - experiments: [sq-greedy]
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: ['ust-diag', eps_0.9, eps2_0.9,]
+      variants: ['ust-diag', eps_0.9, eps2_1.0, eps2_10, 'lu', 'jlt-lu', 'multicore']
     - experiments: [sq-greedy]
       instsets: [large-graphs]
-      axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: [similarity, random, eps_0.9, eps2_0.9, lu, multicore]
+      axes: ['k-size-const', threads, 'accuracy', 'linalg', 'heuristic']
+      variants: [similarity, random, eps_0.9, lu, jlt-lu, multicore]
     - experiments: ['test-jlt']
       axes: [threads, 'k-size-const']
       variants: [multicore]
@@ -147,4 +148,4 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: [large-graphs]
       axes: ['k-size-const', threads, 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: [similarity, ust-diag, random, eps_0.9, eps2_0.9, jlt-lu, multicore, k-2, k-5, k-20]
+      variants: [similarity, ust-diag, random, eps_0.9, eps2_1.0, eps2_10, jlt-lu, multicore, k-2, k-5, k-20, k-50]
