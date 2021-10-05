@@ -134,18 +134,17 @@ public:
                         v = u*u;
                     }
                 } else if (heuristic == HeuristicType::similarity && it++ < 2) {
-                    // TODO test this
                     // TODO export the parameters ...
                     count maxDegree = 0;
                     G.forNodes([&](node u) { if (G.degree(u) > maxDegree) maxDegree = G.degree(u); });
                     double phi = 1. / maxDegree;
                     count iterations = similarityIterations;
-                    Eigen::SparseMatrix<double> A = adjacencyMatrix(G);
+                    Eigen::SparseMatrix<double> phi_A = phi * adjacencyMatrix(G);
                     Eigen::VectorXd d (n);
                     G.forNodes([&](node i) { d(i) = 1. / G.degree(i); });
                     Eigen::VectorXd u = d;
                     for (int i = 0; i < iterations; i++) {
-                        u = phi * A * u + d;
+                        u = phi_A * u + d;
                     }
                     Eigen::VectorXd summedSimilarity = u;
 
@@ -158,8 +157,8 @@ public:
                         nodeWeights[i] = val;
                     });
                     for (auto &v : nodeWeights) {
-                        auto w = max - v;
-                        v = w * w;
+                        auto w = (max - v) / max;
+                        v = w * w + (1-w)*(1-w) * 2 - 1;
                     }
                 } else {
                     G.forNodes([&](node u) {
