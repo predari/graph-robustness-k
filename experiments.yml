@@ -2,6 +2,7 @@ experiments:
   - name: random-averaged
     args: ['./build/robustness', '-a0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
+    slurm_args: ['--partition=single', '--nodelist=ego']
   - name: submodular-greedy
     args: ['./build/robustness', '-a1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
@@ -82,6 +83,8 @@ variants:
       - name: 'similarity'
         extra_args: ['-h2']
 
+
+        
 instdir: "instances"
 instances:
   - repo: local
