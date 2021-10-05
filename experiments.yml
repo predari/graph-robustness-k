@@ -88,6 +88,8 @@ variants:
       - name: 'similarity'
         extra_args: ['-h2']
 
+
+        
 instdir: "instances"
 instances:
   - repo: local
