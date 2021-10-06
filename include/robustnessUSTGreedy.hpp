@@ -157,8 +157,8 @@ public:
                         nodeWeights[i] = val;
                     });
                     for (auto &v : nodeWeights) {
-                        auto w = (max - v) / max;
-                        v = w * w + (1-w)*(1-w) * 2 - 1;
+                        auto w = std::abs(max - v) / max;
+                        v = (w * w + (1-w)*(1-w)) * 2 - 1;
                     }
                 } else {
                     G.forNodes([&](node u) {
