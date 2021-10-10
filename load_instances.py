@@ -111,6 +111,17 @@ if __name__ == "__main__":
     
     dl_tar_bz2("http://konect.cc/files/download.tsv.opsahl-powergrid.tar.bz2", "opsahl-powergrid/out.opsahl-powergrid", "opsahl-powergrid")
     txt_to_inst("opsahl-powergrid", " ", 1, "%")
+
+    dl_tar_bz2("http://konect.cc/files/download.tsv.flickrEdges.tar.bz2", "flickrEdges/out.flickrEdges", "flickr")
+    txt_to_inst("flickr", " ", 1, "%")
+    
+    dl_tar_bz2("http://konect.cc/files/download.tsv.livemocha.tar.bz2", "livemocha/out.livemocha", "livemocha")
+    txt_to_inst("livemocha", " ", 1, "%")
+
+    dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite_edges")
+    txt_to_inst("loc-brightkite_edges", " ", 1, "%")
+
+
     #dl_tar_bz2("http://konect.cc/files/download.tsv.marvel.tar.bz2", "marvel/out.marvel", "marvel")
     #txt_to_inst("marvel", "\t", 1, "%")
     #dl_tar_bz2("http://konect.cc/files/download.tsv.dimacs10-as-22july06.tar.bz2", "dimacs10-as-22july06/out.dimacs10-as-22july06", "dimacs-net")
