@@ -496,8 +496,6 @@ public:
 		g_cpy = g;
 
 
-		beforeInit = std::chrono::high_resolution_clock::now();
-
 		if (alg == AlgorithmType::none) {
 			throw std::logic_error("Not implemented!");
 		}
@@ -510,6 +508,63 @@ public:
 		if (linalg == LinAlgType::jlt_lu_sparse) {
 			params->solverEpsilon = 0.75;
 		}
+
+		std::cout << "Runs: \n";
+		std::cout << "- Instance: '" << instanceFile << "'\n";
+		std::cout << "  Nodes: " << n << "\n";
+		std::cout << "  Edges: " << g.numberOfEdges() << "\n";
+		std::cout << "  k: " << k << "\n";
+		std::cout << "  Call: " << call << "\n";
+		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
+		std::cout << "  Threads:  " << threads << "\n";
+
+		if (alg == AlgorithmType::trees) {
+			std::string linalgName = "";
+			if (linalg == LinAlgType::cg) {
+				linalgName = "CG";
+			} else if (linalg == LinAlgType::qr) {
+				linalgName = "QR";
+			} else if (linalg == LinAlgType::ldlt) {
+				linalgName = "LDLT";
+			} else if (linalg == LinAlgType::lamg) {
+				linalgName = "LAMG";
+			} else if (linalg == LinAlgType::least_squares) {
+				linalgName = "Least Squares";
+			} else if (linalg == LinAlgType::lu) {
+				linalgName = "LU";
+			} else if (linalg == LinAlgType::dense_ldlt) {
+				linalgName = "Dense LDLT";
+			} else if (linalg == LinAlgType::none) {
+				linalgName = "Dense CG";
+			} else if (linalg == LinAlgType::jlt_lu_sparse) {
+				linalgName = "JLT via Sparse LU";
+			}
+
+			if (linalgName != "") {
+				std::cout << "  Linalg: " << linalgName << "\n";
+			}
+		}
+
+		if (alg == AlgorithmType::trees) {
+			std::string heuristicName;
+			if (heuristic == HeuristicType::lpinvDiag) {
+				heuristicName = "Lpinv Diagonal";
+			}
+			if (heuristic == HeuristicType::similarity) {
+				heuristicName = "Similarity";
+			}
+			if (heuristic == HeuristicType::random) {
+				heuristicName = "Random";
+			}
+			std::cout << "  Heuristic: " << heuristicName << "\n";
+			std::cout << "  Epsilon2: " << epsilon2 << "\n";
+		}
+
+		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::trees) {
+			std::cout << "  Epsilon: " << epsilon << "\n";
+		}
+
+		beforeInit = std::chrono::high_resolution_clock::now();
 
 		createGreedy();
 
@@ -558,22 +613,14 @@ public:
 
 		// Output Results
 
-		std::cout << "Runs: \n";
-		std::cout << "- Instance: '" << instanceFile << "'\n";
-		std::cout << "  Nodes: " << n << "\n";
-		std::cout << "  Edges: " << g.numberOfEdges() << "\n";
-		std::cout << "  k: " << k << "\n";
-		std::cout << "  Call: " << call << "\n";
 		if (verbose) {
 			std::cout << "  EdgeList: [";
 			g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
 			std::cout << "]\n" << std::endl;
 		}
-		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
 		std::cout << "  Value:  " << resultResistance << "\n";
 		std::cout << "  Original Value:  " << originalResistance << "\n";
 		std::cout << "  Gain:  " << originalResistance - resultResistance << "\n";
-		std::cout << "  Threads:  " << threads << "\n";
 
 		using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
 		std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
@@ -584,51 +631,6 @@ public:
 			std::cout << "]\n" << std::endl;
 		}
 
-		if (alg == AlgorithmType::trees) {
-			std::string linalgName = "";
-			if (linalg == LinAlgType::cg) {
-				linalgName = "CG";
-			} else if (linalg == LinAlgType::qr) {
-				linalgName = "QR";
-			} else if (linalg == LinAlgType::ldlt) {
-				linalgName = "LDLT";
-			} else if (linalg == LinAlgType::lamg) {
-				linalgName = "LAMG";
-			} else if (linalg == LinAlgType::least_squares) {
-				linalgName = "Least Squares";
-			} else if (linalg == LinAlgType::lu) {
-				linalgName = "LU";
-			} else if (linalg == LinAlgType::dense_ldlt) {
-				linalgName = "Dense LDLT";
-			} else if (linalg == LinAlgType::none) {
-				linalgName = "Dense CG";
-			} else if (linalg == LinAlgType::jlt_lu_sparse) {
-				linalgName = "JLT via Sparse LU";
-			}
-
-			if (linalgName != "") {
-				std::cout << "  Linalg: " << linalgName << "\n";
-			}
-		}
-
-		if (alg == AlgorithmType::trees) {
-			std::string heuristicName;
-			if (heuristic == HeuristicType::lpinvDiag) {
-				heuristicName = "Lpinv Diagonal";
-			}
-			if (heuristic == HeuristicType::similarity) {
-				heuristicName = "Similarity";
-			}
-			if (heuristic == HeuristicType::random) {
-				heuristicName = "Random";
-			}
-			std::cout << "  Heuristic: " << heuristicName << "\n";
-			std::cout << "  Epsilon2: " << epsilon2 << "\n";
-		}
-
-		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::trees) {
-			std::cout << "  Epsilon: " << epsilon << "\n";
-		}
 	}
 
 };
@@ -907,7 +909,6 @@ int main(int argc, char* argv[])
 	} else {
 		k = k_factor;
 	}
-	k = std::min(k, (int)(n*(n-1)/2 - g.numberOfEdges()));
 	k = std::max(k, 1);
 	experiment.k = k;
 

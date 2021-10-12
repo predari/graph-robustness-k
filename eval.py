@@ -94,9 +94,9 @@ def restrict_frame(df, restrictions):
     return restricted_frame
 
 def output_file(fig, filename):
-    fig.savefig(filename + ".pgf", transparent=True)
     fig.savefig(filename + ".png")
-    print("Wrote " + filename + ".pgf, " + filename + ".png")
+    fig.savefig(filename + ".pgf", transparent=True)
+    print("Write file " + filename + ".pgf, " + filename + ".png")
 
 
 def draw_jlt(df):
@@ -165,7 +165,7 @@ def draw_jlt_comparison(k):
 
 
 
-def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, filename=None):    
+def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, reference_restrictions=None, filename=None):    
     ks = set()
     resistances_by_k = {}
     times_by_k = {}
@@ -175,6 +175,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         times = {}
 
         restricted_frame = restrict_frame(df, restrictions)
+        if not reference_restrictions: 
+            print_df(restricted_frame)
         for instance_name in instance_names:
             instance_frame = project(restricted_frame, "Instance", instance_name)
 
@@ -186,6 +188,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
             for row in instance_frame.iterrows():
                 row = row[1]
 
+                if not reference_restrictions:
+                    print(row)
                 k = row['k']
                 ks.add(k)
 
@@ -202,13 +206,17 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         result_resistances.append(res)
         result_times.append(times)
     
-    submodular_resistances, submodular_times = analyze_experiment({"Threads": 12, "Experiment": "submodular-greedy"})
+    if reference_restrictions:
+        #print(reference_restrictions)
+        reference_resistances, reference_times = analyze_experiment(reference_restrictions)
 
 
+    print(ks)
     ks = sorted(list(ks))
 
 
     x_pos = np.arange(len(ks))
+    print(ks)
 
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -217,21 +225,30 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     fig.set_size_inches((6, 4))
 
     ax1.set_xlabel('k')
-    ax1.set_ylabel('Gain rel. Submodular Greedy')
     ax2.set_xlabel('k')
-    ax2.set_ylabel('Time rel. Submodular Greedy')
+    if reference_restrictions:
+        ax1.set_ylabel('Relative Gain')
+        ax2.set_ylabel('Relative Time')
+    else:
+        ax1.set_ylabel('Gain')
+        ax2.set_ylabel('Time')
+
+    if reference_restrictions:
+        ax1.set_ylim(0., 1.)
+        ax2.set_ylim(0., 1.)
+    else:
+        pass
+
 
     ax1.set_xticks(x_pos)
     ax1.set_xticklabels(ks)
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels(ks)
-    ax1.set_ylim(0., 1.)
-    ax2.set_ylim(0., 1.)
     
     #ax2.legend(experiment_names)
 
 
-    def mean(l):
+    def geometric_mean(l, default=0.):
         found_any = False
         length = 0
         p = 1.
@@ -240,7 +257,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
                 p *= v
                 length += 1
         if l == 0:
-            return 0
+            return default
         return p ** (1. / length)
     
     def offset(l, k):
@@ -253,7 +270,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         resistance_means = []
         time_means = []
         for k in ks:
-            if k not in submodular_resistances and k not in submodular_times or not k in algorithm_resistances or not k in algorithm_times:
+            if (reference_restrictions and (k not in reference_resistances or k not in reference_times)) or not k in algorithm_resistances or not k in algorithm_times:
                 resistance_means.append(0)
                 time_means.append(0)
                 continue
@@ -262,16 +279,23 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
             relative_resistances = []
             relative_times = []
             for instance_name in instance_names:
-                if instance_name in algorithm_k_resistances and instance_name in submodular_resistances[k]:
-                    relative_resistances.append(algorithm_k_resistances[instance_name] / submodular_resistances[k][instance_name])
-                if instance_name in algorithm_k_times and instance_name in submodular_times[k]:
-                    relative_times.append(algorithm_k_times[instance_name] / submodular_times[k][instance_name])
+                if reference_restrictions:
+                    if instance_name in algorithm_k_resistances and instance_name in reference_resistances[k]:
+                        relative_resistances.append(algorithm_k_resistances[instance_name] / reference_resistances[k][instance_name])
+                    if instance_name in algorithm_k_times and instance_name in reference_times[k]:
+                        relative_times.append(algorithm_k_times[instance_name] / reference_times[k][instance_name])
+                else:
+                    if instance_name in algorithm_k_resistances:
+                        relative_resistances.append(algorithm_k_resistances[instance_name])
+                    if instance_name in algorithm_k_times:
+                        relative_times.append(algorithm_k_times[instance_name])
 
-            res_mean = mean(relative_resistances)
-            time_mean = mean(relative_times)
+            res_mean = geometric_mean(relative_resistances)
+            time_mean = geometric_mean(relative_times)
             resistance_means.append(res_mean)
             time_means.append(time_mean)
-            print("Taking means of {} instances for k = {} and j = {}.".format(len(relative_resistances), k, j))
+            if len(relative_resistances) > 1:
+                print("Taking means of {} instances for k = {} and j = {}.".format(len(relative_resistances), k, j))
         
         ax1.bar(x_pos + offset(j, num_experiments), resistance_means, align='center', color=colors[j], alpha = 0.5, label=experiment_names[j], width=0.8 / num_experiments)
         ax2.bar(x_pos + offset(j, num_experiments), time_means, align='center', color=colors[j], alpha = 0.5, label=experiment_names[j], width=0.8 / num_experiments)
@@ -299,16 +323,8 @@ draw_jlt_comparison(20)
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
 huge_instances = ["loc-brightkite_edges"]
 
-restr_lpinv_diag = {
-    "Experiment": "sq-greedy",
-    "Heuristic": "Lpinv Diagonal",
-    "Linalg": "LU",
-    "Threads": 12,
-    "Epsilon": 0.9,
-    "Epsilon2": 1.0
-}
+restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
 
-plot_averaged(df, large_instances, [restr_lpinv_diag], ["Main-Resistances-Approx"], "results_aggregated_1")
 
 restr_stoch = {
     "Experiment": "stochastic-greedy",
@@ -321,8 +337,6 @@ restr_similarity = {
     "Linalg": "LU",
     "Threads": 12
 }
-
-plot_averaged(df, large_instances, [restr_lpinv_diag, restr_stoch, restr_similarity], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity"], "results_aggregated_3")
 
 restr_random = {
     "Experiment": "sq-greedy",
@@ -346,7 +360,7 @@ restr_random_jlt = {
     "Threads": 12
 }
 
-restr_lpinv_diag_large_eps2 = {
+restr_lpinv_diag = {
     "Experiment": "sq-greedy",
     "Heuristic": "Lpinv Diagonal",
     "Linalg": "LU",
@@ -356,9 +370,13 @@ restr_lpinv_diag_large_eps2 = {
 }
 
 
-plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag_large_eps2, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], "results_aggregated_5")
+plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_aggregated_5")
 
+#for i in large_instances:
+#    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
 
+for i in huge_instances:
+    plot_averaged(df, [i], [restr_similarity, restr_similarity_jlt], ["Main-Similarity", "Main-Similarity-JLT"], None, "results_"+i)
 
 
 
@@ -496,9 +514,6 @@ def quick_plot(name, threads, k):
 
 #plot_instance(df, "arxiv-heph", {"Threads": 12, "k": 20})
 
-
-for i in large_instances:
-    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag_large_eps2, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], "results_"+i)
 
 #for k in [2, 5, 20, 50, 200]:
 #    for i in large_instances:
