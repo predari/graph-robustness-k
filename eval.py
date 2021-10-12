@@ -109,8 +109,6 @@ def draw_jlt(df):
 
     for instance_name in instances:
         inst_fr = project(jlt_test_results, "Instance", instance_name)
-        if not "Rel-Errors" in inst_fr:
-            print_df(inst_fr)
         err_data.append(np.array(inst_fr["Rel-Errors"].tolist()[0]))
         err_data2.append(np.array(inst_fr['Rel-Errors-2'].tolist()[0]))
 
@@ -175,8 +173,6 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         times = {}
 
         restricted_frame = restrict_frame(df, restrictions)
-        if not reference_restrictions: 
-            print_df(restricted_frame)
         for instance_name in instance_names:
             instance_frame = project(restricted_frame, "Instance", instance_name)
 
@@ -188,8 +184,6 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
             for row in instance_frame.iterrows():
                 row = row[1]
 
-                if not reference_restrictions:
-                    print(row)
                 k = row['k']
                 ks.add(k)
 
@@ -211,13 +205,9 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         reference_resistances, reference_times = analyze_experiment(reference_restrictions)
 
 
-    print(ks)
     ks = sorted(list(ks))
 
-
     x_pos = np.arange(len(ks))
-    print(ks)
-
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     #fig.suptitle(instance_name)
@@ -316,11 +306,12 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
 
 #draw_jlt(jlt_df)
-draw_jlt_comparison(5)
-draw_jlt_comparison(20)
+for k in [5, 20, 50, 200]:
+    draw_jlt_comparison(k)
 
 
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
+#generated_instances = [""]
 huge_instances = ["loc-brightkite_edges"]
 
 restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
@@ -372,8 +363,9 @@ restr_lpinv_diag = {
 
 plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_aggregated_5")
 
-#for i in large_instances:
-#    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
+for i in large_instances:
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
+
 
 for i in huge_instances:
     plot_averaged(df, [i], [restr_similarity, restr_similarity_jlt], ["Main-Similarity", "Main-Similarity-JLT"], None, "results_"+i)
