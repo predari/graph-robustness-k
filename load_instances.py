@@ -122,7 +122,7 @@ if __name__ == "__main__":
 #    dl_tar_bz2("http://konect.cc/files/download.tsv.livemocha.tar.bz2", "livemocha/out.livemocha", "livemocha")
 #    txt_to_inst("livemocha", " ", 1, "%")
 
-    dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite_edges")
+    dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite")
     txt_to_inst("loc-brightkite_edges", " ", 1, "%")
 
 

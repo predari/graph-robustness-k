@@ -321,7 +321,7 @@ draw_jlt_comparison(20)
 
 
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
-huge_instances = ["loc-brightkite_edges"]
+huge_instances = ["loc-brightkite"]
 
 restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
 
