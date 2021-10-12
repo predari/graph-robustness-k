@@ -100,9 +100,12 @@ instances:
       - arxiv-hephth.nkb
       - opsahl-powergrid.nkb
       - deezer_europe.nkb
+    set: [large-graphs]
+  - repo: local
+    items:
       - erdos_renyi_10000_0.001.nkb
       - watts_strogatz_10000_7_0.2.nkb
-    set: [large-graphs]
+    set: [large-graphs-generated]
   - repo: local
     items:
       - erdos_renyi_128_0.1.nkb
@@ -123,7 +126,7 @@ instances:
     set: [medium-graphs]
   - repo: local
     items:
-      - loc-brightkite_edges.nkb
+      - loc-brightkite.nkb
     set: [huge-graphs]
 
 
@@ -145,10 +148,10 @@ matrix:
 
       # Comparison Algorithms
     - experiments: ['submodular-greedy']
-      instsets: ['large-graphs']
+      instsets: ['large-graphs', 'large-graphs-generated']
       axes: ['k-size-const', 'threads']
-    - experiments: ['stochastic-greedy', 'greedy-3']
-      instsets: ['large-graphs']
+    - experiments: ['stochastic-greedy']
+      instsets: ['large-graphs', 'large-graphs-generated']
       axes: ['k-size-const', 'threads', 'accuracy']
       variants: ['eps_0.9']
 
@@ -158,7 +161,7 @@ matrix:
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', 'eps_0.9', 'lu', 'multicore']
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs']
+      instsets: ['large-graphs', 'large-graphs-generated']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'heuristic']
       variants: ['similarity', 'random', 'eps_0.9', 'lu', 'multicore']
 
@@ -170,9 +173,14 @@ matrix:
 
       # JLT for similarity
     - experiments: ['sq-greedy']
+      instsets: ['large-graphs', 'large-graphs-generated']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
+      # JLT for random
+    - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['similarity', 'random', 'eps_0.9', 'jlt-lu', 'multicore', ]
+      variants: ['similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # JLT for diagonal
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']

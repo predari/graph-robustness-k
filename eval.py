@@ -311,8 +311,7 @@ for k in [5, 20, 50, 200]:
 
 
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
-#generated_instances = [""]
-huge_instances = ["loc-brightkite_edges"]
+huge_instances = ["loc-brightkite"]
 
 restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
 
