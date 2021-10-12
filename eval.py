@@ -118,7 +118,7 @@ def draw_jlt(df):
     fig, ax = plt.subplots()
     ax.set_ylim(0., 1.)
 
-    ax.set_title("Relative Errors of JLT ")
+    #ax.set_title("Relative Errors of JLT ")
     ax.boxplot(err_data, labels=instances, whis=[2.5,97.5])
     plt.ylabel('Rel. Error')
     plt.xticks(rotation=90)
@@ -133,7 +133,7 @@ def draw_jlt(df):
 
     fig, ax = plt.subplots()
 
-    ax.set_title("Relative Errors of JLT wrt. node subset. ")
+    #ax.set_title("Relative Errors of JLT wrt. node subset. ")
     ax.boxplot(err_data2, labels=instances, whis=[2.5, 97.5])
     plt.ylabel('Rel. Error')
     fig.tight_layout()
@@ -148,24 +148,19 @@ def draw_jlt(df):
 
 def draw_jlt_comparison(k):
     ns = np.arange(1000, 50000, 200)
-    epsilon = 0.5
-    col1 = 2 + 2 * 2 / (epsilon**2/2 - epsilon**3/3) * np.log(ns)
+    #col1 = 2 + 2 * 2 / (epsilon**2/2 - epsilon**3/3) * np.log(ns)
     fig, ax = plt.subplots()
-    col3 = ns / (2**0.5) / k * math.log(1. / 0.9)
-    epsilon = 0.75
-    col2 = 2 + 2 * 2 / (epsilon**2/2 - epsilon**3/3) * np.log(col3)
+    col1 = ns / (2 * k / math.log(1. / 0.9)) ** 0.5
     ax.plot(ns, col1)
+    epsilon = 0.75
+    col2 = np.log(col1) * 4 / (epsilon**2/2 - epsilon**3/3)
     ax.plot(ns, col2)
-    ax.plot(ns, col3)
-    plt.legend(["JLT", "JLT subset", "Main"])
-    plt.xlabel("n")
-    plt.ylabel("count")
+    ax.legend(["No JLT", "JLT"])
+    ax.set_xlabel("n")
+    ax.set_ylabel("count")
     ax.set_title("Solved linear eqns. ")
 
     output_file(fig, "jlt-cols"+str(k))
-
-    plt.cla()
-    plt.clf()
 
 
 
@@ -231,7 +226,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels(ks)
     ax1.set_ylim(0., 1.)
-    ax2.set_ylim(0., 0.5)
+    ax2.set_ylim(0., 1.)
     
     #ax2.legend(experiment_names)
 
@@ -297,11 +292,12 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
 
 #draw_jlt(jlt_df)
-#draw_jlt_comparison(5)
-#draw_jlt_comparison(20)
+draw_jlt_comparison(5)
+draw_jlt_comparison(20)
 
 
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
+huge_instances = ["loc-brightkite_edges"]
 
 restr_lpinv_diag = {
     "Experiment": "sq-greedy",
@@ -342,6 +338,14 @@ restr_similarity_jlt = {
     "Threads": 12
 }
 
+
+restr_random_jlt = {
+    "Experiment": "sq-greedy",
+    "Heuristic": "Random",
+    "Linalg": "JLT via Sparse LU",
+    "Threads": 12
+}
+
 restr_lpinv_diag_large_eps2 = {
     "Experiment": "sq-greedy",
     "Heuristic": "Lpinv Diagonal",
@@ -349,9 +353,10 @@ restr_lpinv_diag_large_eps2 = {
     "Threads": 12,
     "Epsilon": 0.9,
     "Epsilon2": 10.
-
 }
-plot_averaged(df, large_instances, [ restr_lpinv_diag_large_eps2, restr_stoch, restr_similarity, restr_random, restr_similarity_jlt], ["Main-Resistances-Approx", "Stochastic-Submodular", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "results_aggregated_5")
+
+
+plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag_large_eps2, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], "results_aggregated_5")
 
 
 
@@ -360,7 +365,7 @@ plot_averaged(df, large_instances, [ restr_lpinv_diag_large_eps2, restr_stoch, r
 
 
 
-def plot_instance(df, instance_name, restrictions=[], filename=None):
+def plot_instance(df, instance_name, restrictions=[], filename=None, flags=None):
     restricted_frame = project(df, "Instance", instance_name)
     restricted_frame = restrict_frame(restricted_frame, restrictions)
         
@@ -375,13 +380,20 @@ def plot_instance(df, instance_name, restrictions=[], filename=None):
         heuristic = row['Heuristic']
         if heuristic and pd.notnull(heuristic):
             algorithm_name += heuristic
+        
+        if flags and flags["full"] == False:
+            if row['Linalg'] not in ['LU'] and not pd.isna(row['Linalg']):
+                continue
+            if algorithm_name == "greedy-3":
+                continue
+        
         if heuristic == "Lpinv Diagonal":
             if row['Linalg'] != 'LU':
                 continue
 
         rename = {
             "greedy-3" : "main-resistances-exact",
-            "sq-greedyLpinv Diagonal" : "main-resistances-approx",
+            "sq-greedyLpinv Diagonal" : "main-resistances",
             "sq-greedyRandom": "main-random",
             "sq-greedySimilarity": "main-similarity",
         }
@@ -400,10 +412,13 @@ def plot_instance(df, instance_name, restrictions=[], filename=None):
             gain *= -1
         result_gain.append(gain)
 
-        if result_name[-1] == "main-random":
-            result_name[-1] = "main-random-" + row["Linalg"]
-        if result_name[-1] == "main-similarity":
-            result_name[-1] = "main-similarity-" + row["Linalg"]
+        if not (flags and flags["full"] == False): 
+            if result_name[-1] == "main-random":
+                result_name[-1] = "main-random-" + row["Linalg"]
+            if result_name[-1] == "main-similarity":
+                result_name[-1] = "main-similarity-" + row["Linalg"]
+            if result_name[-1] == "main-resistance":
+                result_name[-1] = "main-resistance-" + row["Linalg"]
 
 
     len_results = len(result_t)
@@ -482,9 +497,12 @@ def quick_plot(name, threads, k):
 #plot_instance(df, "arxiv-heph", {"Threads": 12, "k": 20})
 
 
-for k in [2, 5, 20, 50, 200]:
-    for i in large_instances:
-        plot_instance(df, i, {"k": k}, i+"-"+str(k))
+for i in large_instances:
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag_large_eps2, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], "results_"+i)
+
+#for k in [2, 5, 20, 50, 200]:
+#    for i in large_instances:
+#        plot_instance(df, i, {"k": k}, i+"-"+str(k), flags={"full":False})
 
 
 

@@ -62,8 +62,8 @@ variants:
         extra_args: ['-eps', '0.9']
   - axis: 'accuracy_trees'
     items:
-      - name: 'eps2_1.0'
-        extra_args: ['-eps2', '1.0']
+#      - name: 'eps2_1.0'
+#        extra_args: ['-eps2', '1.0']
       - name: 'eps2_10'
         extra_args: ['-eps2', '10']
 
@@ -100,6 +100,8 @@ instances:
       - arxiv-hephth.nkb
       - opsahl-powergrid.nkb
       - deezer_europe.nkb
+      - erdos_renyi_10000_0.001.nkb
+      - watts_strogatz_10000_7_0.2.nkb
     set: [large-graphs]
   - repo: local
     items:
@@ -165,14 +167,14 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'k-50', 'similarity', 'random', 'eps_0.9', 'jlt-lu', 'multicore', ]
+      variants: ['similarity', 'random', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # JLT for diagonal
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'accuracy_trees', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'k-50', 'ust-diag', 'eps_0.9', 'jlt-lu', 'multicore', ]
+      variants: ['ust-diag', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # Lamg
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-20', 'similarity', 'eps_0.9', 'lamg', 'multicore', ]
+      variants: ['k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]
