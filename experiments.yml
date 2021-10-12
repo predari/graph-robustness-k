@@ -121,6 +121,11 @@ instances:
       - barabasi_albert_2_1000_2.nkb
       - barabasi_albert_2_3000_2.nkb
     set: [medium-graphs]
+  - repo: local
+    items:
+      - loc-brightkite_edges.nkb
+    set: [huge-graphs]
+
 
 
 
@@ -172,9 +177,19 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'accuracy_trees', 'heuristic']
-      variants: ['ust-diag', 'eps_0.9', 'jlt-lu', 'multicore', ]
+      variants: ['ust-diag', 'eps_0.9', 'jlt-lu', 'multicore', 'eps2_10' ]
       # Lamg
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]
+      variants: ['k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]      
+      
+      # Huge Instances
+    - experiments: ['sq-greedy']
+      instsets: ['huge-graphs']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lu', 'multicore', 'similarity']
+    - experiments: ['sq-greedy']
+      instsets: ['huge-graphs']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'lu', 'multicore', 'similarity']
