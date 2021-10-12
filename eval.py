@@ -312,9 +312,10 @@ for k in [5, 20, 50, 200]:
 
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
 huge_instances = ["loc-brightkite"]
+generated_instances = ['erdos_renyi_10000_0.001', 'watts_strogatz_10000_7_0.2']
+
 
 restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
-
 
 restr_stoch = {
     "Experiment": "stochastic-greedy",
@@ -363,6 +364,9 @@ restr_lpinv_diag = {
 plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_aggregated_5")
 
 for i in large_instances:
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
+
+for i in generated_instances:
     plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
 
 

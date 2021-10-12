@@ -157,7 +157,7 @@ matrix:
 
       # Main Algorithm
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs']
+      instsets: ['large-graphs', 'large-graphs-generated']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', 'eps_0.9', 'lu', 'multicore']
     - experiments: ['sq-greedy']
@@ -178,7 +178,7 @@ matrix:
       variants: ['similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # JLT for random
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs']
+      instsets: ['large-graphs', 'large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # JLT for diagonal
