@@ -109,8 +109,19 @@ if __name__ == "__main__":
         csv_to_inst("/tmp/twitch/DE/musae_DE_edges.csv", "twitch_de")
         csv_to_inst("/tmp/twitch/ENGB/musae_ENGB_edges.csv", "twitch_engb")
     
-    dl_tar_bz2("http://konect.cc/files/download.tsv.opsahl-powergrid.tar.bz2", "opsahl-powergrid/out.opsahl-powergrid", "opsahl-powergrid")
+    dl_tar_bz2("https://konect.cc/files/download.tsv.opsahl-powergrid.tar.bz2", "opsahl-powergrid/out.opsahl-powergrid", "opsahl-powergrid")
     txt_to_inst("opsahl-powergrid", " ", 1, "%")
+    
+    dl_tar_bz2("http://konect.cc/files/download.tsv.flickrEdges.tar.bz2", "flickrEdges/out.flickrEdges", "flickr")
+    txt_to_inst("flickr", " ", 1, "%")
+
+#    dl_tar_bz2("http://konect.cc/files/download.tsv.facebook-wosn-links.tar.bz2", "facebook-wosn-links/out.facebook-wosn-links", "facebook-wosn-links")
+#    txt_to_inst("facebook-wosn-links", " ", 1, "%")
+
+    dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite_edges")
+    txt_to_inst("loc-brightkite_edges", " ", 1, "%")
+
+
     #dl_tar_bz2("http://konect.cc/files/download.tsv.marvel.tar.bz2", "marvel/out.marvel", "marvel")
     #txt_to_inst("marvel", "\t", 1, "%")
     #dl_tar_bz2("http://konect.cc/files/download.tsv.dimacs10-as-22july06.tar.bz2", "dimacs10-as-22july06/out.dimacs10-as-22july06", "dimacs-net")
@@ -127,6 +138,7 @@ if __name__ == "__main__":
     gen_er_inst(600, 0.05)
     gen_er_inst(1000, 0.02)
     gen_er_inst(3000, 0.01)
+    gen_er_inst(10000, 0.001)
 
     #gen_ws_inst(10, 3, 0.4)
     #gen_ws_inst(30, 5, 0.4)
@@ -134,6 +146,7 @@ if __name__ == "__main__":
     gen_ws_inst(300, 7, 0.5)
     gen_ws_inst(1000, 7, 0.3)
     gen_ws_inst(3000, 7, 0.3)
+    gen_ws_inst(10000, 7, 0.2)
 
     gen_ba_inst(2, 100, 2)
     gen_ba_inst(2, 300, 2)
