@@ -103,8 +103,66 @@ instances:
     set: [large-graphs]
   - repo: local
     items:
-      - erdos_renyi_10000_0.001.nkb
-      - watts_strogatz_10000_7_0.2.nkb
+      - erdos_renyi_10000_0.01_0.nkb
+      - watts_strogatz_10000_20_0.2_0.nkb
+      - barabasi_albert_5_10000_3_0.nkb
+      - erdos_renyi_10000_0.01.nkb
+      - watts_strogatz_10000_20_0.2.nkb
+      - barabasi_albert_5_10000_3.nkb
+      - erdos_renyi_10000_0.01_2.nkb
+      - watts_strogatz_10000_20_0.2_2.nkb
+      - barabasi_albert_5_10000_3_2.nkb
+      - erdos_renyi_10000_0.01_3.nkb
+      - watts_strogatz_10000_20_0.2_3.nkb
+      - barabasi_albert_5_10000_3_3.nkb
+      - erdos_renyi_10000_0.01_4.nkb
+      - watts_strogatz_10000_20_0.2_4.nkb
+      - barabasi_albert_5_10000_3_4.nkb
+      - erdos_renyi_10000_0.01_5.nkb
+      - watts_strogatz_10000_20_0.2_5.nkb
+      - barabasi_albert_5_10000_3_5.nkb
+      - erdos_renyi_10000_0.01_6.nkb
+      - watts_strogatz_10000_20_0.2_6.nkb
+      - barabasi_albert_5_10000_3_6.nkb
+      - erdos_renyi_10000_0.01_7.nkb
+      - watts_strogatz_10000_20_0.2_7.nkb
+      - barabasi_albert_5_10000_3_7.nkb
+      - erdos_renyi_10000_0.01_8.nkb
+      - watts_strogatz_10000_20_0.2_8.nkb
+      - barabasi_albert_5_10000_3_8.nkb
+      - erdos_renyi_10000_0.01_9.nkb
+      - watts_strogatz_10000_20_0.2_9.nkb
+      - barabasi_albert_5_10000_3_9.nkb
+      - erdos_renyi_10000_0.01_10.nkb
+      - watts_strogatz_10000_20_0.2_10.nkb
+      - barabasi_albert_5_10000_3_10.nkb
+      - erdos_renyi_10000_0.01_11.nkb
+      - watts_strogatz_10000_20_0.2_11.nkb
+      - barabasi_albert_5_10000_3_11.nkb
+      - erdos_renyi_10000_0.01_12.nkb
+      - watts_strogatz_10000_20_0.2_12.nkb
+      - barabasi_albert_5_10000_3_12.nkb
+      - erdos_renyi_10000_0.01_13.nkb
+      - watts_strogatz_10000_20_0.2_13.nkb
+      - barabasi_albert_5_10000_3_13.nkb
+      - erdos_renyi_10000_0.01_14.nkb
+      - watts_strogatz_10000_20_0.2_14.nkb
+      - barabasi_albert_5_10000_3_14.nkb
+      - erdos_renyi_10000_0.01_15.nkb
+      - watts_strogatz_10000_20_0.2_15.nkb
+      - barabasi_albert_5_10000_3_15.nkb
+      - erdos_renyi_10000_0.01_16.nkb
+      - watts_strogatz_10000_20_0.2_16.nkb
+      - barabasi_albert_5_10000_3_16.nkb
+      - erdos_renyi_10000_0.01_17.nkb
+      - watts_strogatz_10000_20_0.2_17.nkb
+      - barabasi_albert_5_10000_3_17.nkb
+      - erdos_renyi_10000_0.01_18.nkb
+      - watts_strogatz_10000_20_0.2_18.nkb
+      - barabasi_albert_5_10000_3_18.nkb
+      - erdos_renyi_10000_0.01_19.nkb
+      - watts_strogatz_10000_20_0.2_19.nkb
+      - barabasi_albert_5_10000_3_19.nkb
     set: [large-graphs-generated]
   - repo: local
     items:
@@ -135,33 +193,33 @@ instances:
 matrix:
   include:
       # Small Graphs
-    - experiments: [submodular-greedy]
-      instsets: [medium-graphs]
-      axes: ['k-size-linear', threads]
-    - experiments: [stochastic-greedy, greedy-3]
-      instsets: [medium-graphs]
-      axes: ['k-size-linear', threads, 'accuracy']
-    - experiments: [sq-greedy]
-      instsets: [medium-graphs]
-      axes: ['k-size-linear', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-      variants: ['ust-diag', 'eps_0.9', 'lu', 'lamg', ]
+    #- experiments: [submodular-greedy]
+    #  instsets: [medium-graphs]
+    #  axes: ['k-size-linear', threads]
+    #- experiments: [stochastic-greedy, greedy-3]
+    #  instsets: [medium-graphs]
+    #  axes: ['k-size-linear', threads, 'accuracy']
+    #- experiments: [sq-greedy]
+    #  instsets: [medium-graphs]
+    #  axes: ['k-size-linear', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
+    #  variants: ['ust-diag', 'eps_0.9', 'lu', 'lamg', ]
 
       # Comparison Algorithms
     - experiments: ['submodular-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs']
       axes: ['k-size-const', 'threads']
     - experiments: ['stochastic-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'accuracy']
       variants: ['eps_0.9']
 
       # Main Algorithm
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', 'eps_0.9', 'lu', 'multicore']
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'heuristic']
       variants: ['similarity', 'random', 'eps_0.9', 'lu', 'multicore']
 
@@ -173,12 +231,12 @@ matrix:
 
       # JLT for similarity
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # JLT for random
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
       # JLT for diagonal
@@ -191,13 +249,25 @@ matrix:
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]      
+
+      # Generated instances
+    - experiments: ['sq-greedy']
+      instsets: ['large-graphs', 'large-graphs-generated']
+      axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'heuristic']
+      variants: ['similarity', 'random', 'eps_0.9', 'lu', 'multicore']
+      # JLT for similarity
+    - experiments: ['sq-greedy']
+      instsets: ['large-graphs', 'large-graphs-generated']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
+
       
       # Huge Instances
-    - experiments: ['sq-greedy']
-      instsets: ['huge-graphs']
-      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lu', 'multicore', 'similarity']
-    - experiments: ['sq-greedy']
-      instsets: ['huge-graphs']
-      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'lu', 'multicore', 'similarity']
+#    - experiments: ['sq-greedy']
+#      instsets: ['huge-graphs']
+#      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+#      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lu', 'multicore', 'similarity']
+#    - experiments: ['sq-greedy']
+#      instsets: ['huge-graphs']
+#      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+#      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'lu', 'multicore', 'similarity']

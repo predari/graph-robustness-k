@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 
 import networkit as nk  
 import os
@@ -63,22 +65,28 @@ def load_deezer_europe_instance():
 
 
 
-def gen_er_inst(n, p):
-    nk.setSeed(1, True)
+def gen_er_inst(n, p, seed=1):
+    nk.setSeed(seed, True)
     g = nk.generators.ErdosRenyiGenerator(n, p).generate()
-    name = "erdos_renyi_{0}_{1}".format(n, p)
+    name = f"erdos_renyi_{n}_{p}"
+    if seed != 1:
+        name += f"_{seed}"
     graph_inst(g, name)
 
-def gen_ba_inst(k, nMax, n0):
-    nk.setSeed(1, True)
+def gen_ba_inst(k, nMax, n0, seed=1):
+    nk.setSeed(seed, True)
     g = nk.generators.BarabasiAlbertGenerator(k, nMax, n0).generate()
     name = "barabasi_albert_{0}_{1}_{2}".format(k, nMax, n0)
+    if seed != 1:
+        name += f"_{seed}"
     graph_inst(g, name)
 
-def gen_ws_inst(nNodes, nNeighbors, p):
-    nk.setSeed(1, True)
+def gen_ws_inst(nNodes, nNeighbors, p, seed=1):
+    nk.setSeed(seed, True)
     g = nk.generators.WattsStrogatzGenerator(nNodes, nNeighbors, p).generate()
     name = "watts_strogatz_{0}_{1}_{2}".format(nNodes, nNeighbors, p)
+    if seed != 1:
+        name += f"_{seed}"
     graph_inst(g, name)
 
     
@@ -142,7 +150,7 @@ if __name__ == "__main__":
     gen_er_inst(600, 0.05)
     gen_er_inst(1000, 0.02)
     gen_er_inst(3000, 0.01)
-    gen_er_inst(10000, 0.001)
+
 
     #gen_ws_inst(10, 3, 0.4)
     #gen_ws_inst(30, 5, 0.4)
@@ -150,11 +158,15 @@ if __name__ == "__main__":
     gen_ws_inst(300, 7, 0.5)
     gen_ws_inst(1000, 7, 0.3)
     gen_ws_inst(3000, 7, 0.3)
-    gen_ws_inst(10000, 7, 0.2)
 
     gen_ba_inst(2, 100, 2)
     gen_ba_inst(2, 300, 2)
     gen_ba_inst(2, 1000, 2)
     gen_ba_inst(2, 3000, 2)
+
+    for i in range(20):
+        gen_er_inst(10000, 0.01, i)
+        gen_ws_inst(10000, 20, 0.2, i)
+        gen_ba_inst(5, 10000, 3, i)
 
     print(instance_str)
