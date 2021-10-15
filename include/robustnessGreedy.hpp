@@ -392,6 +392,67 @@ private:
 
 
 
+template <class DynamicLaplacianSolver>
+class RobustnessStochasticGreedyDyn : public StochasticGreedy<Edge>{
+public:
+    RobustnessStochasticGreedyDyn(GreedyParams params) {
+        this->g = params.g;
+        this->n = g.numberOfNodes();
+        this->k = params.k;
+        this->epsilon = params.epsilon;
+
+        this->totalValue = 0.;
+        this->originalResistance = 0.;
+
+        solver.setup(g, 1.0e-6, std::ceil(n * std::sqrt(1. / (double)(k) * std::log(1.0/epsilon))));
+    }
+
+    virtual void addDefaultItems() override {
+        // Add edges to items of greedy
+        std::vector<Edge> items;
+        for (size_t i = 0; i < this->n; i++)
+        {
+            for (size_t j = 0; j < i; j++)
+            {
+                if (!this->g.hasEdge(i, j)) {
+                    items.push_back(Edge(i,j));
+                }
+            }
+        }
+        
+        this->addItems(items);
+    }
+
+    virtual std::vector<Edge> getResultItems() override {
+        return this->results;
+    }
+    virtual double getResultValue() override {
+        return this->totalValue * (-1.0);
+    }
+
+    virtual double getOriginalValue() override {
+        return this->originalResistance;
+    }
+
+
+private:
+    virtual double objectiveDifference(Edge e) override {
+        return (-1.) * solver.totalResistanceDifferenceExact(e.u, e.v);
+    }
+
+    virtual void useItem(Edge e) override {
+        solver.addEdge(e.u, e.v);
+    }
+
+    DynamicLaplacianSolver solver;
+
+    Graph g;
+    int n;
+    double originalResistance = 0.;
+};
+ 
+
+
 
 
 

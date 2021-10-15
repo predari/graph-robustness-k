@@ -20,7 +20,7 @@ public:
 
     NetworKit::count k;
 	NetworKit::count n;
-    double solverEpsilon = 0.0001;
+    double solverEpsilon = 0.00001;
 	double epsilon = 0.1;
 	double epsilon2 = 0.1;
 	NetworKit::Graph& g;

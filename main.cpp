@@ -396,6 +396,7 @@ enum class AlgorithmType {
 	submodular,
 	submodular2,
 	stochastic,
+	stochastic_dyn,
 	trees,
 	random,
 	random_avg,
@@ -451,6 +452,9 @@ public:
 		} else if (alg == AlgorithmType::random_avg) {
 			algorithmName = "Random Averaged";
 			createSpecific<RobustnessRandomAveraged<SparseLUSolver>>();
+		} else if (alg == AlgorithmType::stochastic_dyn) {
+			algorithmName = "Stochastic Dyn";
+			createLinAlgGreedy<RobustnessStochasticGreedyDyn>();
 		} else {
 			throw std::logic_error("Algorithm not implemented!");
 		}
@@ -518,7 +522,7 @@ public:
 		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
 		std::cout << "  Threads:  " << threads << "\n";
 
-		if (alg == AlgorithmType::trees) {
+		if (alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_dyn) {
 			std::string linalgName = "";
 			if (linalg == LinAlgType::cg) {
 				linalgName = "CG";
@@ -560,7 +564,7 @@ public:
 			std::cout << "  Epsilon2: " << epsilon2 << "\n";
 		}
 
-		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::trees) {
+		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::stochastic_dyn || alg == AlgorithmType::trees) {
 			std::cout << "  Epsilon: " << epsilon << "\n";
 		}
 
@@ -790,6 +794,11 @@ int main(int argc, char* argv[])
 		if (arg == "-a2" || arg == "--stochastic-submodular-greedy") {
 			experiment.alg = AlgorithmType::stochastic;
 			continue; 
+		}
+
+		if (arg == "-a3") {
+			experiment.alg = AlgorithmType::stochastic_dyn;
+			continue;
 		}
 		if (arg == "-a0" || arg == "--random-avg") { 
 			experiment.alg = AlgorithmType::random_avg;

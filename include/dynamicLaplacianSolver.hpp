@@ -193,6 +193,22 @@ protected:
 
 
 
+class DynamicSparseLULaplacianSolver: public DynamicLaplacianSolver<Eigen::SparseMatrix<double>, Eigen::SparseLU <Eigen::SparseMatrix<double> , Eigen::COLAMDOrdering<int> > > {
+    virtual void setup_solver() override {
+        this->solverLaplacian = this->laplacian;
+        this->solverLaplacian.makeCompressed();
+
+        this->solver.setPivotThreshold(0.1);
+        this->solver.compute(this->solverLaplacian);
+
+        if (this->solver.info() != Eigen::Success) {
+            throw std::logic_error("Solver Setup failed.");
+        }
+        this->solverAge = this->round;
+    }
+};
+
+
 template <class Solver>
 class DynamicSparseLaplacianSolver : public DynamicLaplacianSolver<Eigen::SparseMatrix<double>, Solver> {
     virtual void setup_solver() override {
@@ -212,7 +228,8 @@ typedef DynamicSparseLaplacianSolver <Eigen::SparseQR <Eigen::SparseMatrix <doub
 
 typedef DynamicSparseLaplacianSolver <Eigen::LeastSquaresConjugateGradient <Eigen::SparseMatrix<double> > > SparseLeastSquaresSolver;
 
-typedef DynamicSparseLaplacianSolver <Eigen::SparseLU <Eigen::SparseMatrix<double> , Eigen::COLAMDOrdering<int> > > SparseLUSolver;
+//typedef DynamicSparseLaplacianSolver <Eigen::SparseLU <Eigen::SparseMatrix<double> , Eigen::COLAMDOrdering<int> > > SparseLUSolver;
+typedef DynamicSparseLULaplacianSolver SparseLUSolver;
 
 typedef DynamicSparseLaplacianSolver <Eigen::SimplicialLLT <Eigen::SparseMatrix<double>, Eigen::Upper | Eigen::Lower> > SparseLDLTSolver;
 
@@ -242,15 +259,20 @@ typedef DynamicDenseLaplacianSolver<Eigen::ConjugateGradient<Eigen::MatrixXd, Ei
 
 class LamgDynamicLaplacianSolver : virtual public IDynamicLaplacianSolver {
 public:
-    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound = 200) override {
+    virtual void setup(const Graph &g, double tol, count eqnsPerRound = 200) override {
         this->laplacian = NetworKit::CSRMatrix::laplacianMatrix(g);
         n = g.numberOfNodes();
+
+        this->tolerance = tol;
 
         colAge.resize(n, -1);
         cols.resize(n);
         solverAge = 0;
 
         auto t0 = std::chrono::high_resolution_clock::now();
+
+        lamg.~Lamg<CSRMatrix>();
+        new (&lamg) Lamg<CSRMatrix>(tolerance);
         lamg.setup(laplacian);
 
         
@@ -333,7 +355,7 @@ public:
 
         if (round % roundsPerSolverUpdate == 0) {
             lamg.~Lamg<CSRMatrix>();
-            new (&lamg) Lamg<CSRMatrix>();
+            new (&lamg) Lamg<CSRMatrix>(tolerance);
             lamg.setup(laplacian);
 
             solverAge = round;
@@ -375,6 +397,8 @@ private:
     count solverAge = 0;
 
     Lamg<CSRMatrix> lamg;
+
+    double tolerance;
 };
 
 
