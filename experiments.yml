@@ -2,23 +2,19 @@ experiments:
   - name: random-averaged
     args: ['./build/robustness', '-a0', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
-    slurm_args: ['--partition=single', '--nodelist=ego']
   - name: submodular-greedy
     args: ['./build/robustness', '-a1', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
-    slurm_args: ['--partition=single', '--nodelist=ego']
   - name: stochastic-greedy
     args: ['./build/robustness', '-a2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
-    slurm_args: ['--partition=single', '--nodelist=ego']
   - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
-    slurm_args: ['--partition=single', '--nodelist=ego']
   - name: sq-greedy
     args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
-    slurm_args: ['--partition=single', '--nodelist=ego']
+    #slurm_args: ['--partition=single', '--nodelist=ego']
   - name: test-jlt
     args: ['./build/robustness', '--test-jlt', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
@@ -263,11 +259,11 @@ matrix:
 
       
       # Huge Instances
-#    - experiments: ['sq-greedy']
-#      instsets: ['huge-graphs']
-#      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-#      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lu', 'multicore', 'similarity']
-#    - experiments: ['sq-greedy']
-#      instsets: ['huge-graphs']
-#      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-#      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'lu', 'multicore', 'similarity']
+    - experiments: ['sq-greedy']
+      instsets: ['huge-graphs']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lu', 'multicore', 'similarity']
+    - experiments: ['sq-greedy']
+      instsets: ['huge-graphs']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'lamg', 'multicore', 'similarity']
