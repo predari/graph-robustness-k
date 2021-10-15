@@ -81,7 +81,7 @@ public:
     }
 
     count numberOfNodeCandidates() {
-        unsigned int s = (unsigned int)std::sqrt(1.0 * (this->n * (this->n-1) /2 - this->G.numberOfEdges() - this->round) / k * std::log(1.0/epsilon));
+        unsigned int s = std::ceil(n * std::sqrt(1. / (double)k * std::log(1.0/epsilon)));
         if (s < 2) { s = 2; }
         if (s > n/2) { s = n/2; }
         return s;
