@@ -8,6 +8,9 @@ experiments:
   - name: stochastic-greedy
     args: ['./build/robustness', '-a2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
+  - name: stochastic-greedy-lu
+    args: ['./build/robustness', '-a3', '--lu', '-i', '@INSTANCE@', '@EXTRA_ARGS@']
+    stdout: out
   - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
@@ -244,7 +247,7 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]      
+      variants: ['k-2', 'k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]      
 
       # Generated instances
     - experiments: ['sq-greedy']
