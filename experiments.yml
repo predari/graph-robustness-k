@@ -80,6 +80,8 @@ variants:
         extra_args: ['--lu']
       - name: 'jlt-lu'
         extra_args: ['--jlt-lu']
+      - name: 'jlt-lamg'
+        extra_args: ['--jlt-lamg']
 #      - name: 'qr'
 #        extra_args: ['--qr']
   - axis: 'heuristic'
