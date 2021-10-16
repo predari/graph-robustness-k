@@ -250,15 +250,21 @@ matrix:
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['k-2', 'k-20', 'similarity', 'eps_0.9', 'eps2_10', 'lamg', 'multicore', ]      
+      # JLT-Lamg for similarity
+    - experiments: ['sq-greedy']
+      instsets: ['large-graphs']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
+      variants: ['similarity', 'eps_0.9', 'jlt-lamg', 'multicore', ]
+
 
       # Generated instances
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'heuristic']
       variants: ['similarity', 'random', 'eps_0.9', 'lu', 'multicore']
       # JLT for similarity
     - experiments: ['sq-greedy']
-      instsets: ['large-graphs', 'large-graphs-generated']
+      instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
 
@@ -267,7 +273,7 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['huge-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lu', 'multicore', 'similarity']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lamg', 'multicore', 'similarity']
     - experiments: ['sq-greedy']
       instsets: ['huge-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
