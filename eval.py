@@ -11,7 +11,7 @@ import matplotlib
 
 
 colors = ['b', 'g', 'r', (0.0, 0.7, 0.7), (0.7, 0.7, 0.), (0.7, 0., 0.7), (0.8, 0.4, 0.1), (0.1, 0.8, 0.4), (0.4, 0.1, 0.8)]
-
+markers = ['o', '.', 'x', '+', 'v', '^', '<', '>', 's', 'd']
 
 def parse(run, f):
     output = yaml.load(f, Loader=yaml.Loader)
@@ -81,6 +81,8 @@ matplotlib.rcParams.update({
 })
 
 
+def d_to_str(d):
+    return f"{d:.4f}"
 
 def project(df, col, value):
     cols = [c for c in df.columns if c != col]
@@ -158,54 +160,101 @@ def draw_jlt_comparison(k):
     ax.set_ylabel("count")
     ax.set_title("Solved linear eqns. ")
 
-    output_file(fig, "jlt-cols"+str(k))
+    output_file(fig, "jlt-cols"+d_to_str(k))
+
+
+def geometric_mean(l, default=0., exclude_zero=True):
+    found_any = False
+    length = 0
+    p = 1.
+    for v in l:
+        if v or (v == 0 and exclude_zero == False):
+            p *= v
+            length += 1
+    if length == 0 or length == 0.0:
+        return default
+    return p ** (1. / length)
 
 
 
+def analyze_experiment(df, restrictions, instance_names, ks=None, additional_exclusion=None):
+    resistances = {}
+    times = {}
+    if not ks:
+        ks = set()
 
-def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, reference_restrictions=None, filename=None):    
+    restricted_frame = restrict_frame(df, restrictions)
+    for instance_name in instance_names:
+        instance_frame = project(restricted_frame, "Instance", instance_name)
+
+        def insert(d, k1, v):
+            if k1 not in d:
+                d[k1] = {}
+            d[k1][instance_name] = v
+
+        for row in instance_frame.iterrows():
+            row = row[1]
+
+            k = row['k']
+
+            if additional_exclusion:
+                if additional_exclusion(row, restrictions, instance_name):
+                    continue
+            ks.add(k)
+
+            insert(resistances, k, row['Gain'])
+            insert(times, k, row['Time'])
+
+    return resistances, times, ks
+
+def analyze_multiple_experiments(df, experiment_restriction_list, instance_names, additional_exclusion=None):
     ks = set()
-    resistances_by_k = {}
-    times_by_k = {}
-
-    def analyze_experiment(restrictions):
-        resistances = {}
-        times = {}
-
-        restricted_frame = restrict_frame(df, restrictions)
-        for instance_name in instance_names:
-            instance_frame = project(restricted_frame, "Instance", instance_name)
-
-            def insert(d, k1, v):
-                if k1 not in d:
-                    d[k1] = {}
-                d[k1][instance_name] = v
-
-            for row in instance_frame.iterrows():
-                row = row[1]
-
-                k = row['k']
-                ks.add(k)
-
-                insert(resistances, k, row['Gain'])
-                insert(times, k, row['Time'])
-
-        return resistances, times
 
     result_resistances = []
     result_times = []
     
     for restrictions in experiment_restriction_list:
-        res, times = analyze_experiment(restrictions)
+        res, times, ks = analyze_experiment(df, restrictions, instance_names, ks, additional_exclusion)
         result_resistances.append(res)
         result_times.append(times)
-    
-    if reference_restrictions:
-        #print(reference_restrictions)
-        reference_resistances, reference_times = analyze_experiment(reference_restrictions)
-
 
     ks = sorted(list(ks))
+    return result_resistances, result_times, ks
+
+def plot_result_vs_time(df, instance_names, experiment_restriction_list, experiment_names, filename=None, additional_exclusion=None, output_values_text=None):
+    result_resistances, result_times, ks = analyze_multiple_experiments(df, experiment_restriction_list, instance_names, additional_exclusion)
+
+    fig, ax = plt.subplots()
+
+    fig._set_dpi(400)
+    fig.set_size_inches(4, 4)
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Marginal Gain')
+
+    for j, (algorithm_resistances, algorithm_times) in enumerate(zip(result_resistances, result_times)):
+            
+        experiment_name = experiment_names[j]
+        gain_value = geometric_mean(gain for k, algorithm_k_resistances in algorithm_resistances.items() for inst, gain in algorithm_k_resistances.items())
+        time_value = geometric_mean(time for k, algorithm_k_times in algorithm_times.items() for inst, time in algorithm_k_times.items())
+        if output_values_text:
+            print(f"{experiment_name} & {gain_value:.4f} & {time_value:.4f} \\\\")
+        plt.plot([time_value], [gain_value], markers[j], label=experiment_name)
+    
+    #plt.gca().invert_yaxis()
+
+    plt.legend()
+    output_file(fig, filename)
+    plt.close(fig)
+
+    
+
+
+def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, reference_restrictions=None, filename=None, output_values_text=None):    
+    result_resistances, result_times, ks = analyze_multiple_experiments(df, experiment_restriction_list, instance_names)
+
+    if reference_restrictions:
+        reference_resistances, reference_times, _ = analyze_experiment(df, reference_restrictions, instance_names)
+
 
     x_pos = np.arange(len(ks))
 
@@ -237,24 +286,18 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     
     #ax2.legend(experiment_names)
 
-
-    def geometric_mean(l, default=0.):
-        found_any = False
-        length = 0
-        p = 1.
-        for v in l:
-            if v or v == 0.:
-                p *= v
-                length += 1
-        if l == 0:
-            return default
-        return p ** (1. / length)
     
     def offset(l, k):
         width = 0.8 / k
         return width * l - width / 2 * k + width / 2
 
     num_experiments = len(result_resistances)
+
+    if output_values_text:
+        print("&" + " & ".join(d_to_str(v) for v in ks))
+
+    s_res = ""
+    s_t = ""
 
     for j, (algorithm_resistances, algorithm_times) in enumerate(zip(result_resistances, result_times)):
         resistance_means = []
@@ -284,11 +327,20 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
             time_mean = geometric_mean(relative_times)
             resistance_means.append(res_mean)
             time_means.append(time_mean)
-            if len(relative_resistances) > 1:
+            if len(relative_resistances) > 1 and not output_values_text:
                 print("Taking means of {} instances for k = {} and j = {}.".format(len(relative_resistances), k, j))
         
-        ax1.bar(x_pos + offset(j, num_experiments), resistance_means, align='center', color=colors[j], alpha = 0.5, label=experiment_names[j], width=0.8 / num_experiments)
-        ax2.bar(x_pos + offset(j, num_experiments), time_means, align='center', color=colors[j], alpha = 0.5, label=experiment_names[j], width=0.8 / num_experiments)
+        experiment_name = experiment_names[j]
+        ax1.bar(x_pos + offset(j, num_experiments), resistance_means, align='center', color=colors[j], alpha = 0.5, label=experiment_name, width=0.8 / num_experiments)
+        ax2.bar(x_pos + offset(j, num_experiments), time_means, align='center', color=colors[j], alpha = 0.5, label=experiment_name, width=0.8 / num_experiments)
+
+        if output_values_text:
+            s_res += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in resistance_means) + "\\\\\n"
+            s_t += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in time_means) + "\\\\\n"
+
+    if output_values_text: 
+        print(s_res)
+        print(s_t)
 
     
     #ax1.legend()
@@ -361,13 +413,19 @@ restr_lpinv_diag = {
 }
 
 
-plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_aggregated_5")
+def exclude_large_k(row, restrictions, instance_name):
+    return row['k'] > 20 #and 'Linalg' in restrictions and restrictions['Linalg'] == "JLT via Sparse LU"
+
+plot_result_vs_time(df, large_instances, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
+plot_result_vs_time(df, large_instances, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time_small_k", exclude_large_k, True)
+
+plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
 for i in large_instances:
-    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
 
 for i in generated_instances:
-    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_random_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Random-JLT"], restr_submodular, "results_"+i)
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
 
 
 for i in huge_instances:
@@ -376,12 +434,10 @@ for i in huge_instances:
 
 
 
-
-
 def plot_instance(df, instance_name, restrictions=[], filename=None, flags=None):
     restricted_frame = project(df, "Instance", instance_name)
     restricted_frame = restrict_frame(restricted_frame, restrictions)
-        
+
     result_t = []
     result_gain = []
     result_name = []
@@ -505,14 +561,14 @@ def plot_instance(df, instance_name, restrictions=[], filename=None, flags=None)
 
 #eval.plot_instance(eval.df, "arxiv-hephth", [["Threads", 12], ["k", 20]])
 def quick_plot(name, threads, k):
-    plot_instance(df, name, [["Threads", threads], ["k", k]], name + "-" + str(k))
+    plot_instance(df, name, [["Threads", threads], ["k", k]], name + "-" + d_to_str(k))
 
 #plot_instance(df, "arxiv-heph", {"Threads": 12, "k": 20})
 
 
 #for k in [2, 5, 20, 50, 200]:
 #    for i in large_instances:
-#        plot_instance(df, i, {"k": k}, i+"-"+str(k), flags={"full":False})
+#        plot_instance(df, i, {"k": k}, i+"-"+d_to_str(k), flags={"full":False})
 
 
 
