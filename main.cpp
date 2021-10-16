@@ -388,7 +388,8 @@ enum class LinAlgType {
 	lu,
 	lamg,
 	dense_ldlt,
-	jlt_lu_sparse
+	jlt_lu_sparse,
+	jlt_lamg
 };
 
 enum class AlgorithmType {
@@ -480,6 +481,8 @@ public:
 			createSpecific<Greedy<DenseCGSolver>>();
 		} else if (linalg == LinAlgType::jlt_lu_sparse) {
 			createSpecific<Greedy<JLTLUSolver>>();
+		} else if (linalg == LinAlgType::jlt_lamg) {
+			createSpecific<Greedy<JLTLamgSolver>>();
 		} else {
 			throw std::logic_error("Solver not implemented!");
 		}
@@ -509,7 +512,7 @@ public:
 		params->epsilon2 = epsilon2;
 		params->threads = threads;
 		params->heuristic = heuristic;
-		if (linalg == LinAlgType::jlt_lu_sparse) {
+		if (linalg == LinAlgType::jlt_lu_sparse || linalg == LinAlgType::jlt_lamg) {
 			params->solverEpsilon = 0.75;
 		}
 
@@ -542,6 +545,8 @@ public:
 				linalgName = "Dense CG";
 			} else if (linalg == LinAlgType::jlt_lu_sparse) {
 				linalgName = "JLT via Sparse LU";
+			} else if (linalg == LinAlgType::jlt_lamg) {
+				linalgName = "JLT via LAMG";
 			}
 
 			if (linalgName != "") {
@@ -861,6 +866,9 @@ int main(int argc, char* argv[])
 		}
 		if (arg == "--jlt-lu") {
 			linalg = LinAlgType::jlt_lu_sparse;
+		}
+		if (arg == "--jlt-lamg") {
+			linalg = LinAlgType::jlt_lamg;
 		}
 		experiment.linalg = linalg;
 		

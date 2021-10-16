@@ -17,6 +17,51 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include <functional>
+
+
+inline NetworKit::Vector eigen_to_nk(Eigen::VectorXd v) {
+	auto n = v.size();
+	NetworKit::Vector result (n);
+	for (int i = 0; i < n; i++) {
+		result[i] = v(i);
+	}
+	return result;
+}
+
+inline Eigen::VectorXd nk_to_eigen(NetworKit::Vector v) {
+	auto n = v.getDimension();
+	Eigen::VectorXd result(n);
+	for (int i = 0; i < n; i++) {
+		result(i) = v[i];
+	}
+	return result;
+}
+
+template <class NK_Matrix>
+inline NK_Matrix nk_matrix_from_expr(NetworKit::count n_rows, NetworKit::count n_cols, std::function<double(NetworKit::count, NetworKit::count)> expr) {
+	std::vector<NetworKit::Triplet> triplets;
+	triplets.reserve(n_rows * n_cols);
+	for (NetworKit::count i = 0; i < n_rows; i++) { 
+		for (NetworKit::count j = 0; j < n_cols; j++) {
+			double v = expr(i, j);
+			if (v != 0.) {
+				triplets.push_back( {i, j, v} ); 
+			}
+		}
+	}
+	return NK_Matrix {n_rows, n_cols, triplets};
+}
+
+inline NetworKit::CSRMatrix nk_dense_to_csr(NetworKit::DenseMatrix dense) {
+	auto entry = [&](NetworKit::count i, NetworKit::count j) -> double { return dense(i, j); };
+	return nk_matrix_from_expr<NetworKit::CSRMatrix>(dense.numberOfRows(), dense.numberOfColumns(), entry);
+}
+inline NetworKit::DenseMatrix nk_csr_to_dense(NetworKit::CSRMatrix sparse) {
+	auto entry = [&](NetworKit::count i, NetworKit::count j) -> double { return sparse(i, j); };
+	return nk_matrix_from_expr<NetworKit::DenseMatrix>(sparse.numberOfRows(), sparse.numberOfColumns(), entry);
+}
+
 
 template <class MatrixType>
 MatrixType laplacianMatrix(NetworKit::Graph const & g);
@@ -85,6 +130,7 @@ inline Eigen::SparseMatrix<double> laplacianMatrix<Eigen::SparseMatrix<double>>(
 
 	return laplacian;
 }
+
 
 
 inline Eigen::SparseMatrix<double> incidenceMatrix(const NetworKit::Graph& g) {

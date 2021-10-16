@@ -277,7 +277,8 @@ public:
 
         
         auto t1 = std::chrono::high_resolution_clock::now();
-        solveSingleColumn(0);
+
+        getColumn(0);
 
         auto t2 = std::chrono::high_resolution_clock::now();
         Eigen::VectorXd u = Eigen::VectorXd::Constant(n, 1.);
@@ -304,14 +305,35 @@ public:
         double avg = x.transpose() * Vector(n, 1.0 / static_cast<double>(n));
         x -= avg;
 
-        cols[u] = Eigen::VectorXd(n);
-        for (int i = 0; i < n; i++) {
-            cols[u](i) = x[i];
-        }
+        cols[u] = nk_to_eigen(x);
 
         colAge[u] = solverAge;
         computedColumns++;
     }
+
+    std::vector<NetworKit::Vector> parallelSolve(std::vector<NetworKit::Vector> &rhss) {
+        auto size = rhss.size();
+        std::vector<NetworKit::Vector> xs(size, NetworKit::Vector(n));
+        lamg.parallelSolve(rhss, xs);
+
+        #pragma omp parallel for
+        for (int i = 0; i < size; i++) {
+            auto& x = xs[i];
+            auto& rhs = rhss[i];
+            double avg = x.transpose() * Vector(n, 1.0 / static_cast<double>(n));
+            x -= avg;
+
+            for  (count r = solverAge; r < round; r++) {
+                auto upv = eigen_to_nk(updateVec[r]);
+                x -= upv * (NetworKit::Vector::innerProduct(upv, rhs) * updateW[r]);
+            }
+        }
+
+        computedColumns += size;
+
+        return xs;
+    }
+
 
 
     Eigen::VectorXd& getColumn(node u) {
@@ -319,17 +341,52 @@ public:
         return cols[u];
     }
 
-    // TODO make this parallel
     virtual void computeColumns(std::vector<node> nodes) override {
-        for (auto i: nodes) {
-            if (colAge[i] == -1 || round - colAge[i] > ageToRecompute) {
-                solveSingleColumn(i);
-            } 
-            for  (count r = colAge[i]; r < round; r++) {
-                cols[i] -= updateVec[r] * (updateVec[r](i) * updateW[r]);
+        // Determine which nodes need the solver
+        std::vector<node> nodes_to_solve;
+        for (auto u: nodes) {
+            if (round - colAge[u] >= ageToRecompute || colAge[u] == -1) {
+                nodes_to_solve.push_back(u);
             }
-            colAge[i] = round;
-        }        
+        }
+
+
+        // Solve
+        auto nodes_to_solve_count = nodes_to_solve.size();
+        std::vector<NetworKit::Vector> rhss(nodes_to_solve_count, NetworKit::Vector(n, -1. / static_cast<double>(n)));
+        for (int i = 0; i < nodes_to_solve_count; i++) {
+            auto u = nodes_to_solve[i];
+            rhss[i][u] += 1.;
+        }
+        std::vector<NetworKit::Vector> xs(nodes_to_solve_count, NetworKit::Vector(n));
+        lamg.parallelSolve(rhss, xs);
+        computedColumns += nodes_to_solve_count;
+
+
+        // Ensure slns average 0
+        #pragma omp parallel for
+        for (int i = 0; i < nodes_to_solve_count; i++) {
+            auto& x = xs[i];
+            auto u = nodes_to_solve[i];
+            double avg = NetworKit::Vector::innerProduct(x, NetworKit::Vector(n, 1.0 / static_cast<double>(n)));
+            x -= avg;
+
+            cols[u] = nk_to_eigen(x);
+            colAge[u] = solverAge;
+        }
+
+
+        // Update
+        #pragma omp parallel for
+        for (int i = 0; i < nodes.size(); i++) {
+            auto u = nodes[i];
+            auto& col = cols[u];
+            for  (auto& r = colAge[u]; r < round; r++) {
+                auto& upv = updateVec[r];
+                col -= upv * (upv[u] * updateW[r]);
+            }
+            colAge[u] = round;
+        }
     }
 
     virtual void addEdge(node u, node v) override {
@@ -342,7 +399,7 @@ public:
         assert(w < 1.);
         auto upv = colU - colV;
 
-        rChange = (colU - colV).squaredNorm() * w * static_cast<double>(n);
+        rChange = upv.squaredNorm() * w * static_cast<double>(n);
 
         laplacian.setValue(u, u, laplacian(u, u) + 1.);
         laplacian.setValue(v, v, laplacian(v, v) + 1.);
@@ -418,7 +475,8 @@ public:
         G = g;
 
         solver.setup(g, 0.01, 2*l + 2);
-        incidence = incidenceMatrix(g);
+        G.indexEdges();
+        incidence = incidenceMatrix(G);
 
         computeIntermediateMatrices();
     }
@@ -433,6 +491,7 @@ public:
         solver.addEdge(u, v);
         m++;
 
+        G.indexEdges();
         incidence = incidenceMatrix(G);
         //updateIncidenceMatrix(incidence, u, v);
         computeIntermediateMatrices();
@@ -518,5 +577,136 @@ private:
 
 typedef JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver> JLTLUSolver;
 template class JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver>;
+
+
+
+
+class JLTLamgSolver : virtual public IDynamicLaplacianSolver {
+public:
+    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound) override {
+        n = g.numberOfNodes();
+        m = g.numberOfEdges();
+
+        epsilon = tolerance;
+
+        l = jltDimension(eqnsPerRound, epsilon);
+
+        G = g;
+
+        solver.setup(g, 0.0001, 2*l + 2);
+
+        G.indexEdges();
+        incidence = CSRMatrix::incidenceMatrix(G);
+        computeIntermediateMatrices();
+    }
+
+    virtual void computeColumns(std::vector<node> nodes) override {
+        // pass
+    }
+
+
+    virtual void addEdge(node u, node v) override {
+        G.addEdge(u, v);
+        solver.addEdge(u, v);
+        m++;
+
+        G.indexEdges();
+        incidence = CSRMatrix::incidenceMatrix(G);
+        computeIntermediateMatrices();
+    }
+
+    virtual count getComputedColumnCount() override {
+        return solver.getComputedColumnCount();
+    }
+
+    virtual double totalResistanceDifferenceApprox(node u, node v) override {
+        double R = effR(u, v);
+        double phiNormSq = phiNormSquared(u, v);
+
+        return n / (1. + R) * phiNormSq;
+    }
+
+    virtual double totalResistanceDifferenceExact(node u, node v) override {
+        return solver.totalResistanceDifferenceExact(u, v);
+    }
+
+    double effR(node u, node v) {
+        auto r = PBL.column(u) - PBL.column(v) ;
+        return NetworKit::Vector::innerProduct(r, r);
+    }
+
+    double phiNormSquared(node u, node v) {
+        auto r = PL.column(u) - PL.column(v); 
+        return NetworKit::Vector::innerProduct(r, r);
+    }
+
+
+private:
+    int jltDimension(int n, double epsilon) {
+        return 2 * std::max(std::log(n) / (epsilon * epsilon / 2 - epsilon * epsilon * epsilon / 3), 1.);
+    }
+
+    void computeIntermediateMatrices() {
+        // Generate projection matrices
+
+        auto random_projection = [&](count n_rows, count n_cols) -> NetworKit::DenseMatrix {
+            auto normal = [&]() { return d(gen) / std::sqrt(n_rows); };
+            auto normal_expr = [&](NetworKit::count, NetworKit::count) {return normal(); };
+            DenseMatrix P = nk_matrix_from_expr<DenseMatrix>(n_rows, n_cols, normal_expr);
+            NetworKit::Vector avg = P * NetworKit::Vector(n_cols, 1. / n_cols);
+            P -= NetworKit::Vector::outerProduct<DenseMatrix>(avg, NetworKit::Vector(n_cols, 1.));
+            return P;
+        };
+
+        auto P_n = random_projection(l, n);
+        auto P_m = random_projection(l, m);
+
+
+        // Compute columns of P L^\dagger and P' B^T L^\dagger where B is the incidence matrix of G
+        // We first compute the transposes of the targets. For the first, solve LX = P^T, for the second solve LX = B P^T
+
+        //CSRMatrix rhs1 = P_n.transpose(); 
+        CSRMatrix rhs2_mat = incidence * nk_dense_to_csr(P_m.transpose());
+
+        std::vector<NetworKit::Vector> rhss1;
+        std::vector<NetworKit::Vector> rhss2;
+
+        for (int i = 0; i < l; i++) {
+            rhss1.push_back(P_n.row(i).transpose());
+            rhss2.push_back(rhs2_mat.column(i));
+        }
+
+        auto xs1 = solver.parallelSolve(rhss1);
+        auto xs2 = solver.parallelSolve(rhss2);
+
+        PL = DenseMatrix (n, l);
+        PBL = DenseMatrix (n, l);
+
+        for (int i = 0; i < l; i++) {
+            for (int j = 0; j < n; j++) {
+                PL.setValue(j, i, xs1[i][j]);
+                PBL.setValue(j, i, xs2[i][j]);
+            }
+        }
+    }
+
+
+    LamgDynamicLaplacianSolver solver;
+
+    count n, m;
+    count l;
+
+    DenseMatrix PL, PBL;
+
+    double epsilon;
+
+
+    std::mt19937 gen{1};
+    std::normal_distribution<> d{0, 1};
+
+    Graph G;
+    CSRMatrix incidence;
+};
+
 
 #endif // DYNAMIC_LAPLACIAN_SOLVER_HPP
