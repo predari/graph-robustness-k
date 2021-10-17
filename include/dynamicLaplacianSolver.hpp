@@ -364,7 +364,6 @@ public:
 
 
         // Ensure slns average 0
-        #pragma omp parallel for
         for (int i = 0; i < nodes_to_solve_count; i++) {
             auto& x = xs[i];
             auto u = nodes_to_solve[i];
@@ -377,7 +376,6 @@ public:
 
 
         // Update
-        #pragma omp parallel for
         for (int i = 0; i < nodes.size(); i++) {
             auto u = nodes[i];
             auto& col = cols[u];
@@ -475,6 +473,7 @@ public:
         G = g;
 
         solver.setup(g, 0.01, 2*l + 2);
+
         G.indexEdges();
         incidence = incidenceMatrix(G);
 
@@ -493,7 +492,6 @@ public:
 
         G.indexEdges();
         incidence = incidenceMatrix(G);
-        //updateIncidenceMatrix(incidence, u, v);
         computeIntermediateMatrices();
     }
 
@@ -597,6 +595,7 @@ public:
 
         G.indexEdges();
         incidence = CSRMatrix::incidenceMatrix(G);
+        
         computeIntermediateMatrices();
     }
 
@@ -679,13 +678,13 @@ private:
         auto xs1 = solver.parallelSolve(rhss1);
         auto xs2 = solver.parallelSolve(rhss2);
 
-        PL = DenseMatrix (n, l);
-        PBL = DenseMatrix (n, l);
+        PL = DenseMatrix (l, n);
+        PBL = DenseMatrix (l, n);
 
         for (int i = 0; i < l; i++) {
             for (int j = 0; j < n; j++) {
-                PL.setValue(j, i, xs1[i][j]);
-                PBL.setValue(j, i, xs2[i][j]);
+                PL.setValue(i, j, xs1[i][j]);
+                PBL.setValue(i, j, xs2[i][j]);
             }
         }
     }
