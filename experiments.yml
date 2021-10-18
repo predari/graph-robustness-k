@@ -186,6 +186,13 @@ instances:
   - repo: local
     items:
       - loc-brightkite.nkb
+      - flickr.nkb
+      - livemocha.nkb
+      - road-usroads.nkb
+      - road-luxembourg-osm.nkb
+      - ia-email-EU-dir.nkb
+      - ca-dblp-2010.nkb
+
     set: [huge-graphs]
 
 
