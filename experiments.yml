@@ -59,6 +59,8 @@ variants:
         extra_args: ['-eps', '0.1']
       - name: 'eps_0.9'
         extra_args: ['-eps', '0.9']
+      - name: 'eps_0.99'
+        extra_args: ['-eps', '0.99']
   - axis: 'accuracy_trees'
     items:
 #      - name: 'eps2_1.0'

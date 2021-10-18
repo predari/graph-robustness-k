@@ -14,13 +14,13 @@ instances:
 
 
 def dl(url, name):
-    return os.system("""\
-if [ -f "/tmp/{1}" ]; then
-    echo "{1} already downloaded."
+    return os.system(f"""\
+if [ -f "/tmp/{name}" ]; then
+    echo "{name} already downloaded."
     false
 else
-    wget {0} -O /tmp/{1}
-fi""".format(url, name))
+    wget {url} -O /tmp/{name}
+fi""")
 
 def graph_inst(g, name):
     global instance_str
@@ -31,8 +31,10 @@ def graph_inst(g, name):
     nk.graphio.NetworkitBinaryWriter().write(_g, "instances/"+name+".nkb")
 
 
-def txt_to_inst(name, sep=" ", first_node=0, comment_prefix="#", continuous=True):
-    g = nk.graphio.EdgeListReader(sep, first_node, comment_prefix, continuous).read("instances/"+name+".txt")
+def txt_to_inst(name, sep=" ", first_node=0, comment_prefix="#", continuous=True, input_file_name=None):
+    if input_file_name == None:
+        input_file_name = "instances/" + name + ".txt"
+    g = nk.graphio.EdgeListReader(sep, first_node, comment_prefix, continuous).read(input_file_name)
     graph_inst(g, name)
 
 
@@ -40,19 +42,42 @@ def dl_txt_gz(url, name):
     if os.path.isfile("instances/{0}.nkb".format(name)):
         return False
     dl(url, name)
-    error = os.system("""\
-gunzip /tmp/{1} -c > instances/{1}.txt""".format(url, name))
+    error = os.system("gunzip /tmp/{1} -c > instances/{1}".format(url, name))
 
 def csv_to_inst(in_path, name):
-    os.system("tail -n +2 {0} | sed -e 's/,/ /g' > {1}".format(in_path, "instances/" + name + ".txt"))
+    os.system("tail -n +2 {0} | sed -e 's/,/ /g' > {1}".format(in_path, "instances/" + name))
     txt_to_inst(name)
+
+def mtx_to_inst(in_path, name):
+    # Remove comments and first line
+    s = ""
+    first_line = True
+    with open(in_path, "r") as f:
+        for line in f:
+            if line[0] != "%":
+                if first_line:
+                    first_line = False
+                else:
+                    s += line + "\n"
+    with open(f"instances/{name}.txt", "w") as f2:
+        f2.write(s)
+    txt_to_inst(name, ' ', 1, "%")
+
+
 
 def dl_tar_bz2(url, archive_path_to_instance, name):
     if os.path.isfile("instances/{0}.nkb".format(name)):
         return False
     dl(url, name+".tar.bz2")
     os.system('tar -xf /tmp/{0}.tar.bz2 -C /tmp/'.format(name))
-    os.system('mv /tmp/{0} instances/{1}.txt'.format(archive_path_to_instance, name))
+    os.system('mv /tmp/{0} instances/{1}'.format(archive_path_to_instance, name))
+
+def dl_zip(url, archive_path_to_instance, name):
+    if os.path.isfile(f"instances/{name}.nkb"):
+        return False
+    dl(url, name+".zip")
+    os.system(f"unzip -o /tmp/{name}.zip -d /tmp/")
+
 
 def load_deezer_europe_instance():
     if os.path.isfile("instances/deezer_europe.nkb"):
@@ -66,27 +91,36 @@ def load_deezer_europe_instance():
 
 
 def gen_er_inst(n, p, seed=1):
-    nk.setSeed(seed, True)
-    g = nk.generators.ErdosRenyiGenerator(n, p).generate()
     name = f"erdos_renyi_{n}_{p}"
     if seed != 1:
         name += f"_{seed}"
+    if os.path.isfile(f"instances/{name}.nkb"):
+        return
+
+    nk.setSeed(seed, True)
+    g = nk.generators.ErdosRenyiGenerator(n, p).generate()
     graph_inst(g, name)
 
 def gen_ba_inst(k, nMax, n0, seed=1):
-    nk.setSeed(seed, True)
-    g = nk.generators.BarabasiAlbertGenerator(k, nMax, n0).generate()
     name = "barabasi_albert_{0}_{1}_{2}".format(k, nMax, n0)
     if seed != 1:
         name += f"_{seed}"
+    if os.path.isfile(f"instances/{name}.nkb"):
+        return
+
+    nk.setSeed(seed, True)
+    g = nk.generators.BarabasiAlbertGenerator(k, nMax, n0).generate()
     graph_inst(g, name)
 
 def gen_ws_inst(nNodes, nNeighbors, p, seed=1):
-    nk.setSeed(seed, True)
-    g = nk.generators.WattsStrogatzGenerator(nNodes, nNeighbors, p).generate()
     name = "watts_strogatz_{0}_{1}_{2}".format(nNodes, nNeighbors, p)
     if seed != 1:
         name += f"_{seed}"
+    if os.path.isfile(f"instances/{name}.nkb"):
+        return
+
+    nk.setSeed(seed, True)
+    g = nk.generators.WattsStrogatzGenerator(nNodes, nNeighbors, p).generate()
     graph_inst(g, name)
 
     
@@ -132,6 +166,19 @@ if __name__ == "__main__":
 
     dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite")
     txt_to_inst("loc-brightkite_edges", " ", 1, "%")
+
+
+    dl_zip("https://nrvis.com/download/data/road/road-usroads.zip", "road-usroads.mtx", "road-usroads")
+    mtx_to_inst("/tmp/road-usroads.mtx", "road-usroads")
+
+    dl_zip("https://nrvis.com/download/data/road/road-luxembourg-osm.zip", "road-luxembourg-osm.mtx", "road-luxembourg-osm")
+    mtx_to_inst("/tmp/road-luxembourg-osm.mtx", "road-luxembourg-osm")
+
+    dl_zip("https://nrvis.com/download/data/ia/ia-email-EU-dir.zip", "ia-email-EU-dir.edges", "ia-email-EU-dir")
+    txt_to_inst("ia-email-EU-dir", " ", 1, "%", True, "/tmp/ia-email-EU-dir.edges")
+
+    dl_zip("https://nrvis.com/download/data/ca/ca-dblp-2010.zip", "ca-dblp-2010.mtx", "ca-dblp-2010")
+    mtx_to_inst("/tmp/ca-dblp-2010.mtx", "ca-dblp-2010")
 
 
     #dl_tar_bz2("http://konect.cc/files/download.tsv.marvel.tar.bz2", "marvel/out.marvel", "marvel")
