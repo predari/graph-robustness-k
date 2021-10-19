@@ -101,8 +101,15 @@ instances:
       - arxiv-grqc.nkb
       - arxiv-heph.nkb
       - arxiv-hephth.nkb
+      - arxiv-astro-ph.nkb
+      - arxiv-condmat.nkb
       - opsahl-powergrid.nkb
       - deezer_europe.nkb
+      - inf-power.nkb
+      - inf-openflights.nkb
+      - ia-email-EU.nkb
+
+
     set: [large-graphs]
   - repo: local
     items:
