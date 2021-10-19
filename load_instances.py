@@ -131,10 +131,10 @@ if __name__ == "__main__":
 
     dl_txt_gz("https://snap.stanford.edu/data/facebook_combined.txt.gz", "facebook_ego_combined")
     txt_to_inst("facebook_ego_combined")
-    #dl_txt_gz("https://snap.stanford.edu/data/ca-AstroPh.txt.gz", "arxiv-astro-ph")
-    #txt_to_inst("arxiv-astro-ph", "\t", 0, "#", False)
-    #dl_txt_gz("https://snap.stanford.edu/data/ca-CondMat.txt.gz", "arxiv-condmat")
-    #txt_to_inst("arxiv-condmat", "\t", 0, "#", False)
+    dl_txt_gz("https://snap.stanford.edu/data/ca-AstroPh.txt.gz", "arxiv-astro-ph")
+    txt_to_inst("arxiv-astro-ph", "\t", 0, "#", False)
+    dl_txt_gz("https://snap.stanford.edu/data/ca-CondMat.txt.gz", "arxiv-condmat")
+    txt_to_inst("arxiv-condmat", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-GrQc.txt.gz", "arxiv-grqc")
     txt_to_inst("arxiv-grqc", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepPh.txt.gz", "arxiv-heph")
@@ -154,6 +154,15 @@ if __name__ == "__main__":
     dl_tar_bz2("https://konect.cc/files/download.tsv.opsahl-powergrid.tar.bz2", "opsahl-powergrid/out.opsahl-powergrid", "opsahl-powergrid")
     txt_to_inst("opsahl-powergrid", " ", 1, "%")
 
+
+    dl_zip("https://nrvis.com/download/data/inf/inf-power.zip", "inf-power.mtx", "inf-power")
+    mtx_to_inst("/tmp/inf-power.mtx", "inf-power")
+
+    dl_zip("https://nrvis.com/download/data/inf/inf-openflights.zip", "inf-openflights.mtx", "inf-openflights")
+    txt_to_inst("inf-openflights", " ", 1, "%", True, "/tmp/inf-openflights.edges")
+
+    dl_zip("https://nrvis.com/download/data/ia/ia-email-EU.zip", "ia-email-EU.mtx", "ia-email-EU")
+    mtx_to_inst("/tmp/ia-email-EU.mtx", "ia-email-EU")
 
     dl_tar_bz2("http://konect.cc/files/download.tsv.flickrEdges.tar.bz2", "flickrEdges/out.flickrEdges", "flickr")
     txt_to_inst("flickr", " ", 1, "%")

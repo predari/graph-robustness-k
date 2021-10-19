@@ -363,8 +363,7 @@ for k in [5, 20, 50, 200]:
 
 
 large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
-huge_instances = ["loc-brightkite"]
-generated_instances = ['erdos_renyi_10000_0.001', 'watts_strogatz_10000_7_0.2']
+huge_instances = ["loc-brightkite", "flickr", "livemocha"]
 
 
 restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
@@ -378,6 +377,7 @@ restr_similarity = {
     "Experiment": "sq-greedy",
     "Heuristic": "Similarity",
     "Linalg": "LU",
+    "Epsilon": 0.9,
     "Threads": 12
 }
 
@@ -392,6 +392,7 @@ restr_similarity_jlt = {
     "Experiment": "sq-greedy",
     "Heuristic": "Similarity",
     "Linalg": "JLT via Sparse LU",
+    "Epsilon": 0.9,
     "Threads": 12
 }
 
@@ -400,6 +401,7 @@ restr_random_jlt = {
     "Experiment": "sq-greedy",
     "Heuristic": "Random",
     "Linalg": "JLT via Sparse LU",
+    "Epsilon": 0.9,
     "Threads": 12
 }
 
@@ -424,12 +426,46 @@ plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_simila
 for i in large_instances:
     plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
 
-for i in generated_instances:
-    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
 
+
+# Generated Instances
+ba_instances = ["barabasi_albert_5_10000_3_"+str(i) for i in range(20)]
+er_instances = ["erdos_renyi_10000_0.01_"+str(i) for i in range(20)]
+ws_instances = ["watts_strogatz_10000_20_0.2_"+str(i) for i in range(20)]
+#for i in generated_instances:
+#    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
+for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
+    plot_averaged(df, instances, [restr_similarity, restr_random, restr_similarity_jlt], ["Main-Similarity", "Main-Random", "Main-Similarity-JLT"], None, "results_"+name, output_values_text=True)
+
+
+# Huge Instances
+restr_similarity_lamg = {
+    "Experiment": "sq-greedy",
+    "Heuristic": "Similarity",
+    "Linalg": "LAMG",
+    "Epsilon": 0.9,
+    "Threads": 12
+}
+
+
+restr_similarity_lamg_eps99 = {
+    "Experiment": "sq-greedy",
+    "Heuristic": "Similarity",
+    "Linalg": "LAMG",
+    "Epsilon": 0.99,
+    "Threads": 12
+}
+
+restr_similarity_jlt_lamg = {
+    "Experiment": "sq-greedy",
+    "Heuristic": "Similarity",
+    "Linalg": "JLT via LAMG",
+    "Epsilon": 0.9,
+    "Threads": 12
+}
 
 for i in huge_instances:
-    plot_averaged(df, [i], [restr_similarity, restr_similarity_jlt], ["Main-Similarity", "Main-Similarity-JLT"], None, "results_"+i)
+    plot_averaged(df, [i], [restr_similarity_lamg, restr_similarity_lamg_eps99, restr_similarity_jlt_lamg], ["Main-Similarity-LAMG", "Main-Similarity-LAMG-eps0.99", "Main-Similarity-JLT-LAMG"], None, "results_"+i)
 
 
 
