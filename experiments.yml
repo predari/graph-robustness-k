@@ -286,4 +286,4 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['huge-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'lamg', 'multicore', 'similarity']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'eps_0.99', 'lamg', 'multicore', 'similarity']
