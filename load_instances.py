@@ -42,7 +42,7 @@ def dl_txt_gz(url, name):
     if os.path.isfile("instances/{0}.nkb".format(name)):
         return False
     dl(url, name)
-    error = os.system("gunzip /tmp/{1} -c > instances/{1}".format(url, name))
+    error = os.system(f"gunzip /tmp/{name} -c > instances/{name}")
 
 def csv_to_inst(in_path, name):
     os.system("tail -n +2 {0} | sed -e 's/,/ /g' > {1}".format(in_path, "instances/" + name))
@@ -132,9 +132,9 @@ if __name__ == "__main__":
     dl_txt_gz("https://snap.stanford.edu/data/facebook_combined.txt.gz", "facebook_ego_combined")
     txt_to_inst("facebook_ego_combined")
     dl_txt_gz("https://snap.stanford.edu/data/ca-AstroPh.txt.gz", "arxiv-astro-ph")
-    txt_to_inst("arxiv-astro-ph", "\t", 0, "#", False)
+    txt_to_inst("arxiv-astro-ph", "\t", 0, "#", False, "instances/arxiv-astro-ph")
     dl_txt_gz("https://snap.stanford.edu/data/ca-CondMat.txt.gz", "arxiv-condmat")
-    txt_to_inst("arxiv-condmat", "\t", 0, "#", False)
+    txt_to_inst("arxiv-condmat", "\t", 0, "#", False, "instances/arxiv-condmat")
     dl_txt_gz("https://snap.stanford.edu/data/ca-GrQc.txt.gz", "arxiv-grqc")
     txt_to_inst("arxiv-grqc", "\t", 0, "#", False)
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepPh.txt.gz", "arxiv-heph")
