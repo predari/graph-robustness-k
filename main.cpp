@@ -41,6 +41,7 @@
 #include <dynamicLaplacianSolver.hpp>
 #include <robustnessGreedy.hpp>
 #include <robustnessUSTGreedy.hpp>
+
 //#include <robustnessSimulatedAnnealing.hpp>
 
 
@@ -592,34 +593,6 @@ public:
 		resultResistance = greedy->getResultValue();
 		originalResistance = greedy->getOriginalValue();		
 
-		bool result_correct = true;
-		if (verify_result) {
-			if (edges.size() != k) {
-				std::cout << "Error: Output size != k\n";
-				throw std::logic_error("Result Error: Output does not contain k edges!");
-			}
-
-			for (auto e : edges) {
-				if (g.hasEdge(e.u, e.v)) {
-					std::cout << "Error: Edge in result is already in original graph!\n";
-					throw std::logic_error("Error: Edge from result already in original graph!");
-				}
-			}
-
-			double gain = originalResistance - resultResistance;
-
-			auto g_ = g;
-			double v0 = static_cast<double>(n) * laplacianPseudoinverse(g).trace();
-			for (auto e: edges) { g_.addEdge(e.u, e.v); }
-			double v = static_cast<double>(n) * laplacianPseudoinverse(g_).trace();
-
-			if (std::abs(gain - std::abs(v0 - v)) / std::abs(originalResistance) / k > 0.001) {
-				std::cout << originalResistance << "\n";
-				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << v0 - v<< "\n";
-				throw std::logic_error("Error: Gain value inaccurate!");
-			}
-		}
-
 		// Output Results
 
 		if (verbose) {
@@ -640,8 +613,38 @@ public:
 			std::cout << "]\n" << std::endl;
 		}
 
-	}
+		if (verify_result) {
+			if (edges.size() != k) {
+				std::cout << "Error: Output size != k\n";
+				throw std::logic_error("Result Error: Output does not contain k edges!");
+			}
 
+			LamgDynamicLaplacianSolver solver;
+			double gain = originalResistance - resultResistance;
+			double gain_exact = 0.;
+			auto g_ = g;
+			solver.setup(g_, 0.0001, 2);
+			for (auto e : edges) {
+				if (g.hasEdge(e.u, e.v)) {
+					std::cout << "Error: Edge in result is already in original graph!\n";
+					throw std::logic_error("Error: Edge from result already in original graph!");
+				}
+
+				gain_exact += solver.totalResistanceDifferenceExact(e.u, e.v);
+				g_.addEdge(e.u, e.v);
+			}
+
+			if (edges.size() != k) {
+				std::cout << "Result has wrong size " << edges.size() <<", expected " << k << "!\n";
+				throw std::logic_error("Error: Algorithm output size inaccurate!");
+			}
+
+			if (std::abs((gain - gain_exact) / gain_exact / k) > 0.001) {
+				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << gain_exact << "\n";
+				throw std::logic_error("Error: Gain value inaccurate!");
+			}
+		}
+	}
 };
 
 int main(int argc, char* argv[])

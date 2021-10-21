@@ -3,6 +3,7 @@
 import simexpal
 import pandas as pd
 import yaml
+import os
 import math
 
 import numpy as np
@@ -95,11 +96,19 @@ def restrict_frame(df, restrictions):
         restricted_frame = project(restricted_frame, k, v)
     return restricted_frame
 
-def output_file(fig, filename):
+def output_fig(fig, filename):
+    if os.path.isdir("./img"):
+        filename = "./img/" + filename
     fig.savefig(filename + ".png")
     fig.savefig(filename + ".pgf", transparent=True)
     print("Write file " + filename + ".pgf, " + filename + ".png")
 
+def output_tex(table_str, filename):
+    if os.path.isdir("./img"):
+        filename = "./img/" + filename
+    with open(filename + ".tex", "w") as f:
+        f.write(table_str)
+    print("Write file " + filename + ".tex")
 
 def draw_jlt(df):
     jlt_test_results = project(df, "JLT-Test", True)
@@ -124,7 +133,7 @@ def draw_jlt(df):
     plt.xticks(rotation=90)
     fig.tight_layout()
 
-    output_file(fig, "jlt-test-2")    
+    output_fig(fig, "jlt-test-2")    
     
     plt.cla()
     plt.clf()
@@ -140,7 +149,7 @@ def draw_jlt(df):
     plt.xticks(rotation=90)
     fig.tight_layout()
 
-    output_file(fig, "jlt-test")    
+    output_fig(fig, "jlt-test")    
 
     plt.cla()
     plt.clf()
@@ -160,7 +169,7 @@ def draw_jlt_comparison(k):
     ax.set_ylabel("count")
     ax.set_title("Solved linear eqns. ")
 
-    output_file(fig, "jlt-cols"+d_to_str(k))
+    output_fig(fig, "jlt-cols"+str(int(k)))
 
 
 def geometric_mean(l, default=0., exclude_zero=True):
@@ -200,7 +209,7 @@ def analyze_experiment(df, restrictions, instance_names, ks=None, additional_exc
             if additional_exclusion:
                 if additional_exclusion(row, restrictions, instance_name):
                     continue
-            ks.add(k)
+            ks.add(int(k))
 
             insert(resistances, k, row['Gain'])
             insert(times, k, row['Time'])
@@ -231,19 +240,23 @@ def plot_result_vs_time(df, instance_names, experiment_restriction_list, experim
     ax.set_xlabel('Time')
     ax.set_ylabel('Marginal Gain')
 
+    out_str = "\\begin{tabular}{lrr}\n"
+
     for j, (algorithm_resistances, algorithm_times) in enumerate(zip(result_resistances, result_times)):
             
         experiment_name = experiment_names[j]
         gain_value = geometric_mean(gain for k, algorithm_k_resistances in algorithm_resistances.items() for inst, gain in algorithm_k_resistances.items())
         time_value = geometric_mean(time for k, algorithm_k_times in algorithm_times.items() for inst, time in algorithm_k_times.items())
         if output_values_text:
-            print(f"{experiment_name} & {gain_value:.4f} & {time_value:.4f} \\\\")
+            out_str += f"{experiment_name} & {gain_value:.4f} & {time_value:.4f} \\\\\n"
         plt.plot([time_value], [gain_value], markers[j], label=experiment_name)
     
+    out_str += "\\end{tabular}\n"
+    output_tex(out_str, filename)
     #plt.gca().invert_yaxis()
 
     plt.legend()
-    output_file(fig, filename)
+    output_fig(fig, filename)
     plt.close(fig)
 
     
@@ -293,11 +306,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
     num_experiments = len(result_resistances)
 
-    if output_values_text:
-        print("&" + " & ".join(d_to_str(v) for v in ks))
-
-    s_res = ""
-    s_t = ""
+    out_str_res = ""
+    out_str_t = ""
 
     for j, (algorithm_resistances, algorithm_times) in enumerate(zip(result_resistances, result_times)):
         resistance_means = []
@@ -335,12 +345,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         ax2.bar(x_pos + offset(j, num_experiments), time_means, align='center', color=colors[j], alpha = 0.5, label=experiment_name, width=0.8 / num_experiments)
 
         if output_values_text:
-            s_res += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in resistance_means) + "\\\\\n"
-            s_t += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in time_means) + "\\\\\n"
-
-    if output_values_text: 
-        print(s_res)
-        print(s_t)
+            out_str_res += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in resistance_means) + "\\\\\n"
+            out_str_t += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in time_means) + "\\\\\n"
 
     
     #ax1.legend()
@@ -350,20 +356,39 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     fig.tight_layout()
     if filename == None:
         filename = "results_aggregated"
+    if filename == "results_facebook_ego_combined":
+        filename = "results_facebook-ego-combined"
+    if filename == "results_deezer_europe":
+        filename = "results_deezer-europe"
     
-    output_file(fig, filename)
+
+    out_str = ""
+    out_str += "\\subsection*{Relative Gain}\n"
+    out_str += "\\begin{tabular}{l" + "".join("r" for _ in ks) + "}\n"
+    out_str += " & " + " & ".join(d_to_str(v) for v in ks) + "\\\\\n"
+    out_str += out_str_res + "\n"
+    out_str += "\\end{tabular}\n"
+    out_str += "\\subsection*{Relative Time}\n"
+    out_str += "\\begin{tabular}{l" + "".join("r" for _ in ks) + "}\n"
+    out_str += " & " + " & ".join(d_to_str(v) for v in ks) + "\\\\\n"
+    out_str += out_str_t + "\n"
+    out_str += "\\end{tabular}\n"
+    if output_values_text: 
+        output_tex(out_str, filename)
+
+    output_fig(fig, filename)
 
     plt.close(fig)
 
 
 
 #draw_jlt(jlt_df)
-for k in [5, 20, 50, 200]:
+for k in [2, 5, 20, 50, 200]:
     draw_jlt_comparison(k)
 
 
-large_instances = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
-huge_instances = ["loc-brightkite", "flickr", "livemocha"]
+large_graphs = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
+huge_graphs = ["loc-brightkite", "flickr", "livemocha", "road-usroads", "road-luxembourg-osm"]
 
 
 restr_submodular = {"Threads": 12, "Experiment": "submodular-greedy"}
@@ -418,12 +443,12 @@ restr_lpinv_diag = {
 def exclude_large_k(row, restrictions, instance_name):
     return row['k'] > 20 #and 'Linalg' in restrictions and restrictions['Linalg'] == "JLT via Sparse LU"
 
-plot_result_vs_time(df, large_instances, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
-plot_result_vs_time(df, large_instances, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time_small_k", exclude_large_k, True)
+plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
+plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time_small_k", exclude_large_k, True)
 
-plot_averaged(df, large_instances, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
+plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
-for i in large_instances:
+for i in large_graphs:
     plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
 
 
@@ -464,7 +489,7 @@ restr_similarity_jlt_lamg = {
     "Threads": 12
 }
 
-for i in huge_instances:
+for i in huge_graphs:
     plot_averaged(df, [i], [restr_similarity_lamg, restr_similarity_lamg_eps99, restr_similarity_jlt_lamg], ["Main-Similarity-LAMG", "Main-Similarity-LAMG-eps0.99", "Main-Similarity-JLT-LAMG"], None, "results_"+i)
 
 
@@ -566,7 +591,7 @@ def plot_instance(df, instance_name, restrictions=[], filename=None, flags=None)
     fig.tight_layout()
     if filename == None:
         filename = instance_name
-    output_file(fig, filename)
+    output_fig(fig, filename)
 
     plt.close(fig)
 
@@ -603,7 +628,7 @@ def quick_plot(name, threads, k):
 
 
 #for k in [2, 5, 20, 50, 200]:
-#    for i in large_instances:
+#    for i in large_graphs:
 #        plot_instance(df, i, {"k": k}, i+"-"+d_to_str(k), flags={"full":False})
 
 
