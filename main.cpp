@@ -615,8 +615,11 @@ public:
 
 		if (verify_result) {
 			if (edges.size() != k) {
-				std::cout << "Error: Output size != k\n";
-				throw std::logic_error("Result Error: Output does not contain k edges!");
+				std::ostringstream stringStream;
+  				stringStream << "Result Errror: Output does contains " << edges.size() << " edges, not k = " << k << " edges!";
+				std::string error_msg = stringStream.str();
+				std::cout << error_msg << "\n";
+				throw std::logic_error(error_msg);
 			}
 
 			LamgDynamicLaplacianSolver solver;
@@ -634,14 +637,12 @@ public:
 				g_.addEdge(e.u, e.v);
 			}
 
-			if (edges.size() != k) {
-				std::cout << "Result has wrong size " << edges.size() <<", expected " << k << "!\n";
-				throw std::logic_error("Error: Algorithm output size inaccurate!");
-			}
-
-			if (std::abs((gain - gain_exact) / gain_exact / k) > 0.001) {
-				std::cout << "Error: Gain Test failed. Algorithm output: " << gain << ", computed: " << gain_exact << "\n";
-				throw std::logic_error("Error: Gain value inaccurate!");
+			if (std::abs((gain - gain_exact) / gain_exact / k) > 0.1) {
+				std::ostringstream stringStream;
+				stringStream << "Error: Gain Test failed. Output: " << gain << ", exact: " << gain_exact << ".";
+				std::string error_msg = stringStream.str();
+				std::cout << error_msg << "\n";
+				throw std::logic_error(error_msg);
 			}
 		}
 	}

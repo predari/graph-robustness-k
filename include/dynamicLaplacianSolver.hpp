@@ -641,8 +641,8 @@ public:
 
 
 private:
-    int jltDimension(int n, double epsilon) {
-        return 2 * std::max(std::log(n) / (epsilon * epsilon / 2 - epsilon * epsilon * epsilon / 3), 1.);
+    int jltDimension(int perRound, double epsilon) {
+        return std::ceil(2. * std::max(std::log(perRound) / (epsilon * epsilon / 2. - epsilon * epsilon * epsilon / 3.), 1.));
     }
 
     void computeIntermediateMatrices() {
