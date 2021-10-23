@@ -122,7 +122,7 @@ public:
                 std::vector<double> nodeWeights(n);
 
                 // the random choice following this may fail if all the vertex pairs are already present as edges, we use heuristic information the first time, uniform distribution if it fails
-                if (heuristic == HeuristicType::lpinvDiag && it++ < 2) {
+                if (heuristic == HeuristicType::lpinvDiag && it < 2) {
                     double tr = -1. * this->totalValue;
                     G.forNodes([&](node u) {
                         double val = static_cast<double>(n) * diag[u] + tr;
@@ -133,7 +133,7 @@ public:
                         auto u = v - min;
                         v = u*u;
                     }
-                } else if (heuristic == HeuristicType::similarity && it++ < 2) {
+                } else if (heuristic == HeuristicType::similarity && it < 2) {
                     // TODO export the parameters ...
                     count maxDegree = 0;
                     G.forNodes([&](node u) { if (G.degree(u) > maxDegree) maxDegree = G.degree(u); });
@@ -158,13 +158,15 @@ public:
                     });
                     for (auto &v : nodeWeights) {
                         auto w = std::abs(max - v) / max;
-                        v = (w * w + (1-w)*(1-w)) * 2 - 1;
+                        v = w * w;
+                        //v = (w * w + (1-w)*(1-w)) * 2 - 1;
                     }
                 } else {
                     G.forNodes([&](node u) {
                         nodeWeights[u] = 1.;
                     });
                 }
+                it++;
 
                 std::discrete_distribution<> distribution_nodes_heuristic (nodeWeights.begin(), nodeWeights.end());
 
