@@ -635,10 +635,11 @@ public:
 				}
 
 				gain_exact += solver.totalResistanceDifferenceExact(e.u, e.v);
+				solver.addEdge(e.u, e.v);
 				g_.addEdge(e.u, e.v);
 			}
 
-			if (std::abs((gain - gain_exact) / gain_exact / k) > 0.1) {
+			if (std::abs((gain - gain_exact) / gain_exact / k) > 0.01) {
 				std::ostringstream stringStream;
 				stringStream << "Error: Gain Test failed. Output: " << gain << ", exact: " << gain_exact << ".";
 				std::string error_msg = stringStream.str();
