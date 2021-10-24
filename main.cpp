@@ -612,6 +612,7 @@ public:
 			for (auto e: edges) { std::cout << "(" << e.u << ", " << e.v << "), "; }
 			std::cout << "]\n" << std::endl;
 		}
+		std::cout.flush();
 
 		if (verify_result) {
 			if (edges.size() != k) {
