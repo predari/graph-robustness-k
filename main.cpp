@@ -524,7 +524,6 @@ public:
 		std::cout << "  Edges: " << g.numberOfEdges() << "\n";
 		std::cout << "  k: " << k << "\n";
 		std::cout << "  Call: " << call << "\n";
-		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
 		std::cout << "  Threads:  " << threads << "\n";
 
 		if (alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_dyn) {
@@ -595,6 +594,7 @@ public:
 		originalResistance = greedy->getOriginalValue();		
 
 		// Output Results
+		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
 
 		if (vv) {
 			std::cout << "  EdgeList: [";
@@ -689,7 +689,7 @@ int main(int argc, char* argv[])
 	std::string instance_comment_prefix = "%";
 
 	std::string helpstring = "EXAMPLE CALL\n"
-    	"\trobustness -a1 -a2 -i graph.gml\n"
+    	"\trobustness -a1 -i graph.gml\n"
 		"OPTIONS:\n" 
 		"\t-i <path to instance>\n"
 		"\t-v --verbose\n\t\tAlso output edge lists\n"

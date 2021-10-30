@@ -19,6 +19,8 @@
 #include <networkit/auxiliary/Random.hpp>
 #include <networkit/graph/Graph.hpp>
 
+#include <omp.h>
+
 //inline bool operator<(const NetworKit::Edge& lhs, const NetworKit::Edge& rhs) {
 //    return lhs.u < rhs.u || lhs.u == rhs.u && lhs.v < rhs.v;
 //}
@@ -97,10 +99,19 @@ protected:
 
 template <class Item>
 void SubmodularGreedy<Item>::addItems(std::vector<Item> items) {
+    unsigned int threads = omp_get_max_threads();
+    std::vector<std::vector<ItemWrapper>> items_per_thread {threads, std::vector<ItemWrapper>{0}};
+    
+    #pragma omp parallel for
     for (const auto &i : items)
     {
-        ItemWrapper qe {i, std::numeric_limits<double>::infinity(), -1};
-        itemQueue.push(qe);
+        ItemWrapper it {i, objectiveDifference(i), 0};
+        items_per_thread[omp_get_thread_num()].push_back(it);
+    }
+    for (unsigned int i = 0; i < threads; i++) {
+        for (auto& it : items_per_thread[i]) {
+            itemQueue.push(it);
+        }
     }
 }
 
