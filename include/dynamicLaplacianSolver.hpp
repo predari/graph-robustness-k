@@ -646,6 +646,7 @@ private:
     }
 
     void computeIntermediateMatrices() {
+
         // Generate projection matrices
 
         auto random_projection = [&](count n_rows, count n_cols) -> NetworKit::DenseMatrix {

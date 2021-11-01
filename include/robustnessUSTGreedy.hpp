@@ -16,6 +16,7 @@
 #include <dynamicLaplacianSolver.hpp>
 #include <greedy_params.hpp>
 
+#include <omp.h>
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>

@@ -125,6 +125,7 @@ def draw_jlt(df):
 
 
     fig, ax = plt.subplots()
+    fig._set_dpi(400)
     ax.set_ylim(0., 1.)
 
     #ax.set_title("Relative Errors of JLT ")
@@ -149,6 +150,9 @@ def draw_jlt(df):
     plt.xticks(rotation=90)
     fig.tight_layout()
 
+    #fig.set_size_inches(4, 4)
+
+
     output_fig(fig, "jlt-test")    
 
     plt.cla()
@@ -162,7 +166,7 @@ def draw_jlt_comparison(k):
     col1 = ns / (2 * k / math.log(1. / 0.9)) ** 0.5
     ax.plot(ns, col1)
     epsilon = 0.75
-    col2 = np.log(col1) * 4 / (epsilon**2/2 - epsilon**3/3)
+    col2 = np.log(col1) * 2 / (epsilon**2/2 - epsilon**3/3)
     ax.plot(ns, col2)
     ax.legend(["No JLT", "JLT"])
     ax.set_xlabel("n")
@@ -241,6 +245,7 @@ def plot_result_vs_time(df, instance_names, experiment_restriction_list, experim
     ax.set_ylabel('Marginal Gain')
 
     out_str = "\\begin{tabular}{lrr}\n"
+    out_str += "Instance & Robustness Difference & Time (s) \\\\\n"
 
     for j, (algorithm_resistances, algorithm_times) in enumerate(zip(result_resistances, result_times)):
             
@@ -262,7 +267,7 @@ def plot_result_vs_time(df, instance_names, experiment_restriction_list, experim
     
 
 
-def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, reference_restrictions=None, filename=None, output_values_text=None):    
+def plot_averaged(df, instance_names, experiment_restriction_list, experiment_names, reference_restrictions=None, filename=None, output_values_text=True, output_absolute=None, reference_name=None):    
     result_resistances, result_times, ks = analyze_multiple_experiments(df, experiment_restriction_list, instance_names)
 
     if reference_restrictions:
@@ -308,10 +313,16 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
     out_str_res = ""
     out_str_t = ""
+    out_str_t_abs = ""
+    reference_times_written = False
+
 
     for j, (algorithm_resistances, algorithm_times) in enumerate(zip(result_resistances, result_times)):
         resistance_means = []
         time_means = []
+        absolute_times = []
+        absolute_times_reference = []
+
         for k in ks:
             if (reference_restrictions and (k not in reference_resistances or k not in reference_times)) or not k in algorithm_resistances or not k in algorithm_times:
                 resistance_means.append(0)
@@ -327,11 +338,16 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
                         relative_resistances.append(algorithm_k_resistances[instance_name] / reference_resistances[k][instance_name])
                     if instance_name in algorithm_k_times and instance_name in reference_times[k]:
                         relative_times.append(algorithm_k_times[instance_name] / reference_times[k][instance_name])
+                        absolute_times.append(algorithm_k_times[instance_name])
+                        if not reference_times_written:
+                            absolute_times_reference.append(reference_times[k][instance_name])
+
                 else:
                     if instance_name in algorithm_k_resistances:
                         relative_resistances.append(algorithm_k_resistances[instance_name])
                     if instance_name in algorithm_k_times:
                         relative_times.append(algorithm_k_times[instance_name])
+
 
             res_mean = geometric_mean(relative_resistances)
             time_mean = geometric_mean(relative_times)
@@ -339,6 +355,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
             time_means.append(time_mean)
             if len(relative_resistances) > 1 and not output_values_text:
                 print("Taking means of {} instances for k = {} and j = {}.".format(len(relative_resistances), k, j))
+
+
         
         experiment_name = experiment_names[j]
         ax1.bar(x_pos + offset(j, num_experiments), resistance_means, align='center', color=colors[j], alpha = 0.5, label=experiment_name, width=0.8 / num_experiments)
@@ -347,6 +365,11 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         if output_values_text:
             out_str_res += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in resistance_means) + "\\\\\n"
             out_str_t += f"{experiment_name} & " + " & ".join(d_to_str(s) for s in time_means) + "\\\\\n"
+            if output_absolute:
+                if not reference_times_written:
+                    out_str_t_abs += f"{reference_name} & " + " & ".join(f"{s:.1f}" for s in absolute_times_reference) + "\\\\\n"
+                    reference_times_written = True
+                out_str_t_abs += f"{experiment_name} & " + " & ".join(f"{s:.1f}" for s in absolute_times) + "\\\\\n"
 
     
     #ax1.legend()
@@ -363,16 +386,28 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     
 
     out_str = ""
-    out_str += "\\subsection*{Relative Gain}\n"
+    if reference_restrictions:
+        out_str += "\\subsection*{Relative Gain}\n"
+    else:
+        out_str += "\\subsection*{Absolute Gain}\n"
     out_str += "\\begin{tabular}{l" + "".join("r" for _ in ks) + "}\n"
-    out_str += " & " + " & ".join(d_to_str(v) for v in ks) + "\\\\\n"
+    out_str += " & " + " & ".join(str(int(math.floor(v))) for v in ks) + "\\\\\n"
     out_str += out_str_res + "\n"
     out_str += "\\end{tabular}\n"
-    out_str += "\\subsection*{Relative Time}\n"
+    if reference_restrictions:
+        out_str += "\\subsection*{Relative Time}\n"
+    else:
+        out_str += "\\subsection*{Absolute Time}\n"
     out_str += "\\begin{tabular}{l" + "".join("r" for _ in ks) + "}\n"
-    out_str += " & " + " & ".join(d_to_str(v) for v in ks) + "\\\\\n"
+    out_str += " & " + " & ".join(str(int(math.floor(v))) for v in ks) + "\\\\\n"
     out_str += out_str_t + "\n"
     out_str += "\\end{tabular}\n"
+    if output_absolute:
+        out_str += "\\subsection*{Absolute Time}\n"
+        out_str += "\\begin{tabular}{l" + "".join("r" for _ in ks) + "}\n"
+        out_str += " & " + " & ".join(str(int(math.floor(v))) for v in ks) + "\\\\\n"
+        out_str += out_str_t_abs + "\n"
+        out_str += "\\end{tabular}\n"
     if output_values_text: 
         output_tex(out_str, filename)
 
@@ -382,12 +417,12 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
 
 
-#draw_jlt(jlt_df)
+draw_jlt(jlt_df)
 for k in [2, 5, 20, 50, 200]:
     draw_jlt_comparison(k)
 
 
-large_graphs = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph"]
+large_graphs = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph", "ia-email-EU"]
 huge_graphs = ["loc-brightkite", "flickr", "livemocha", "road-usroads", "road-luxembourg-osm"]
 
 
@@ -449,7 +484,7 @@ plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpi
 plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
 for i in large_graphs:
-    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i, True, True, "Submodular-Greedy")
 
 
 
@@ -457,10 +492,8 @@ for i in large_graphs:
 ba_instances = ["barabasi_albert_5_10000_3_"+str(i) for i in range(20)]
 er_instances = ["erdos_renyi_10000_0.01_"+str(i) for i in range(20)]
 ws_instances = ["watts_strogatz_10000_20_0.2_"+str(i) for i in range(20)]
-#for i in generated_instances:
-#    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i)
 for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
-    plot_averaged(df, instances, [restr_similarity, restr_random, restr_similarity_jlt], ["Main-Similarity", "Main-Random", "Main-Similarity-JLT"], None, "results_"+name, output_values_text=True)
+    plot_averaged(df, instances, [restr_similarity, restr_random, restr_similarity_jlt], ["Main-Similarity", "Main-Random", "Main-Similarity-JLT"], None, "results_"+name, True, False)
 
 
 # Huge Instances
