@@ -654,10 +654,6 @@ int main(int argc, char* argv[])
 {
 	omp_set_num_threads(1);
 
-	if (argc < 2) {
-		std::cout << "Error: Call without arguments. Use --help for help.\n";
-		return 1;
-	}
 
 	RobustnessExperiment experiment;
 
@@ -693,22 +689,32 @@ int main(int argc, char* argv[])
     	"\trobustness -a1 -i graph.gml\n"
 		"OPTIONS:\n" 
 		"\t-i <path to instance>\n"
-		"\t-v --verbose\n\t\tAlso output edge lists\n"
-		"\t-km\t\t k is a function of n, possible values: linear, sqrt, crt, const"
-		"\t-k 5.3\n\t multiplicative factor to influence k.\n\n"
-		"\t-a0\t\tRandom Edges\n"
-		"\t-a1\t\tSubmodular Greedy\n"
-		"\t-a2\t\tStochastic submodular greedy\n"
-		//"\t-a3\t\tSimulated Annealing\n"
-		//"\t-a4\t\tHill Climbing\n"
-		"\t-a5\t\tGreedy Sq\n"
-		"\t-a6\t\tTree Greedy\n"
-		"\t-tr\t\tTest Results for correctness (correct length, correct resistance value, no edges from original graph). \n"
-		"\t-eps\n\tEpsilon value for approximative algorithms. Default: 0.1\n"
-		"\t-j 4\t number of threads"
-		"\t--lamg\t use lamg (currently only with a6)"
+		"\t\t\tAccepted Formats: .gml, Networkit Binary via .nkb, edge list.\n"
+		"\t-v\t\tAlso output result edges \n"
+		"\t-km\t\tk as a function of n, possible values: linear, sqrt, crt, const (default: const).\n"
+		"\t-k 20\t\tmultiplicative factor to influence k (double).\n"
+		"\t-a[0-6]\tAlgorithm Selection. 0: Random Edges, 1: Submodular Greedy, 2: Stochastic Submodular Greedy, via entire pseudoinverse, 3: Stochastic Submodular Greedy, via on demand column computation, (4: Unassigned), 5: Main Algorithm Prototype, via entire pseudoinverse, 6: Main Algorithm.\n"
+		"\t-tr\t\tTest Results for correctness (correct number of edges, correct total resistance value, no edges from original graph). \n"
+		"\t-vv\t\tAlso output edges of input graph. \n"
+		"\t-eps\t\tEpsilon value for approximative algorithms. Default: 0.1\n"
+		"\t-eps2\t\tAbsolute Error bound for UST based approximation. \n"
+		"\t-j 12\t\tNumber of threads\n"
+		"\t--lamg\t\tUse NetworKit LAMG solver (currently only with a6 and a3)\n"
+		"\t--lu\t\tUse Eigen LU solver (currently only with a3 and a6)\n"
+		"\t--jlt-lamg\tUse NetworKit LAMG solver in combination with JLT (only with a6)\n"
+		"\t--jlt-lu\tUse Eigen LU solver in combination with JLT (only with a6)\n"
+		"\t-h[0-2]\t\tHeuristics for a6. 0: random, 1: resistance, 2: similarity\n"
+		"\t--seed\t\tSeed for NetworKit random generators.\n"
+		"\t-in\t\tFirst node of edge list instances\n"
+		"\t-isep\t\tSeparating character of edge list instance file\n"
+		"\t-ic\t\tComment character of edge list instance file\n"
 		"\n";
 
+
+	if (argc < 2) {
+		std::cout << "Error: Call without arguments.\n" << helpstring;
+		return 1;
+	}
 
 	if (argv == 0) { std::cout << "Error!"; return 1; }
 	if (argc < 2) { std::cout << helpstring; return 1; }
