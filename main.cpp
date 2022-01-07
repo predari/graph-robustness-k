@@ -417,6 +417,7 @@ public:
 	AlgorithmType alg;
 	bool verify_result = false;
 	bool verbose = false;
+	bool vv = false;
 	Time beforeInit;
 	int seed;
 	std::string name;
@@ -597,7 +598,7 @@ public:
 		// Output Results
 		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
 
-		if (verbose) {
+		if (vv) {
 			std::cout << "  EdgeList: [";
 			g.forEdges([](NetworKit::node u, NetworKit::node v) { std::cout << "(" << u << ", " << v << "), "; });
 			std::cout << "]\n" << std::endl;
@@ -668,8 +669,6 @@ int main(int argc, char* argv[])
 	bool run_experiments = true;
 
 	bool verbose = false;
-
-	bool vv = false;
 
 	double k_factor = 1.0;
 	bool km_sqrt = false;
@@ -748,7 +747,7 @@ int main(int argc, char* argv[])
 		}
 		if (arg == "-vv" || arg == "--very-verbose") {
 			verbose = true;
-			vv = true;
+			experiment.vv = true;
 			continue;
 		}
 
