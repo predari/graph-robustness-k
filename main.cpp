@@ -423,6 +423,7 @@ public:
 	unsigned int threads = 1;
 	std::unique_ptr<GreedyParams> params;
 	HeuristicType heuristic;
+	bool always_use_known_columns_as_candidates = false;
 
 	std::vector<NetworKit::Edge> edges;
 	double resultResistance;
@@ -516,6 +517,7 @@ public:
 		if (linalg == LinAlgType::jlt_lu_sparse || linalg == LinAlgType::jlt_lamg) {
 			params->solverEpsilon = 0.75;
 		}
+		params->always_use_known_columns_as_candidates = this->always_use_known_columns_as_candidates;
 
 		std::cout << "Runs: \n";
 		std::cout << "- Instance: '" << instanceFile << "'\n";
@@ -792,6 +794,10 @@ int main(int argc, char* argv[])
 		if (arg == "-eps2" || arg == "--eps2") {
 			experiment.epsilon2 = std::stod(nextArg(i));
 			continue;
+		}
+
+		if (arg == "--all-columns") {
+			experiment.always_use_known_columns_as_candidates = true;
 		}
 
 		

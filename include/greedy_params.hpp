@@ -28,6 +28,7 @@ public:
     HeuristicType heuristic;
     NetworKit::count similarityIterations = 100;
     double similarityPhi = 0.25;
+    bool always_use_known_columns_as_candidates = false;
 };
 
 #endif
