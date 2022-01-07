@@ -67,7 +67,10 @@ variants:
 #        extra_args: ['-eps2', '1.0']
       - name: 'eps2_10'
         extra_args: ['-eps2', '10']
-
+  - axis: 'all_columns'
+    items:
+      - name: 'all_columns'
+        extra_args: ['--all_columns']
   - axis: 'linalg'
     items:
 #      - name: 'dense-ldlt'
@@ -286,7 +289,10 @@ matrix:
       instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
       variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
-
+    - experiments: ['sq-greedy']
+      instsets: ['large-graphs-generated']
+      axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic', 'all_columns']
+      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns' ]
       
       # Huge Instances
     - experiments: ['sq-greedy']

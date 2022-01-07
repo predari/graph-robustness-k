@@ -4,7 +4,7 @@
 
 #include <utility>
 #include <random>
-#include <exception>
+#include <stdexcept>
 #include <cmath>
 #include <set>
 #include <vector>
@@ -16,6 +16,7 @@
 #include <dynamicLaplacianSolver.hpp>
 #include <greedy_params.hpp>
 
+#include <omp.h>
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
@@ -27,6 +28,18 @@
 
 
 using namespace NetworKit;
+
+
+
+
+struct QueueItem {
+    node u, v;
+	double value;
+	int lastUpdated;
+};
+inline bool operator<(const QueueItem &left, const QueueItem &right) {
+	return left.value < right.value || (right.value == left.value && (left.u < right.u || (left.u == right.u && left.v < right.v)));
+}
 
 
 
@@ -45,6 +58,7 @@ public:
         solver.setup(G, params.solverEpsilon, numberOfNodeCandidates());
         this->totalValue = 0.;
         this->originalResistance = 0.;
+        this->always_use_known_columns_as_candidates = params.always_use_known_columns_as_candidates;
 
         gen = std::mt19937(Aux::Random::getSeed());
 
@@ -60,7 +74,6 @@ public:
             totalValue = 0.;
             // pass
         }
-        //std::cout << "exact: " << exact << ", approx: " << this->totalValue << ", diff: " << exact-totalValue << "\n";
     }
 
 
@@ -184,25 +197,58 @@ public:
                     nodes.insert(distribution_nodes_uniform(gen));
                 }
                 std::vector<node> nodesVec {nodes.begin(), nodes.end()};
-
-                solver.computeColumns(nodesVec);
-
-                // Determine best edge between nodes from node set
                 auto edgeValid = [&](node u, node v){
                     if (this->G.hasEdge(u, v) || this->G.hasEdge(v, u)) return false;
                     if (resultSet.count(Edge(u, v)) > 0 || resultSet.count(Edge(v, u)) > 0) { return false; }
                     return true;
                 };
-                for (int i = 0; i < s; i++) {
-                    auto u = nodesVec[i];
-                    for (int j = 0; j < i; j++) {
-                        auto v = nodesVec[j];
-                        if (edgeValid(u, v)) {
-                            double gain = solver.totalResistanceDifferenceApprox(u, v);
+                solver.computeColumns(nodesVec);
 
-                            if (gain > bestGain) {
-                                bestEdge = Edge(u, v);
-                                bestGain = gain;
+                if (always_use_known_columns_as_candidates) {
+                    for (auto u: nodesVec) {
+                        if (knownColumns.count(u) == 0) {
+                            for (auto v: knownColumns) {
+                                if (edgeValid(u, v)) {
+                                    QueueItem qe = {u, v, std::numeric_limits<double>::infinity(), -1};
+                                    queue.push(qe);
+                                }
+                            }
+                            knownColumns.insert(u);
+                        }
+                    }
+                    nodesVec = std::vector(knownColumns.begin(), knownColumns.end());
+                    std::cout << nodesVec.size() << "\n";
+                }
+
+                // Determine best edge between nodes from node set
+                if (always_use_known_columns_as_candidates) {
+                    while (true) {
+                        if (queue.size() == 0) {
+                            throw std::logic_error("Added zero nodes, error. ");
+                        }
+                        auto qe = queue.top();
+                        if (qe.lastUpdated < round) {
+                            queue.pop();
+                            qe = {qe.u, qe.v, solver.totalResistanceDifferenceApprox(qe.u, qe.v), round};
+                            queue.push(qe);
+                        } else {
+                            bestGain = qe.value;
+                            bestEdge = Edge(qe.u, qe.v);
+                            break;
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < nodesVec.size(); i++) {
+                        auto u = nodesVec[i];
+                        for (int j = 0; j < i; j++) {
+                            auto v = nodesVec[j];
+                            if (edgeValid(u, v)) {
+                                double gain = solver.totalResistanceDifferenceApprox(u, v);
+
+                                if (gain > bestGain) {
+                                    bestEdge = Edge(u, v);
+                                    bestGain = gain;
+                                }
                             }
                         }
                     }
@@ -267,7 +313,12 @@ private:
     std::unique_ptr<ApproxElectricalCloseness> apx;
     DynamicLaplacianSolver solver;
 
+    std::set<node> knownColumns;
+
     HeuristicType heuristic;
+    bool always_use_known_columns_as_candidates = false;
+
+    std::priority_queue<QueueItem> queue;
 };
 
 
