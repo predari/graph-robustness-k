@@ -646,6 +646,7 @@ private:
     }
 
     void computeIntermediateMatrices() {
+	INFO("Generating new matrices for JLT");
         // Generate projection matrices
 
         auto random_projection = [&](count n_rows, count n_cols) -> NetworKit::DenseMatrix {

@@ -15,7 +15,7 @@ experiments:
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
   - name: sq-greedy
-    args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr']
+    args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr', '-v']
     stdout: out
     #slurm_args: ['--partition=single', '--nodelist=ego']
   - name: test-jlt
@@ -108,9 +108,9 @@ instances:
       - inf-power.nkb
       - inf-openflights.nkb
       - ia-email-EU.nkb
-
-
     set: [large-graphs]
+
+
   - repo: local
     items:
       - erdos_renyi_10000_0.01_0.nkb
@@ -174,6 +174,8 @@ instances:
       - watts_strogatz_10000_20_0.2_19.nkb
       - barabasi_albert_5_10000_3_19.nkb
     set: [large-graphs-generated]
+
+
   - repo: local
     items:
       - erdos_renyi_128_0.1.nkb
@@ -183,6 +185,8 @@ instances:
       - watts_strogatz_300_7_0.5.nkb
       - barabasi_albert_2_100_2.nkb
       - barabasi_albert_2_300_2.nkb
+
+
   - repo: local
     items:
       - erdos_renyi_1000_0.02.nkb
@@ -199,9 +203,8 @@ instances:
       - livemocha.nkb
       - road-usroads.nkb
       - road-luxembourg-osm.nkb
-      - ia-email-EU-dir.nkb
-      - ca-dblp-2010.nkb
-
+        #- ia-email-EU-dir.nkb
+        #- ca-dblp-2010.nkb
     set: [huge-graphs]
 
 
@@ -289,8 +292,8 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['huge-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lamg', 'multicore', 'similarity']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'jlt-lamg', 'multicore', 'random', 'similarity']
     - experiments: ['sq-greedy']
       instsets: ['huge-graphs']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'eps_0.99', 'lamg', 'multicore', 'similarity']
+      variants: ['k-2', 'k-5', 'k-20', 'eps_0.9', 'eps_0.99', 'lamg', 'multicore', 'random', 'similarity']
