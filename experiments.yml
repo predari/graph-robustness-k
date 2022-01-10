@@ -280,16 +280,16 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'heuristic']
-      variants: ['similarity', 'random', 'eps_0.9', 'lu', 'multicore']
+      variants: ['similarity', 'random', 'eps_0.9', 'lu', 'multicore', 'eps2_10']
       # JLT for similarity
     - experiments: ['sq-greedy']
       instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic']
-      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'jlt-lu', 'multicore', ]
+      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'jlt-lu', 'multicore', 'eps2_10']
     - experiments: ['sq-greedy']
       instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic', 'all_columns']
-      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns' ]
+      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns', 'eps2_10' ]
       
       # Huge Instances
     - experiments: ['sq-greedy']
