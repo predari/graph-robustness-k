@@ -103,8 +103,8 @@ void SubmodularGreedy<Item>::addItems(std::vector<Item> items) {
     std::vector<std::vector<ItemWrapper>> items_per_thread {threads, std::vector<ItemWrapper>{0}};
     
     #pragma omp parallel for
-    for (const auto &i : items)
-    {
+    for (unsigned int ind = 0; ind < items.size(); ind++) {
+	auto i = items[ind];
         ItemWrapper it {i, objectiveDifference(i), 0};
         items_per_thread[omp_get_thread_num()].push_back(it);
     }
