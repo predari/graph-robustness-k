@@ -15,7 +15,7 @@ experiments:
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
   - name: sq-greedy
-    args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-tr', '-v']
+    args: ['./build/robustness', '-a6', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-v']
     stdout: out
     #slurm_args: ['--partition=single', '--nodelist=ego']
   - name: test-jlt
@@ -292,7 +292,7 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic', 'all_columns']
-      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns', 'eps2_10' ]
+      variants: ['similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns', 'eps2_10' ]
       
       # Huge Instances
     - experiments: ['sq-greedy']
