@@ -9,6 +9,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from copy import copy
 
 
 colors = ['b', 'g', 'r', (0.0, 0.7, 0.7), (0.7, 0.7, 0.), (0.7, 0., 0.7), (0.8, 0.4, 0.1), (0.1, 0.8, 0.4), (0.4, 0.1, 0.8)]
@@ -25,6 +26,11 @@ def parse(run, f):
     d = exp.copy()
     d['Instance'] = run.instance.shortname
     d["Experiment"] =  run.experiment.name
+    if not 'All-Columns' in d:
+        if 'all_columns' not in f.name:
+            d['All-Columns'] = False
+        else:
+            d['All-Columns'] = True
 
     if "JLT-Test" in exp:
         d["Experiment"] = "JLT-Test"
@@ -438,7 +444,8 @@ restr_similarity = {
     "Heuristic": "Similarity",
     "Linalg": "LU",
     "Epsilon": 0.9,
-    "Threads": 12
+    "Threads": 12,
+    "All-Columns": False
 }
 
 restr_random = {
@@ -489,11 +496,18 @@ for i in large_graphs:
 
 
 # Generated Instances
+restr_similarity_all_cols = copy(restr_similarity)
+restr_similarity_all_cols["All-Columns"] = True
+
+
 ba_instances = ["barabasi_albert_5_10000_3_"+str(i) for i in range(20)]
 er_instances = ["erdos_renyi_10000_0.01_"+str(i) for i in range(20)]
 ws_instances = ["watts_strogatz_10000_20_0.2_"+str(i) for i in range(20)]
 for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
     plot_averaged(df, instances, [restr_similarity, restr_random, restr_similarity_jlt], ["Main-Similarity", "Main-Random", "Main-Similarity-JLT"], None, "results_"+name, True, False)
+
+for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
+    plot_averaged(df, instances, [restr_similarity_all_cols], ["Main-Similarity-All-Columns"], None, "results_"+name+"_all-columns", True, False)
 
 
 # Huge Instances
