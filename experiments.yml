@@ -289,7 +289,7 @@ matrix:
     - experiments: ['sq-greedy']
       instsets: ['large-graphs-generated']
       axes: ['k-size-const', 'threads', 'linalg', 'accuracy', 'heuristic', 'all_columns']
-      variants: ['k-2', 'k-5', 'k-20', 'similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns', 'eps2_10' ]
+      variants: ['similarity', 'eps_0.9', 'lu', 'multicore', 'all_columns', 'eps2_10' ]
       
       # Huge Instances
     - experiments: ['sq-greedy']

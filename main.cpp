@@ -527,6 +527,9 @@ public:
 		std::cout << "  k: " << k << "\n";
 		std::cout << "  Call: " << call << "\n";
 		std::cout << "  Threads:  " << threads << "\n";
+		std::cout << "	All-Columns: ";
+		if (params->always_use_known_columns_as_candidates) { std::cout << "true\n"; } else { std::cout << "false\n"; }
+
 
 		if (alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_dyn) {
 			std::string linalgName = "";
@@ -620,7 +623,7 @@ public:
 		if (verify_result) {
 			if (edges.size() != k) {
 				std::ostringstream stringStream;
-  				stringStream << "Result Errror: Output does contains " << edges.size() << " edges, not k = " << k << " edges!";
+  				stringStream << "Result Error: Output does contains " << edges.size() << " edges, not k = " << k << " edges!";
 				std::string error_msg = stringStream.str();
 				std::cout << error_msg << "\n";
 				throw std::logic_error(error_msg);
