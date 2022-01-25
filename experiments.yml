@@ -70,7 +70,7 @@ variants:
   - axis: 'all_columns'
     items:
       - name: 'all_columns'
-        extra_args: ['--all_columns']
+        extra_args: ['--all-columns']
   - axis: 'linalg'
     items:
 #      - name: 'dense-ldlt'
