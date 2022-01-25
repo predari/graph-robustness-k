@@ -527,8 +527,8 @@ public:
 		std::cout << "  k: " << k << "\n";
 		std::cout << "  Call: " << call << "\n";
 		std::cout << "  Threads:  " << threads << "\n";
-		std::cout << "	All-Columns: ";
-		if (params->always_use_known_columns_as_candidates) { std::cout << "true\n"; } else { std::cout << "false\n"; }
+		std::cout << "  All-Columns: ";
+		if (params->always_use_known_columns_as_candidates) { std::cout << "True\n"; } else { std::cout << "False\n"; }
 
 
 		if (alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_dyn) {
