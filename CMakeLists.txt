@@ -7,11 +7,13 @@ project (Robustness)
 
 
 include_directories(eigen)
-#link_directories(networkit/build)
-#include_directories(networkit/include)
+# link_directories(networkit/build)
+# include_directories(networkit/include)
 find_package(OpenMP)
 
 add_subdirectory(networkit)
+
+
 
 
 add_executable(robustness main cpp/greedy.cpp cpp/laplacian.cpp cpp/dynamicLaplacianSolver.cpp cpp/robustnessGreedy.cpp cpp/robustnessUSTGreedy.cpp)
@@ -21,8 +23,12 @@ target_compile_options(networkit PUBLIC -Wno-deprecated-declarations -g -O3 -fno
 
 target_include_directories(robustness PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(robustness INTERFACE )
+# For address sanitizing link to "asan"
+# target_link_libraries(dhb_exp PRIVATE dhb::dhb cppexp::cppexp OpenMP::OpenMP_CXX stdc++fs)
+# target_link_libraries(stinger_measurements PRIVATE asan)
+
 target_link_libraries(robustness PUBLIC networkit)
-target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX)
+target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX asan)
 
 
 set_target_properties(networkit

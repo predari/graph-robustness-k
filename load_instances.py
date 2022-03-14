@@ -130,29 +130,32 @@ if __name__ == "__main__":
         os.system("mkdir instances")
 
     dl_txt_gz("https://snap.stanford.edu/data/facebook_combined.txt.gz", "facebook_ego_combined")
-    txt_to_inst("facebook_ego_combined")
+    # maria: change as below..
+    #txt_to_inst("facebook_ego_combined")
+    txt_to_inst("facebook_ego_combined", "\t", 0, "#", False, "instances/facebook_ego_combined")
     dl_txt_gz("https://snap.stanford.edu/data/ca-AstroPh.txt.gz", "arxiv-astro-ph")
     txt_to_inst("arxiv-astro-ph", "\t", 0, "#", False, "instances/arxiv-astro-ph")
     dl_txt_gz("https://snap.stanford.edu/data/ca-CondMat.txt.gz", "arxiv-condmat")
     txt_to_inst("arxiv-condmat", "\t", 0, "#", False, "instances/arxiv-condmat")
     dl_txt_gz("https://snap.stanford.edu/data/ca-GrQc.txt.gz", "arxiv-grqc")
-    txt_to_inst("arxiv-grqc", "\t", 0, "#", False)
+    txt_to_inst("arxiv-grqc", "\t", 0, "#", False, "instances/arxiv-grqc")
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepPh.txt.gz", "arxiv-heph")
-    txt_to_inst("arxiv-heph", "\t", 0, "#", False)
+    txt_to_inst("arxiv-heph", "\t", 0, "#", False, "instances/arxiv-heph")
     dl_txt_gz("https://snap.stanford.edu/data/ca-HepTh.txt.gz", "arxiv-hephth")
-    txt_to_inst("arxiv-hephth", "\t", 0, "#", False)
+    txt_to_inst("arxiv-hephth", "\t", 0, "#", False, "instances/arxiv-hephth")
 
     
 
+    # maria : comment out -- not working for now
+    # if not all(os.path.isfile(p) for p in ["instances/twitch_de.nkb", "instances/twitch_engb.nkb"]):
+    #     dl("https://snap.stanford.edu/data/twitch.zip", "twitch.zip")
+    #     os.system("unzip -u /tmp/twitch.zip -d /tmp/")
+    #     csv_to_inst("/tmp/twitch/DE/musae_DE_edges.csv", "twitch_de")
+    #     csv_to_inst("/tmp/twitch/ENGB/musae_ENGB_edges.csv", "twitch_engb")
 
-    if not all(os.path.isfile(p) for p in ["instances/twitch_de.nkb", "instances/twitch_engb.nkb"]):
-        dl("https://snap.stanford.edu/data/twitch.zip", "twitch.zip")
-        os.system("unzip -u /tmp/twitch.zip -d /tmp/")
-        csv_to_inst("/tmp/twitch/DE/musae_DE_edges.csv", "twitch_de")
-        csv_to_inst("/tmp/twitch/ENGB/musae_ENGB_edges.csv", "twitch_engb")
-    
-    dl_tar_bz2("https://konect.cc/files/download.tsv.opsahl-powergrid.tar.bz2", "opsahl-powergrid/out.opsahl-powergrid", "opsahl-powergrid")
-    txt_to_inst("opsahl-powergrid", " ", 1, "%")
+    # maria: konect.cc not connecting..
+    # dl_tar_bz2("https://konect.cc/files/download.tsv.opsahl-powergrid.tar.bz2", "opsahl-powergrid/out.opsahl-powergrid", "opsahl-powergrid")
+    # txt_to_inst("opsahl-powergrid", " ", 1, "%")
 
 
     dl_zip("https://nrvis.com/download/data/inf/inf-power.zip", "inf-power.mtx", "inf-power")
@@ -164,8 +167,9 @@ if __name__ == "__main__":
     dl_zip("https://nrvis.com/download/data/ia/ia-email-EU.zip", "ia-email-EU.mtx", "ia-email-EU")
     mtx_to_inst("/tmp/ia-email-EU.mtx", "ia-email-EU")
 
-    dl_tar_bz2("http://konect.cc/files/download.tsv.flickrEdges.tar.bz2", "flickrEdges/out.flickrEdges", "flickr")
-    txt_to_inst("flickr", " ", 1, "%")
+    # maria: konect.cc not connecting..
+    # dl_tar_bz2("http://konect.cc/files/download.tsv.flickrEdges.tar.bz2", "flickrEdges/out.flickrEdges", "flickr")
+    # txt_to_inst("flickr", " ", 1, "%")
 
 #    dl_tar_bz2("http://konect.cc/files/download.tsv.facebook-wosn-links.tar.bz2", "facebook-wosn-links/out.facebook-wosn-links", "facebook-wosn-links")
 #    txt_to_inst("facebook-wosn-links", " ", 1, "%")
@@ -173,8 +177,9 @@ if __name__ == "__main__":
 #    dl_tar_bz2("http://konect.cc/files/download.tsv.livemocha.tar.bz2", "livemocha/out.livemocha", "livemocha")
 #    txt_to_inst("livemocha", " ", 1, "%")
 
-    dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite")
-    txt_to_inst("loc-brightkite_edges", " ", 1, "%")
+    # maria: konect.cc not connecting..
+    # dl_tar_bz2("http://konect.cc/files/download.tsv.loc-brightkite_edges.tar.bz2", "loc-brightkite_edges/out.loc-brightkite_edges", "loc-brightkite")
+    # txt_to_inst("loc-brightkite_edges", " ", 1, "%")
 
 
     dl_zip("https://nrvis.com/download/data/road/road-usroads.zip", "road-usroads.mtx", "road-usroads")
@@ -197,7 +202,8 @@ if __name__ == "__main__":
     #dl_tar_bz2("http://konect.cc/files/download.tsv.topology.tar.bz2", "topology/out.topology", "topology")
     #txt_to_inst("topology", "\t", 1, "%")
 
-    load_deezer_europe_instance()
+    # maria: not working
+    #load_deezer_europe_instance()
 
     #gen_er_inst(10, 0.4)
     #gen_er_inst(30, 0.3)
