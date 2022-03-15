@@ -8,12 +8,12 @@ project (Robustness)
 find_package(PkgConfig REQUIRED) 
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
+# Use CMake's pkg-config to reference
+# $(SLEPC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/slepc.pc and
+# $(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/PETSc.pc
+# IF necessary add paths to PKG_CONFIG_PATH
 pkg_check_modules(PETSC_PKG REQUIRED IMPORTED_TARGET PETSc)
 pkg_check_modules(SLEPC_PKG REQUIRED IMPORTED_TARGET slepc)
-
-
-
-
 
 
 
