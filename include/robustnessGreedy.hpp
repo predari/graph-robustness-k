@@ -13,6 +13,7 @@
 #include <laplacian.hpp>
 #include <greedy.hpp>
 #include <greedy_params.hpp>
+#include <slepc_adapter.hpp>
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
@@ -452,7 +453,80 @@ private:
 };
  
 
+// ================================================================
+// ================================================================
+// ===== implementation of the stochastic spectral approach =======
+// ================================================================
+// ================================================================
+template <class SlepcAdapter>
+class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
+public:
+    RobustnessStochasticGreedySpectral(GreedyParams params) {
+        this->g = params.g;
+        this->n = g.numberOfNodes();
+        this->k = params.k;
+        this->epsilon = params.epsilon;
 
+	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
+        this->solver = SlepcAdapter(g);
+
+	// INSTEAD OF: this->totalValue = this->lpinv.trace() * n * (-1.0); ...
+        this->totalValue = 0.;
+        this->originalResistance = -1. * this->totalValue;
+    }
+
+    virtual void addDefaultItems() override {
+        // Add edges to items of greedy
+        std::vector<Edge> items;
+        for (size_t i = 0; i < this->n; i++)
+        {
+            for (size_t j = 0; j < i; j++)
+            {
+                if (!this->g.hasEdge(i, j)) {
+                    items.push_back(Edge(i,j));
+                }
+            }
+        }
+        
+        this->addItems(items);
+    }
+
+    virtual std::vector<Edge> getResultItems() override {
+        return this->results;
+    }
+    virtual double getResultValue() override {
+        return this->totalValue * (-1.0);
+    }
+
+    virtual double getOriginalValue() override {
+        return this->originalResistance;
+    }
+
+
+private:
+    virtual double objectiveDifference(Edge e) override {
+        // INSTEAD OF: return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n; ...
+      return (-1.0); //* laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n;
+    }
+
+    virtual void useItem(Edge e) override {
+      // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...	
+    }
+
+
+    Graph g;
+    int n;
+    double originalResistance = 0.;
+    SlepcAdapter solver;
+    // Slepc::EigenSolver solver;
+};
+
+
+// ================================================================
+// ================================================================
+// ========== end of the stochastic spectral approach =============
+// ================================================================
+// ================================================================
 
 
 
