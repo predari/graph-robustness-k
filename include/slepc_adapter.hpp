@@ -5,6 +5,7 @@
 // following ex11.c from slepc/src/eps/tutorials/
 
 #include <vector>
+#include <iostream>
 #include <networkit/graph/Graph.hpp>
 #include <slepceps.h>
 
@@ -21,8 +22,16 @@ public:
             throw std::runtime_error("SlepcInitialize not working!");
 	}
 	n = (PetscInt)g.numberOfNodes();
+	//unsigned int nz = (PetscInt)g.numberOfEdges();
 	m = n;
 	N = n * m;
+
+	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );
+	g.forNodes([&](NetworKit::node v) {
+		     assert(v < n);
+		     nnz[v] = (PetscInt) g.degree(v);
+		   });
+
 
 	/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	   Compute the operator matrix that defines the eigensystem, Ax=kx
@@ -30,26 +39,35 @@ public:
 	   Lii = degree of node i, Lij = -1 if edge (i,j) exists in G
 	   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 	
-	ierr = MatCreate(PETSC_COMM_WORLD,&A); //CHKERRXX(ierr);
-	ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,N,N); //CHKERRXX(ierr);
-	ierr = MatSetFromOptions(A); // CHKERRQ(ierr);
-	ierr = MatSetUp(A); // CHKERRQ(ierr);
+	// ierr = MatCreate(PETSC_COMM_WORLD,&A); //CHKERRXX(ierr);
+	// To create a sequential AIJ sparse matrix, A, with m rows and n columns:
+	// MatCreateSeqAIJ(PETSC_COMM_SELF,PetscInt m,PetscInt n,PetscInt nz,PetscInt *nnz,Mat *A);
 
-	ierr = MatGetOwnershipRange(A,&Istart,&Iend); // CHKERRQ(ierr);
-	for (II=Istart;II<Iend;II++) {
-	  i = II/n; j = II-i*n;
-	  w = 0.0;
-	  if (i>0) { ierr = MatSetValue(A,II,II-n,-1.0,INSERT_VALUES); //CHKERRQ(ierr);
-	    w=w+1.0; }
-	  if (i<m-1) { ierr = MatSetValue(A,II,II+n,-1.0,INSERT_VALUES); //CHKERRQ(ierr);
-	    w=w+1.0; }
-	  if (j>0) { ierr = MatSetValue(A,II,II-1,-1.0,INSERT_VALUES); //CHKERRQ(ierr);
-	    w=w+1.0; }
-	  if (j<n-1) { ierr = MatSetValue(A,II,II+1,-1.0,INSERT_VALUES); //CHKERRQ(ierr);
-	    w=w+1.0; }
-	  ierr = MatSetValue(A,II,II,w,INSERT_VALUES); // CHKERRQ(ierr);
-	}
-	
+	ierr = MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
+	ierr = MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, n, n); //CHKERRXX(ierr);
+	ierr = MatSetType(A,MATAIJ);
+
+	// TODO: DO I NEED THE FOLLOWING?
+	ierr = MatSetFromOptions(A); // CHKERRQ(ierr); // ?
+	ierr = MatSetUp(A); // CHKERRQ(ierr); // ?
+	ierr = MatGetOwnershipRange(A,&Istart,&Iend); // CHKERRQ(ierr); // ?
+
+	// MatSetValues(Mat A,PetscInt m,const PetscInt idxm[],PetscInt n,const PetscInt idxn[],const PetscScalar values[],INSERT_VALUES);
+	// MatSetValues(Mat A,PetscInt m,const PetscInt idxm[],PetscInt n,const PetscInt idxn[],const PetscScalar values[],ADD_VALUES);
+	g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
+		     if (u == v) {
+		       std::cout << "Warning: Graph has edge with equal target and destination!";
+		     }
+		     
+		     double neg_w = -w;
+		     const PetscInt * u_adr = (PetscInt *)&u;
+		     const PetscInt * v_adr = (PetscInt *)&v;
+		     MatSetValues(A, 1, u_adr, 1, u_adr, &w, ADD_VALUES);
+		     MatSetValues(A, 1, v_adr, 1, v_adr, &w, ADD_VALUES);
+		     MatSetValues(A, 1, u_adr, 1, v_adr, &neg_w, INSERT_VALUES);
+		     MatSetValues(A, 1, v_adr, 1, u_adr, &neg_w, INSERT_VALUES);
+		   });
+
 	ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); // CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY); // CHKERRQ(ierr);
 	
