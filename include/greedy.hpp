@@ -210,9 +210,9 @@ bool operator<(const _ItemWrapperType2<Item> &left, const _ItemWrapperType2<Item
 template <class Item>
 class StochasticGreedy : public AbstractOptimizer<Item> {
 public:
-	using ItemWrapper=_ItemWrapperType2<Item>;
-    void set_k(int k) { this->k = k; }
-    void set_epsilon(double epsilon) { assert(0.0 <= epsilon && epsilon <= 1.0); this->epsilon = epsilon; }
+        using ItemWrapper=_ItemWrapperType2<Item>;
+        void set_k(int k) { this->k = k; }
+        void set_epsilon(double epsilon) { assert(0.0 <= epsilon && epsilon <= 1.0); this->epsilon = epsilon; }
 
 	virtual void run() override;
 	
@@ -241,7 +241,7 @@ protected:
 	virtual bool checkSolution() { return this->round + 1 == this->k; };
 	virtual bool isItemAcceptable(Item c) { return true; }
 	virtual void initRound() {}
-    virtual void addDefaultItems() {};
+        virtual void addDefaultItems() {};
 
 	void addItems(std::vector<Item> items);
 	void resetItems();
@@ -249,13 +249,13 @@ protected:
 
 	std::vector<ItemWrapper> items;
 
-    int N;
+        int N;
 	bool validSolution = false;
 	int round=0;
 	std::vector<Item> results;
 	double totalValue=0.0;
-    int k;
-    double epsilon=0.1;
+        int k;
+        double epsilon=0.1;
 };
 
 template <class Item>
@@ -296,8 +296,10 @@ void StochasticGreedy<Item>::run() {
         s = std::min(s, (unsigned int) this->items.size() - round);
 
         // Get a random subset of the items of size s.
-        // Do this via selecting individual elements resp via shuffling, depending on wether s is large of small.
-        if (s > N/4) { // This is not a theoretically justified estimate
+        // Do this via selecting individual elements resp via shuffling, depending on wether s is large or small.
+	// ==========================================================================
+	// Populating R set. What is the difference between small and large s?
+	if (s > N/4) { // This is not a theoretically justified estimate
             std::vector <unsigned int> allIndices = std::vector<unsigned int> (N);
             std::iota(allIndices.begin(), allIndices.end(), 0);
             std::shuffle(allIndices.begin(), allIndices.end(), g);
@@ -327,7 +329,7 @@ void StochasticGreedy<Item>::run() {
                 }
             }
         }
-
+	// ==========================================================================
 
         // Get top updated entry from R
         ItemWrapper c;
@@ -337,7 +339,7 @@ void StochasticGreedy<Item>::run() {
                 break;
             } else {
                 c = R.top();
-				R.pop();
+		R.pop();
             }
 
             if (this->isItemAcceptable(c.item)) {
