@@ -13,18 +13,16 @@ static char help[] = "My example with slepc following ex11.c in tutorials.\n";
 
 class SlepcAdapter {
 public:
-    SlepcAdapter(NetworKit::Graph const & g)  {
-    
-        int c = 0;
+    SlepcAdapter(NetworKit::Graph const & g, unsigned int approx_c)  {
+      
+        int i = 0;
 	char ** v = NULL;
-	ierr = SlepcInitialize(&c,&v,(char*)0,help);
+	ierr = SlepcInitialize(&i,&v,(char*)0,help);
 	if (ierr) {
             throw std::runtime_error("SlepcInitialize not working!");
 	}
 	n = (PetscInt)g.numberOfNodes();
 	//unsigned int nz = (PetscInt)g.numberOfEdges();
-	m = n;
-	N = n * m;
 
 	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );
 	g.forNodes([&](NetworKit::node v) {
@@ -70,14 +68,22 @@ public:
 
 	ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY); // CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY); // CHKERRQ(ierr);
-	
+
+	assert(approx_c <= n);
+	c = (PetscInt)approx_c;
+	//TODO: create vectors to store eigenpairs
+	//TODO: what is the best way to store if I know I will access them row-wise ?
+	MatCreateVecs(A,NULL,&e_v);
     }
 
+  
     ~SlepcAdapter() {
 
-        ierr = EPSDestroy(&eps); // CHKERRQ(ierr);
-        ierr = MatDestroy(&A); //CHKERRQ(ierr);
+        ierr = EPSDestroy(&eps);
+        ierr = MatDestroy(&A);
 	ierr = SlepcFinalize();
+	VecDestroy(&e_v);
+
     }
 
     // ============================
@@ -86,13 +92,17 @@ public:
       Create eigensolver context and set operators. 
       In this case, it is a standard eigenvalue problem
     */
-    PetscErrorCode create_eigensolver(unsigned int pairl) {
+  
+    PetscErrorCode create_eigensolver() {
         // TODO: number of eigenpairs to be computed: pairl 
 	ierr = EPSCreate(PETSC_COMM_WORLD,&eps);CHKERRQ(ierr);
 	ierr = EPSSetOperators(eps,A,NULL);CHKERRQ(ierr);
 	ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRQ(ierr);
+	// set the number of eigenpairs
+	ierr = EPSSetDimensions(eps,c,PETSC_DEFAULT,PETSC_DEFAULT); CHKERRQ(ierr);
 	ierr = EPSSetWhichEigenpairs(eps,EPS_SMALLEST_REAL);CHKERRQ(ierr);
 	ierr = EPSSetFromOptions(eps);CHKERRQ(ierr);
+
 
 	/*
 	  Attach deflation space: in this case, the matrix has a constant
@@ -107,16 +117,22 @@ public:
     PetscErrorCode run_eigensolver() {
         ierr = EPSSolve(eps);CHKERRQ(ierr);
     }
-
+  
     /*
       Optional: Get some information from the solver and display it
     */
     PetscErrorCode info_eigensolver() {
 
+        EPSGetIterationNumber(eps,&its);
+        PetscPrintf(PETSC_COMM_WORLD," Number of iterations of the method: %D\n",its);
+	EPSGetTolerances(eps,&tol,&maxit);
+	PetscPrintf(PETSC_COMM_WORLD," Stopping condition: tol=%.4g, maxit=%D\n",(double)tol,maxit);
         ierr = EPSGetType(eps,&type);CHKERRQ(ierr);
 	ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n\n",type);CHKERRQ(ierr);
 	ierr = EPSGetDimensions(eps,&nev,NULL,NULL);CHKERRQ(ierr);
 	ierr = PetscPrintf(PETSC_COMM_WORLD," Number of requested eigenvalues: %D\n",nev);CHKERRQ(ierr);
+	EPSGetConverged(eps,&nconv);
+        PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n",nconv);
     }
     // TODO: should include access functions get_eigenvalues, get_eigenvectors, get_eigenvector 
     /* show detailed info */
@@ -129,14 +145,38 @@ public:
 
     }
 
+
+    void get_eigenpairs() {
+      PetscScalar l;
+      Vec e;
+      MatCreateVecs(A,NULL,&e);
+      for (PetscInt i = 0 ; i < nconv; i++) {
+	EPSGetEigenpair(eps, i, &l, NULL, e, NULL);
+	//Compute the relative error associated to each eigenpair
+	EPSComputeError(eps,i,EPS_ERROR_RELATIVE,&error);
+	PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n",(double)l,(double)error);
+	PetscPrintf(PETSC_COMM_WORLD,"\n");
+      }
+    }
+
+
+
+  
+
 private:
     EPS            eps;             /* eigenproblem solver context */
     Mat            A;               /* operator matrix */
-    Vec            x;
-    EPSType        type;
-    PetscInt       N,n=10,m,i,j,II,Istart,Iend,nev;
-    PetscScalar    w;
-    PetscErrorCode ierr;
+    Vec            x; // diagnostic ? not yet sure 
+    EPSType        type; // diagnostic
+    PetscReal      error,tol; // diagnostic
+    PetscInt       n=10, Istart, Iend, nconv;
+    PetscInt       nev,maxit,its; // diagnostic
+    PetscErrorCode ierr; // diagnostic
+    PetscInt       c; // number of e_pairs for the approximation -- input
+    PetscScalar    lambda; // one eigenvalue (TODO: store all eigenvalues in array)
+    Vec            e_v; // stores the eigenvector (one here, TODO: store all eigenvectors)
+                        // e_v needs to be created before use (constructor) and destroyed afterwards (destructor) 
+
 
 };
 
