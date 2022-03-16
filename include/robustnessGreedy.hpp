@@ -469,6 +469,9 @@ public:
 
 	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
         this->solver = SlepcAdapter(g);
+	solver.set_eigensolver(this->k);
+	solver.run_eigensolver();
+	solver.set_eigenpairs(); // should not be public and performance here
 
 	// INSTEAD OF: this->totalValue = this->lpinv.trace() * n * (-1.0); ...
         this->totalValue = 0.;
@@ -506,7 +509,7 @@ public:
 private:
     virtual double objectiveDifference(Edge e) override {
         // INSTEAD OF: return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n; ...
-      return (-1.0); //* laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n;
+      return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {

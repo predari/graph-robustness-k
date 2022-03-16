@@ -158,7 +158,8 @@ public:
       Vec vec;
       // create once and overwrite in loop
       MatCreateVecs(A, NULL, &vec);
-      for (PetscInt i = 0 ; i < nconv; i++) {
+      PetscInt i;
+      for (i = 0 ; i < nconv; i++) {
 	EPSGetEigenpair(eps, i, &val, NULL, vec, NULL);
 	//Compute relative error associated to each eigenpair
 	EPSComputeError(eps, i, EPS_ERROR_RELATIVE, &error);
@@ -172,6 +173,7 @@ public:
 	  *(e_vectors + i*c + j ) = (double) w; 
 	}
       }
+      e_values[i+1] = c * e_values[i]; // TODO: IMPORTANT I HAVENT COMPUTED THE LARGEST EIGENVALUE YET, ONLY APPROXIMATE IT TO BE c TIMES LARGER THAN THE CURRENTLY LARGEST ONE (FROM THE SET OF COMPUTED EVALUES).
       VecDestroy(&vec);
     }
 
@@ -186,8 +188,37 @@ public:
       return e_values;
   }
   
+
+  // input solver, a , b --- require c, e_vectors, e_values 
+  double SpectralApproximationGainDifference(NetworKit::node a, NetworKit::node b) {
+    double * vectors = get_eigenpairs();
+    double * values = get_eigenvalues();
+    double g = 0.0;
+    double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
+
+    double constant_n = 1.0/(values[c] * values[c]);
+    double constant_c = 1.0/(values[c-1] * values[c-1]);
+
+    double sq_diff;
+    
+    for (int i = 0 ; i < c; i++) {
+      sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
+      sq_diff *= sq_diff;
+      dlow += (1.0/(values[i] * values[i]) - constant_n) * sq_diff;
+      dup += (1.0/(values[i] * values[i]) - constant_c) * sq_diff;
+      rlow += (1.0/values[i] - 1.0/values[c]) * sq_diff;
+      rup += (1.0/values[i] - 1.0/values[c-1]) * sq_diff;      
+    }
+
+    g = (constant_c + dlow)/ (1.0 + 2.0/values[c] + rlow) + (constant_n + dup)/ (1.0 + 2.0/values[c-1] + rup);
+    return (g / 2.0);
+  }
   
 
+  // void updateLaplacianPseudoinverse(solver, Networkit::Edge e) {
+    
+  // }
+  
   
 
 private:
