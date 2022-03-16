@@ -513,7 +513,8 @@ private:
     }
 
     virtual void useItem(Edge e) override {
-      // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...	
+      // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...
+      solver.addEdge(e.u, e.v);
     }
 
 

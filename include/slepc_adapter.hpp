@@ -13,7 +13,7 @@ static char help[] = "My example with slepc following ex11.c in tutorials.\n";
 
 class SlepcAdapter {
 public:
-    SlepcAdapter(NetworKit::Graph const & g, unsigned int approx_c)  {
+    SlepcAdapter(NetworKit::Graph const & g, NetworKit::count offset)  {
       
         int i = 0;
 	char ** v = NULL;
@@ -23,11 +23,11 @@ public:
 	}
 	
 	n = (PetscInt)g.numberOfNodes();
-	
+	// TODO: ADJUST FOR DYNAMIC BY ALLOCATING MORE SPACE ! INSTEAD OF DEGREE(V), ALLOCATE DEGREE(V) + k. k IS EXPECTED TO BE SMALL COMPARED TO N!!
 	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) ); // nnz per row
 	g.forNodes([&](NetworKit::node v) {
 		     assert(v < n);
-		     nnz[v] = (PetscInt) g.degree(v);
+		     nnz[v] = (PetscInt) g.degree(v) + offset;
 		   });
 	
 
@@ -214,7 +214,23 @@ public:
     return (g / 2.0);
   }
   
+  //TODO: supposing unweighted here!
+  void addEdge(NetworKit::node u, NetworKit::node v) {
+    if (u == v) {
+      std::cout << "Warning: Graph has edge with equal target and destination!";
+      return;
+    }
+    PetscScalar w = 1.0;
+    const PetscInt * u_adr = (PetscInt *)&u;
+    const PetscInt * v_adr = (PetscInt *)&v;
+    MatSetValues(A, 1, u_adr, 1, u_adr, &w, ADD_VALUES);
+    MatSetValues(A, 1, v_adr, 1, v_adr, &w, ADD_VALUES);
+    w = -w;
+    MatSetValues(A, 1, u_adr, 1, v_adr, &w, INSERT_VALUES);
+    MatSetValues(A, 1, v_adr, 1, u_adr, &w, INSERT_VALUES);
 
+  }
+  
   // void updateLaplacianPseudoinverse(solver, Networkit::Edge e) {
     
   // }
