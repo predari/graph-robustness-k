@@ -403,6 +403,7 @@ enum class AlgorithmType {
 	random,
 	random_avg,
 	a5,
+	spectral
 };
 
 class RobustnessExperiment {
@@ -459,6 +460,9 @@ public:
 		} else if (alg == AlgorithmType::stochastic_dyn) {
 			algorithmName = "Stochastic Dyn";
 			createLinAlgGreedy<RobustnessStochasticGreedyDyn>();
+		} else if (alg == AlgorithmType::spectral) {
+			algorithmName = "Spectral";
+			createSpecific<RobustnessStochasticGreedySpectral>();
 		} else {
 			throw std::logic_error("Algorithm not implemented!");
 		}

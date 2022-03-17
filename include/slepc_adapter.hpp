@@ -13,7 +13,7 @@ static char help[] = "My example with slepc following ex11.c in tutorials.\n";
 
 class SlepcAdapter {
 public:
-    SlepcAdapter(NetworKit::Graph const & g, NetworKit::count offset)  {
+    void setup(NetworKit::Graph const & g, NetworKit::count offset)  {
       
         int i = 0;
 	char ** v = NULL;
@@ -112,7 +112,7 @@ public:
       ierr = VecSet(x, 1.0); CHKERRQ(ierr);
       ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
       ierr = VecDestroy(&x); CHKERRQ(ierr);
-	
+      return ierr;
     }
     /* ========================================================================================== */ 
 
@@ -123,6 +123,7 @@ public:
     */
     PetscErrorCode run_eigensolver() {
       ierr = EPSSolve(eps); CHKERRQ(ierr);
+      return ierr;
     }
     /* ========================================================================================== */
 
@@ -147,7 +148,7 @@ public:
 	ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-
+	return ierr;
     }
   /* ========================================================================================== */
     

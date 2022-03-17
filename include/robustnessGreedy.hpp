@@ -458,7 +458,7 @@ private:
 // ===== implementation of the stochastic spectral approach =======
 // ================================================================
 // ================================================================
-template <class SlepcAdapter>
+//template <class SlepcAdapter>
 class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedySpectral(GreedyParams params) {
@@ -468,8 +468,9 @@ public:
         this->epsilon = params.epsilon;
 
 	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
-        this->solver = SlepcAdapter(g);
-	solver.set_eigensolver(this->k);
+        solver.setup(g,this->k);
+	unsigned int numberOfEigenpairs = 3;
+	solver.set_eigensolver(numberOfEigenpairs);
 	solver.run_eigensolver();
 	solver.set_eigenpairs(); // should not be public and performance here
 
