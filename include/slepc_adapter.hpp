@@ -110,8 +110,8 @@ public:
 		     PetscInt pv = (PetscInt) v; 
 		     PetscScalar pw = (PetscScalar) w;
 		     PetscScalar n_pw = (PetscScalar) -w;
-		     MatSetValues(A, 1, &pu, 1, &pu, &pw, ADD_VALUES);
-		     MatSetValues(A, 1, &pv, 1, &pv, &pw, ADD_VALUES);
+		     //MatSetValues(A, 1, &pu, 1, &pu, &pw, ADD_VALUES);
+		     //MatSetValues(A, 1, &pv, 1, &pv, &pw, ADD_VALUES);
 		     MatSetValues(A, 1, &pu, 1, &pv, &n_pw, INSERT_VALUES);
 		     MatSetValues(A, 1, &pv, 1, &pu, &n_pw, INSERT_VALUES);
 		   });
