@@ -275,48 +275,48 @@ void testRobustnessSubmodularGreedy() {
 
 
 
-// void testRobustnessStochasticGreedySpectral() {
+void testRobustnessStochasticGreedySpectral() {
 	
-// 	Graph G1;
-// 	G1.addNodes(4);
-// 	G1.addEdge(0, 1);
-// 	G1.addEdge(0, 2);
-// 	G1.addEdge(1, 2);
-// 	G1.addEdge(1, 3);
-// 	G1.addEdge(2, 3);
+	Graph G1;
+	G1.addNodes(4);
+	G1.addEdge(0, 1);
+	G1.addEdge(0, 2);
+	G1.addEdge(1, 2);
+	G1.addEdge(1, 3);
+	G1.addEdge(2, 3);
 	
-// 	Graph G2;
-// 	G2.addNodes(6);
-// 	std::vector<std::pair<unsigned long, unsigned long>> edges = {{0, 1}, {0,2}, {1,3}, {2,3}, {1,2}, {1,4}, {3,5}, {4,5}};
-// 	for (auto p: edges) {
-// 		G2.addEdge(p.first, p.second);
-// 	}
+	Graph G2;
+	G2.addNodes(6);
+	std::vector<std::pair<unsigned long, unsigned long>> edges = {{0, 1}, {0,2}, {1,3}, {2,3}, {1,2}, {1,4}, {3,5}, {4,5}};
+	for (auto p: edges) {
+		G2.addEdge(p.first, p.second);
+	}
 
-// 	GreedyParams args(G2, 2);
-// 	RobustnessStochasticGreedySpectral rg2(args);
-// 	rg2.run();
-// 	assert(std::abs(rg2.getTotalValue() - 4.351) < 0.01);
+	GreedyParams args(G2, 2);
+	RobustnessStochasticGreedySpectral rg2(args);
+	rg2.run();
+	assert(std::abs(rg2.getTotalValue() - 4.351) < 0.01);
 
-// 	//rg2.summarize();
+	//rg2.summarize();
 	
 
-// 	Graph G3;
-// 	G3.addNodes(14);
-// 	for (size_t i = 0; i < 14; i++)
-// 	{
-// 		G3.addEdge(i, (i+1) % 14);
-// 	}
-// 	G3.addEdge(4, 13);
-// 	G3.addEdge(5, 10);
+	Graph G3;
+	G3.addNodes(14);
+	for (size_t i = 0; i < 14; i++)
+	{
+		G3.addEdge(i, (i+1) % 14);
+	}
+	G3.addEdge(4, 13);
+	G3.addEdge(5, 10);
 
-// 	GreedyParams args2(G3, 4);
-//         RobustnessStochasticGreedySpectral rg3(args2);
-// 	rg3.run();
-// 	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
-// 	//rg3.summarize();
+	GreedyParams args2(G3, 4);
+        RobustnessStochasticGreedySpectral rg3(args2);
+	rg3.run();
+	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
+	//rg3.summarize();
 
-// 	//rgd3.summarize();
-// }
+	//rgd3.summarize();
+}
 
 
 
@@ -884,6 +884,7 @@ int main(int argc, char* argv[])
 
 		if (arg == "-a5") { experiment.alg = AlgorithmType::a5; continue; }
 		if (arg == "-a6") { experiment.alg = AlgorithmType::trees; continue; }
+		if (arg == "-a7") { experiment.alg = AlgorithmType::stochastic_spectral; continue; }
 
 		if (arg == "-h1") { experiment.heuristic = HeuristicType::lpinvDiag; }
 		if (arg == "-h2") { experiment.heuristic = HeuristicType::similarity; }
@@ -1021,7 +1022,7 @@ int main(int argc, char* argv[])
 
 	
 	if (run_tests) {
-	  //testRobustnessStochasticGreedySpectral();
+	  testRobustnessStochasticGreedySpectral();
 	  //testDynamicColumnApprox();
 	  //testRobustnessSubmodularGreedy();
 

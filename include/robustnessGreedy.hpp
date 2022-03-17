@@ -336,6 +336,7 @@ private:
 class RobustnessStochasticGreedy : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedy(GreedyParams params) {
+        std::cout << " CALLING RobustnessStochasticGreedy() \n";
         this->g = params.g;
         this->n = g.numberOfNodes();
         this->k = params.k;
@@ -462,6 +463,7 @@ private:
 class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedySpectral(GreedyParams params) {
+        std::cout << " CALLING RobustnessStochasticGreedySpectral() \n";
         this->g = params.g;
         this->n = g.numberOfNodes();
         this->k = params.k;
@@ -470,7 +472,7 @@ public:
 	unsigned int numberOfEigenpairs = 3; // max(floor(0.05*n),1);
 	
 	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
-        solver.setup(g,this->k);
+        solver.setup(g, this->k);
 	solver.set_eigensolver(numberOfEigenpairs);
 	solver.run_eigensolver();
 	solver.info_eigensolver(); 
@@ -512,12 +514,12 @@ public:
 private:
     virtual double objectiveDifference(Edge e) override {
         // INSTEAD OF: return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n; ...
-      return (-1.0); //* solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+      return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {
       // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...
-      //solver.addEdge(e.u, e.v);
+      solver.addEdge(e.u, e.v);
     }
 
 
