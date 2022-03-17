@@ -4,6 +4,8 @@
 #define DYNAMIC_LAPLACIAN_SOLVER_HPP
 
 #include <laplacian.hpp>
+#include <slepc_adapter.hpp>
+
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
@@ -274,7 +276,6 @@ public:
         lamg.~Lamg<CSRMatrix>();
         new (&lamg) Lamg<CSRMatrix>(tolerance);
         lamg.setup(laplacian);
-
         
         auto t1 = std::chrono::high_resolution_clock::now();
 
@@ -707,6 +708,103 @@ private:
     Graph G;
     CSRMatrix incidence;
 };
+
+
+
+class EigenSolver : virtual public IDynamicLaplacianSolver {
+public:
+  virtual void setup(const Graph &g, double tolerance, count eqnsPerRound) override {
+    n = g.numberOfNodes();
+    m = g.numberOfEdges();
+    
+    epsilon = tolerance;
+    // eqnsPerRound = #of eigenvalues
+    assert(eqnsPerRound <= n);
+    
+    numberOfEigenpairs = cutoff(eqnsPerRound, n);
+    assert(eqnsPerRound <= n);
+    
+    G = g;
+    solver = SlepcAdapter(g, 3); // TODO:CORRECT!!!!!! INMPORTANT
+    // TODO: could I use some epsilon as input for slepc??
+    solver.set_eigensolver(numberOfEigenpairs);
+    //solver.setup(g, 0.0001, 2*l + 2);	
+    //G.indexEdges();
+  }
+  
+  virtual void computeColumns(std::vector<node> nodes) override {
+    // pass
+  }
+
+
+  virtual void addEdge(node u, node v) override {
+    G.addEdge(u, v);
+    solver.addEdge(u, v);
+    m++;  
+    //G.indexEdges();
+  }
+  
+  virtual count getComputedColumnCount() override {
+    // pass
+    //return solver.getComputedColumnCount();
+    return 0;
+  }
+
+  virtual double totalResistanceDifferenceApprox(node u, node v) override {
+    // pass
+    // double R = effR(u, v);
+    // double phiNormSq = phiNormSquared(u, v);
+    // return n / (1. + R) * phiNormSq;
+    return 0.0; 
+  }
+
+  virtual double totalResistanceDifferenceExact(node u, node v) override {
+    return solver.SpectralApproximationGainDifference(u, v);
+  }
+  
+  void solve() {
+    INFO("Calling eigensolver.");
+    solver.run_eigensolver();
+    solver.info_eigensolver(); 
+    solver.set_eigenpairs(); // should not be public and performance here
+
+  }
+
+  double * get_eigenpairs() {
+    return solver.get_eigenpairs();
+  }
+
+  double * get_eigenvalues() {
+    return solver.get_eigenvalues();
+  }  
+  
+
+private:
+  count cutoff(count perRound, count n) {
+    if (perRound) return perRound;
+    else return std::ceil( 0.05 * n );
+  }
+
+  //LamgDynamicLaplacianSolver solver;
+  // Slepc::EigenSolver solver;
+  // IMPORTANT TODO PROBLEM : SlepcAdapter is not derived from IDynamicLaplacianSolver and this is an issue!!!!
+  SlepcAdapter solver;
+
+  count n, m;
+  count numberOfEigenpairs;
+
+  double epsilon;
+
+  Graph G;
+
+  //double * vectors;
+  //double * values;
+
+};
+
+
+
+
 
 
 #endif // DYNAMIC_LAPLACIAN_SOLVER_HPP

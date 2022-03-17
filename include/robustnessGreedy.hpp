@@ -13,7 +13,7 @@
 #include <laplacian.hpp>
 #include <greedy.hpp>
 #include <greedy_params.hpp>
-#include <slepc_adapter.hpp>
+//#include <slepc_adapter.hpp>
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
@@ -458,7 +458,7 @@ private:
 // ===== implementation of the stochastic spectral approach =======
 // ================================================================
 // ================================================================
-template <class SlepcAdapter>
+template <class EigenSolver>
 class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedySpectral(GreedyParams params) {
@@ -466,12 +466,15 @@ public:
         this->n = g.numberOfNodes();
         this->k = params.k;
         this->epsilon = params.epsilon;
-
+	// TODO: store that in GreedyParams maybe
+	unsigned int numberOfEigenpairs = 3; // max(floor(0.05*n),1);
+	
 	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
-        this->solver = SlepcAdapter(g);
-	solver.set_eigensolver(this->k);
-	solver.run_eigensolver();
-	solver.set_eigenpairs(); // should not be public and performance here
+        //solver = SlepcAdapter(g, this->k);
+	//solver.set_eigensolver(numberOfEigenpairs);
+	//solver.run_eigensolver();
+	//solver.info_eigensolver(); 
+	//solver.set_eigenpairs(); // should not be public and performance here
 
 	// INSTEAD OF: this->totalValue = this->lpinv.trace() * n * (-1.0); ...
         this->totalValue = 0.;
@@ -509,20 +512,21 @@ public:
 private:
     virtual double objectiveDifference(Edge e) override {
         // INSTEAD OF: return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n; ...
-      return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+      return (-1.0); //* solver.SpectralApproximationGainDifference(e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {
       // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...
-      solver.addEdge(e.u, e.v);
+      //solver.addEdge(e.u, e.v);
     }
 
 
-    Graph g;
-    int n;
-    double originalResistance = 0.;
-    SlepcAdapter solver;
-    // Slepc::EigenSolver solver;
+  Graph g;
+  int n;
+  double originalResistance = 0.;
+  EigenSolver solver;
+  //SlepcAdapter solver;
+  // Slepc::EigenSolver solver;
 };
 
 

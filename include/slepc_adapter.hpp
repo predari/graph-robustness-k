@@ -112,7 +112,7 @@ public:
       ierr = VecSet(x, 1.0); CHKERRQ(ierr);
       ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
       ierr = VecDestroy(&x); CHKERRQ(ierr);
-	
+      return ierr;
     }
     /* ========================================================================================== */ 
 
@@ -123,6 +123,7 @@ public:
     */
     PetscErrorCode run_eigensolver() {
       ierr = EPSSolve(eps); CHKERRQ(ierr);
+      return ierr;
     }
     /* ========================================================================================== */
 
@@ -147,6 +148,7 @@ public:
 	ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+	return ierr;
 
     }
   /* ========================================================================================== */
@@ -175,6 +177,7 @@ public:
       }
       e_values[i+1] = c * e_values[i]; // TODO: IMPORTANT I HAVENT COMPUTED THE LARGEST EIGENVALUE YET, ONLY APPROXIMATE IT TO BE c TIMES LARGER THAN THE CURRENTLY LARGEST ONE (FROM THE SET OF COMPUTED EVALUES).
       VecDestroy(&vec);
+      
     }
 
 
@@ -188,7 +191,7 @@ public:
       return e_values;
   }
   
-
+  // TODO: rename to totalResistanceDifferenceExact
   // input solver, a , b --- require c, e_vectors, e_values 
   double SpectralApproximationGainDifference(NetworKit::node a, NetworKit::node b) {
     double * vectors = get_eigenpairs();

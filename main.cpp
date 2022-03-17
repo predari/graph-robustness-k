@@ -274,6 +274,52 @@ void testRobustnessSubmodularGreedy() {
 }
 
 
+
+// void testRobustnessStochasticGreedySpectral() {
+	
+// 	Graph G1;
+// 	G1.addNodes(4);
+// 	G1.addEdge(0, 1);
+// 	G1.addEdge(0, 2);
+// 	G1.addEdge(1, 2);
+// 	G1.addEdge(1, 3);
+// 	G1.addEdge(2, 3);
+	
+// 	Graph G2;
+// 	G2.addNodes(6);
+// 	std::vector<std::pair<unsigned long, unsigned long>> edges = {{0, 1}, {0,2}, {1,3}, {2,3}, {1,2}, {1,4}, {3,5}, {4,5}};
+// 	for (auto p: edges) {
+// 		G2.addEdge(p.first, p.second);
+// 	}
+
+// 	GreedyParams args(G2, 2);
+// 	RobustnessStochasticGreedySpectral rg2(args);
+// 	rg2.run();
+// 	assert(std::abs(rg2.getTotalValue() - 4.351) < 0.01);
+
+// 	//rg2.summarize();
+	
+
+// 	Graph G3;
+// 	G3.addNodes(14);
+// 	for (size_t i = 0; i < 14; i++)
+// 	{
+// 		G3.addEdge(i, (i+1) % 14);
+// 	}
+// 	G3.addEdge(4, 13);
+// 	G3.addEdge(5, 10);
+
+// 	GreedyParams args2(G3, 4);
+//         RobustnessStochasticGreedySpectral rg3(args2);
+// 	rg3.run();
+// 	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
+// 	//rg3.summarize();
+
+// 	//rgd3.summarize();
+// }
+
+
+
 void testJLT(NetworKit::Graph g, std::string instanceFile, int k) {
 	int n = g.numberOfNodes();
 
@@ -390,7 +436,8 @@ enum class LinAlgType {
 	lamg,
 	dense_ldlt,
 	jlt_lu_sparse,
-	jlt_lamg
+	jlt_lamg,
+	spectral
 };
 
 enum class AlgorithmType {
@@ -398,6 +445,7 @@ enum class AlgorithmType {
 	submodular,
 	submodular2,
 	stochastic,
+	stochastic_spectral,
 	stochastic_dyn,
 	trees,
 	random,
@@ -459,7 +507,13 @@ public:
 		} else if (alg == AlgorithmType::stochastic_dyn) {
 			algorithmName = "Stochastic Dyn";
 			createLinAlgGreedy<RobustnessStochasticGreedyDyn>();
-		} else {
+		}
+		else if(alg == AlgorithmType::stochastic_spectral) {
+			algorithmName = "Stochastic Spectral";
+			createLinAlgGreedy<RobustnessStochasticGreedySpectral>();
+			// what type of graph is created here? sparse Petsc?
+		}
+		else {
 			throw std::logic_error("Algorithm not implemented!");
 		}
 	}
@@ -486,6 +540,8 @@ public:
 			createSpecific<Greedy<JLTLUSolver>>();
 		} else if (linalg == LinAlgType::jlt_lamg) {
 			createSpecific<Greedy<JLTLamgSolver>>();
+		} else if (linalg == LinAlgType::spectral) {
+			createSpecific<Greedy<EigenSolver>>();
 		} else {
 			throw std::logic_error("Solver not implemented!");
 		}
@@ -890,6 +946,10 @@ int main(int argc, char* argv[])
 		if (arg == "--jlt-lamg") {
 			linalg = LinAlgType::jlt_lamg;
 		}
+		if (arg == "--spectral") {
+		  linalg = LinAlgType::spectral;
+		}
+
 		experiment.linalg = linalg;
 		
 	}
@@ -964,14 +1024,13 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		experiment.g = g;
-
-
 		experiment.run();
 
 	}
 
 	
 	if (run_tests) {
+	  //testRobustnessStochasticGreedySpectral();
 		//testDynamicColumnApprox();
 		//testRobustnessSubmodularGreedy();
 
