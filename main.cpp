@@ -436,8 +436,7 @@ enum class LinAlgType {
 	lamg,
 	dense_ldlt,
 	jlt_lu_sparse,
-	jlt_lamg,
-	spectral
+	jlt_lamg
 };
 
 enum class AlgorithmType {
@@ -450,7 +449,7 @@ enum class AlgorithmType {
 	trees,
 	random,
 	random_avg,
-	a5,
+	a5
 };
 
 class RobustnessExperiment {
@@ -509,11 +508,9 @@ public:
 			createLinAlgGreedy<RobustnessStochasticGreedyDyn>();
 		}
 		else if(alg == AlgorithmType::stochastic_spectral) {
-			algorithmName = "Stochastic Spectral";
-			createLinAlgGreedy<RobustnessStochasticGreedySpectral>();
-			// what type of graph is created here? sparse Petsc?
-		}
-		else {
+		        algorithmName = "Stochastic Spectral";
+			createSpecific<RobustnessStochasticGreedySpectral>();
+		} else {
 			throw std::logic_error("Algorithm not implemented!");
 		}
 	}
@@ -540,8 +537,6 @@ public:
 			createSpecific<Greedy<JLTLUSolver>>();
 		} else if (linalg == LinAlgType::jlt_lamg) {
 			createSpecific<Greedy<JLTLamgSolver>>();
-		} else if (linalg == LinAlgType::spectral) {
-			createSpecific<Greedy<EigenSolver>>();
 		} else {
 			throw std::logic_error("Solver not implemented!");
 		}
@@ -946,10 +941,6 @@ int main(int argc, char* argv[])
 		if (arg == "--jlt-lamg") {
 			linalg = LinAlgType::jlt_lamg;
 		}
-		if (arg == "--spectral") {
-		  linalg = LinAlgType::spectral;
-		}
-
 		experiment.linalg = linalg;
 		
 	}
@@ -1031,8 +1022,8 @@ int main(int argc, char* argv[])
 	
 	if (run_tests) {
 	  //testRobustnessStochasticGreedySpectral();
-		//testDynamicColumnApprox();
-		//testRobustnessSubmodularGreedy();
+	  //testDynamicColumnApprox();
+	  //testRobustnessSubmodularGreedy();
 
 	}
 	

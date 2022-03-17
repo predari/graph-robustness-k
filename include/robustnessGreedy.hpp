@@ -13,7 +13,7 @@
 #include <laplacian.hpp>
 #include <greedy.hpp>
 #include <greedy_params.hpp>
-//#include <slepc_adapter.hpp>
+#include <slepc_adapter.hpp>
 
 #include <Eigen/Dense>
 #include <networkit/graph/Graph.hpp>
@@ -458,7 +458,7 @@ private:
 // ===== implementation of the stochastic spectral approach =======
 // ================================================================
 // ================================================================
-template <class EigenSolver>
+
 class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedySpectral(GreedyParams params) {
@@ -470,11 +470,11 @@ public:
 	unsigned int numberOfEigenpairs = 3; // max(floor(0.05*n),1);
 	
 	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
-        //solver = SlepcAdapter(g, this->k);
-	//solver.set_eigensolver(numberOfEigenpairs);
-	//solver.run_eigensolver();
-	//solver.info_eigensolver(); 
-	//solver.set_eigenpairs(); // should not be public and performance here
+        solver.setup(g,this->k);
+	solver.set_eigensolver(numberOfEigenpairs);
+	solver.run_eigensolver();
+	solver.info_eigensolver(); 
+	solver.set_eigenpairs(); // should not be public and performance here
 
 	// INSTEAD OF: this->totalValue = this->lpinv.trace() * n * (-1.0); ...
         this->totalValue = 0.;
@@ -524,8 +524,8 @@ private:
   Graph g;
   int n;
   double originalResistance = 0.;
-  EigenSolver solver;
-  //SlepcAdapter solver;
+  //EigenSolver solver;
+  SlepcAdapter solver;
   // Slepc::EigenSolver solver;
 };
 

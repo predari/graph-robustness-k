@@ -13,7 +13,7 @@ static char help[] = "My example with slepc following ex11.c in tutorials.\n";
 
 class SlepcAdapter {
 public:
-    SlepcAdapter(NetworKit::Graph const & g, NetworKit::count offset)  {
+    void setup(NetworKit::Graph const & g, NetworKit::count offset)  {
       
         int i = 0;
 	char ** v = NULL;
@@ -149,7 +149,6 @@ public:
 	ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 	return ierr;
-
     }
   /* ========================================================================================== */
     
@@ -255,5 +254,9 @@ private:
   double * e_values; // stores the c eigenvectors (of size n*c)
 
 };
+
+
+
+
 
 #endif // SLEPC_ADAPTER_H

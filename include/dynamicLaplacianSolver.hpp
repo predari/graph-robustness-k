@@ -710,7 +710,6 @@ private:
 };
 
 
-
 class EigenSolver : virtual public IDynamicLaplacianSolver {
 public:
   virtual void setup(const Graph &g, double tolerance, count eqnsPerRound) override {
@@ -725,7 +724,7 @@ public:
     assert(eqnsPerRound <= n);
     
     G = g;
-    solver = SlepcAdapter(g, 3); // TODO:CORRECT!!!!!! INMPORTANT
+    solver.setup(g, 3); // TODO:CORRECT!!!!!! INMPORTANT
     // TODO: could I use some epsilon as input for slepc??
     solver.set_eigensolver(numberOfEigenpairs);
     //solver.setup(g, 0.0001, 2*l + 2);	
@@ -801,10 +800,6 @@ private:
   //double * values;
 
 };
-
-
-
-
 
 
 #endif // DYNAMIC_LAPLACIAN_SOLVER_HPP
