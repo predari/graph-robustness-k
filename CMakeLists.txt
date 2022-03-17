@@ -11,11 +11,12 @@ include_directories(${MPI_INCLUDE_PATH})
 # Use CMake's pkg-config to reference
 # $(SLEPC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/slepc.pc and
 # $(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/PETSc.pc
+# export PKG_CONFIG_PATH=$(SLEPC_DIR)/$(PETSC_ARCH)/lib/pkgconfig:$(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/:$PKG_CONFIG_PATH
 # IF necessary add paths to PKG_CONFIG_PATH
 pkg_check_modules(PETSC_PKG REQUIRED IMPORTED_TARGET PETSc)
 pkg_check_modules(SLEPC_PKG REQUIRED IMPORTED_TARGET slepc)
 
-
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer") #-fast_unwind_on_malloc=0")
 
 include_directories(eigen)
 find_package(OpenMP)
@@ -41,10 +42,10 @@ target_include_directories(robustness INTERFACE )
 
 
 target_link_libraries(robustness PUBLIC networkit)
-target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX asan)
+target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX)
 # For address sanitizing link to "asan"
-target_link_libraries(robustness PUBLIC asan)
-# target_link_libraries(robustness PUBLIC ${SLEPC_EPS_LIB})
+# target_link_libraries(robustness PUBLIC asan)
+
 
 
 
