@@ -25,17 +25,18 @@ public:
 	n = (PetscInt)g.numberOfNodes();
 	NetworKit::count m = (PetscInt)g.numberOfEdges();
 
-	// TODO: ADJUST FOR DYNAMIC BY ALLOCATING MORE SPACE ! INSTEAD OF DEGREE(V), ALLOCATE DEGREE(V) + k. k IS EXPECTED TO BE SMALL COMPARED TO N!!
-	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) ); // nnz per row
-	// g.forNodes([&](NetworKit::node v) {
-	// 	     assert(v < n);
-	// 	     nnz[v] = (PetscInt) g.degree(v) + offset;
-	// 	   });
+	// TODO: ADJUST FOR DYNAMIC BY ALLOCATING MORE SPACE !
+	// INSTEAD OF DEGREE(V) + 1 (FOR THE DIAGONAL ENTRY),
+	// ALLOCATE DEGREE(V) + 1 + k TO AVOID ANOTHER MALLOC.
+	// k IS EXPECTED TO BE SMALL COMPARED TO N!!
 	
+	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );	
 	g.forNodes([&](NetworKit::node v) {
 		     assert(v < n);
-		     nnz[v] = (PetscInt) g.degree(v); // + offset;
+		     nnz[v] = (PetscInt) g.degree(v) + 1; // + offset;
 		   });
+	for (int i = 0; i < n; i++)
+	  std::cout<< " Row : " << i << " number of neighbors =  " << nnz[i] << "\n";
 	
 	// FIRST APPROACH: Insert elements into PETSc Matrix one by one.
 	// To do so, I need to store edges in COO format
@@ -78,50 +79,58 @@ public:
 	
 	
 	// MatCreate(PETSC_COMM_WORLD,&A); // For general mat?
-	// To create a sequential AIJ sparse matrix, A, with m rows and n columns:	
-	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
+	// =================================================================
+	// // To create a sequential AIJ sparse matrix, A, with m rows and n columns:	
+	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // preallocation happens here
 	MatSetOption(A, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
-	MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, n, n);
-	MatSetType(A,MATAIJ);
-
+	MatSetType(A, MATSEQAIJ); // MATAIJ
 	MatSetFromOptions(A);
 	MatSetUp(A);
+	MatGetOwnershipRange(A, &Istart, &Iend);
+	std::cout << "INFO: Istart = " << Istart << ", Iend = " << Iend <<"  !\n";
+	std::cout << "INFO: MATRIX IS CREATED HERE!\n";
+	// =================================================================
+
+	//MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
+	//std::cout << "INFO: MATRIX IS CREATED HERE!\n";
+	
 	//MatSetValues(A, 1, row[i], 1, col[i], val[i], INSERT_VALUES);
 
-	// for (PetscInt i = 0; i < 3; i++) {
-	//   for (PetscInt j = 0; j < 3; j++) {
-	//     PetscScalar v = 1.0;
-	//     MatSetValues(A, 1, &i, 1, &j, &v, INSERT_VALUES);
-	//   }
-	// }
+	//MatAssemblyBegin(A,MAT_FLUSH_ASSEMBLY);
+	//MatAssemblyEnd(A,MAT_FLUSH_ASSEMBLY);
+	//ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
 
 	
-	// FIRST APPROACH: Insert elements into PETSc Matrix one by one.
-	// To do so, I need to store edges in COO format
-	// SEE CSRMatrix.cpp, function laplacianMatrix().
-	// ================================================	
+	// // FIRST APPROACH: Insert elements into PETSc Matrix one by one.
+	// // To do so, I need to store edges in COO format
+	// // SEE CSRMatrix.cpp, function laplacianMatrix().
+	// // ================================================	
+      
 	g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
 		     if (u == v) {
 		       std::cout << "Warning: Graph has edge with equal target and destination!";
-		     }
-        	     double neg_w = -w;
+		     }        	     
+		     PetscInt a = (PetscInt) u;
+		     PetscInt b = (PetscInt) v; 
+		     PetscScalar vv = (PetscScalar) w;
+		     PetscScalar nv = (PetscScalar) -w;
+		     
+		     std::cout<< " edge (" << a << ", " << b << ") w = " << w << "or " << vv << "\n";
 
-		     PetscInt pu = (PetscInt) u;
-		     PetscInt pv = (PetscInt) v; 
-		     PetscScalar pw = (PetscScalar) w;
-		     PetscScalar n_pw = (PetscScalar) -w;
-		     //MatSetValues(A, 1, &pu, 1, &pu, &pw, ADD_VALUES);
-		     //MatSetValues(A, 1, &pv, 1, &pv, &pw, ADD_VALUES);
-		     MatSetValues(A, 1, &pu, 1, &pv, &n_pw, INSERT_VALUES);
-		     MatSetValues(A, 1, &pv, 1, &pu, &n_pw, INSERT_VALUES);
+		     MatSetValues(A, 1, &a, 1, &a, &vv, ADD_VALUES);
+		     MatSetValues(A, 1, &b, 1, &b, &vv, ADD_VALUES);
+		     MatSetValues(A, 1, &a, 1, &b, &nv, ADD_VALUES); // INSERT_VALUES
+		     MatSetValues(A, 1, &b, 1, &a, &nv, ADD_VALUES); // INSERT_VALUES		     
+
 		   });
 
-	
+
 	
 	MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);
 
-	//ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
+	std::cout << "INFO: MATRIX AFTER INSERTION!\n";
+	ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
 
 	free(nnz);
     }
@@ -289,6 +298,27 @@ public:
   
 
 private:
+
+  PetscErrorCode  MatCreateSeqAIJMP(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[],Mat *A)
+  {
+    PetscErrorCode ierr;
+    
+    PetscFunctionBegin;
+    //ierr = PetscKokkosInitializeCheck();CHKERRQ(ierr);
+    ierr = MatCreate(comm, A);  // CHKERRQ(ierr);
+    ierr = MatSetSizes(*A, m, n, m, n); //CHKERRQ(ierr);
+    //ierr = MatSetOption(*A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    ierr = MatSetFromOptions(*A);
+    ierr = MatSetType(*A, MATSEQAIJ); //CHKERRQ(ierr);
+    //ierr = MatSeqAIJSetPreallocation_SeqAIJ(*A,nz,(PetscInt*)nnz); // CHKERRQ(ierr);
+    ierr = MatSeqAIJSetPreallocation(*A,nz,(PetscInt*)nnz);
+    PetscFunctionReturn(0);
+  }
+
+
+
+
+  
   EPS            eps;             /* eigenproblem solver context */
   Mat            A;               /* operator matrix */
   PetscInt       n, Istart, Iend;
