@@ -28,110 +28,42 @@ public:
 	// TODO: ADJUST FOR DYNAMIC BY ALLOCATING MORE SPACE !
 	// INSTEAD OF DEGREE(V) + 1 (FOR THE DIAGONAL ENTRY),
 	// ALLOCATE DEGREE(V) + 1 + k TO AVOID ANOTHER MALLOC.
-	// k IS EXPECTED TO BE SMALL COMPARED TO N!!
-	
+	// k IS EXPECTED TO BE SMALL COMPARED TO N!!	
 	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );	
 	g.forNodes([&](NetworKit::node v) {
 		     assert(v < n);
 		     nnz[v] = (PetscInt) g.degree(v) + 1; // + offset;
 		   });
-	for (int i = 0; i < n; i++)
-	  std::cout<< " Row : " << i << " number of neighbors =  " << nnz[i] << "\n";
+	// for (int i = 0; i < n; i++)
+	//   std::cout<< " Row : " << i << " number of neighbors =  " << nnz[i] << "\n";
 	
-	// FIRST APPROACH: Insert elements into PETSc Matrix one by one.
-	// To do so, I need to store edges in COO format
-	// SEE CSRMatrix.cpp, function laplacianMatrix().
-	// ================================================
-	// int * row  = (int *) malloc( (2*m - n) * sizeof( int ) );
-	// int * col  = (int *) malloc( (2*m - n) * sizeof( int ) );
-	// int * val  = (int *) malloc( (2*m - n) * sizeof( int ) );
-	// unsigned int cc = 0;
-	// g.forNodes([&](const NetworKit::node v){
-	// 	     double weightedDegree = 0.0;
-	// 	     g.forNeighborsOf(v, [&](const NetworKit::node u, double weight) { // - adj  mat
-	// 				   if (u != v) { // exclude diagonal since this would be subtracted by the adjacency weight
-	// 				     weightedDegree += weight;
-	// 				   }
-	// 				   row[cc] = v;
-	// 				   col[cc] = u;
-	// 				   val[cc] = -weight;
-	// 				   cc++;
-	// 				 });
-	// 	     row[cc] = v;
-	// 	     col[cc] = v;
-	// 	     val[cc] = weightedDegree;
-	// 	     cc++;
-	// 	   });
-	
-	// ================================================
-	
-	// std::vector<std::vector<node> > edges(g.upperNodeIdBound());
-	// g.balancedParallelForNodes([&](NetworKit::node v) {
-	// 			     nnz[v] = (PetscInt) g.degree(v) + offset;
-	// 			     edges[v].reserve(nnz[v]);
-	// 			     g.forEdgesOf(v, [&](node, node v, edgeid) {
-	// 						 //if (v > u)
-	// 					       edges[v].emplace_back(u);
-	// 					     });
-	// 			   });
-
-
-	
-	
-	// MatCreate(PETSC_COMM_WORLD,&A); // For general mat?
 	// =================================================================
-	// // To create a sequential AIJ sparse matrix, A, with m rows and n columns:	
+	// // To create directly a sequential sparse matrix, A (m rows and n columns)	
 	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // preallocation happens here
 	MatSetOption(A, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
 	MatSetType(A, MATSEQAIJ); // MATAIJ
 	MatSetFromOptions(A);
 	MatSetUp(A);
 	MatGetOwnershipRange(A, &Istart, &Iend);
-	std::cout << "INFO: Istart = " << Istart << ", Iend = " << Iend <<"  !\n";
 	std::cout << "INFO: MATRIX IS CREATED HERE!\n";
 	// =================================================================
-
 	//MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
 	//std::cout << "INFO: MATRIX IS CREATED HERE!\n";
-	
-	//MatSetValues(A, 1, row[i], 1, col[i], val[i], INSERT_VALUES);
-
-	//MatAssemblyBegin(A,MAT_FLUSH_ASSEMBLY);
-	//MatAssemblyEnd(A,MAT_FLUSH_ASSEMBLY);
+	//MatAssemblyBegin(A, MAT_FLUSH_ASSEMBLY);
+	//MatAssemblyEnd(A, MAT_FLUSH_ASSEMBLY);
 	//ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
 
 	
-	// // FIRST APPROACH: Insert elements into PETSc Matrix one by one.
-	// // To do so, I need to store edges in COO format
-	// // SEE CSRMatrix.cpp, function laplacianMatrix().
-	// // ================================================	
-      
-	g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
-		     if (u == v) {
-		       std::cout << "Warning: Graph has edge with equal target and destination!";
-		     }        	     
-		     PetscInt a = (PetscInt) u;
-		     PetscInt b = (PetscInt) v; 
-		     PetscScalar vv = (PetscScalar) w;
-		     PetscScalar nv = (PetscScalar) -w;
-		     
-		     std::cout<< " edge (" << a << ", " << b << ") w = " << w << "or " << vv << "\n";
-
-		     MatSetValues(A, 1, &a, 1, &a, &vv, ADD_VALUES);
-		     MatSetValues(A, 1, &b, 1, &b, &vv, ADD_VALUES);
-		     MatSetValues(A, 1, &a, 1, &b, &nv, ADD_VALUES); // INSERT_VALUES
-		     MatSetValues(A, 1, &b, 1, &a, &nv, ADD_VALUES); // INSERT_VALUES		     
-
-		   });
-
-
 	
-	MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);
-	MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);
+	//MatSetValues_Elm(g, &A);
 
+	MatSetValues_Row(g, nnz, &A);
+	
+	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 	std::cout << "INFO: MATRIX AFTER INSERTION!\n";
 	ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
-
+	
 	free(nnz);
     }
 
@@ -301,21 +233,72 @@ private:
 
   PetscErrorCode  MatCreateSeqAIJMP(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[],Mat *A)
   {
-    PetscErrorCode ierr;
-    
+    PetscErrorCode ierr; 
     PetscFunctionBegin;
-    //ierr = PetscKokkosInitializeCheck();CHKERRQ(ierr);
-    ierr = MatCreate(comm, A);  // CHKERRQ(ierr);
-    ierr = MatSetSizes(*A, m, n, m, n); //CHKERRQ(ierr);
+    // Matcreate: for general graphs. If sparse use also MatSeqAIJSetPreallocation to preallocate mem.
+    ierr = MatCreate(comm, A); 
+    ierr = MatSetSizes(*A, m, n, m, n); 
     //ierr = MatSetOption(*A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
     ierr = MatSetFromOptions(*A);
-    ierr = MatSetType(*A, MATSEQAIJ); //CHKERRQ(ierr);
-    //ierr = MatSeqAIJSetPreallocation_SeqAIJ(*A,nz,(PetscInt*)nnz); // CHKERRQ(ierr);
-    ierr = MatSeqAIJSetPreallocation(*A,nz,(PetscInt*)nnz);
+    ierr = MatSetType(*A, MATSEQAIJ);
+    ierr = MatSeqAIJSetPreallocation(*A, nz, (PetscInt*)nnz);
     PetscFunctionReturn(0);
   }
 
+  // FIRST APPROACH: INSERT ELEMENTS TO PETSc MATRIX (ONE BY ONE).
+  void  MatSetValues_Elm(NetworKit::Graph const & g, Mat *A) {
+    g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
+		 if (u == v) {
+		   std::cout << "Warning: Graph has edge with equal target and destination!";
+		 }        	     
+		 PetscInt a = (PetscInt) u;
+		 PetscInt b = (PetscInt) v; 
+		 PetscScalar vv = (PetscScalar) w;
+		 PetscScalar nv = (PetscScalar) -w;
+		 
+		 //std::cout<< " edge (" << a << ", " << b << ") w = " << w << "or " << vv << "\n";
+		 
+		 MatSetValues(*A, 1, &a, 1, &a, &vv, ADD_VALUES);
+		 MatSetValues(*A, 1, &b, 1, &b, &vv, ADD_VALUES);
+		 MatSetValues(*A, 1, &a, 1, &b, &nv, ADD_VALUES); // DONT MIX ADD AND INSERT_VALUES
+		 MatSetValues(*A, 1, &b, 1, &a, &nv, ADD_VALUES); // DONT MIX ADD AND INSERT_VALUES
+	       });
+    
 
+  }
+
+  // SECOND APPROACH: INSERT ROW BY ROW.
+  void  MatSetValues_Row(NetworKit::Graph const & g, PetscInt * nnz, Mat *A)
+  {
+    // g.balancedParallelForNodes([&](NetworKit::node v) {    
+    g.forNodes([&](const NetworKit::node v){
+  		 double weightedDegree = 0.0;
+  		 PetscInt * col  = (PetscInt *) malloc(nnz[v] * sizeof(PetscInt));
+  		 PetscScalar * val  = (PetscScalar *) malloc(nnz[v] * sizeof(PetscScalar));
+  		 unsigned int idx = 0;
+  		 g.forNeighborsOf(v, [&](const NetworKit::node u, double w) { // - adj  mat
+  				       if (u != v) { // exclude diagonal since this would be subtracted by the adjacency weight
+  					 weightedDegree += w;
+  				       }
+  				       col[idx] = (PetscInt)u;
+  				       val[idx] = -(PetscScalar)w;
+  				       idx++;
+  				     });
+  		 col[idx] = v;
+  		 val[idx] = weightedDegree;
+  		 PetscInt a = (PetscInt) v;
+		 // std::cout<< " node " << a << " : [";
+		 // for(int i = 0; i < nnz[v]; i++)
+		 //   std::cout << col[i] << " (" << val[i] << ") ";
+		 // std::cout << "] \n";
+		 // std::cout << "idx =  " << idx << "\n";
+		 // std::cout << "nnz[v] =  " << nnz[v] << "\n";
+		 
+		 MatSetValues(*A, 1, &a, nnz[v] , col, val, INSERT_VALUES);
+  	       });	
+  }
+  
+  
 
 
   
