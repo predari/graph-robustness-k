@@ -474,11 +474,11 @@ public:
 	solver.set_eigensolver(numberOfEigenpairs);
 	solver.run_eigensolver();
 	solver.info_eigensolver(); 
-	solver.set_eigenpairs(); // should not be public and performance here
+	solver.set_eigenpairs(); 
 
-	// INSTEAD OF: this->totalValue = this->lpinv.trace() * n * (-1.0); ...
-        this->totalValue = 0.;
-        this->originalResistance = -1. * this->totalValue;
+	this->totalValue = 0.;
+        this->originalResistance = 0.;
+
     }
 
     virtual void addDefaultItems() override {
@@ -511,13 +511,10 @@ public:
 
 private:
     virtual double objectiveDifference(Edge e) override {
-        // INSTEAD OF: return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n; ...
-      //std::cout << " CALLING RobustnessStochasticGreedySpectral::objectiveDifference() \n";
       return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {
-      // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...
       std::cout << " CALLING RobustnessStochasticGreedySpectral::useItem() \n";
       solver.addEdge(e.u, e.v);
       updateEigenpairs();
@@ -525,7 +522,7 @@ private:
 
   
    void cutOff() {
-     numberOfEigenpairs = ceil(0.01*n);
+     numberOfEigenpairs = ceil(0.004*n);
      assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
    }
 
@@ -535,7 +532,7 @@ private:
     std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
     for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
       std::cout << e_values[i] << " ";
-    std::cout << "]\n;";
+    std::cout << "]\n";
   }
 
   

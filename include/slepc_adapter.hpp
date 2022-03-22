@@ -9,13 +9,15 @@
 #include <networkit/graph/Graph.hpp>
 #include <slepceps.h>
 
-static char help[] = "My example with slepc following ex11.c in tutorials.\n";
+
+#define EIGENVALUE_MULTIPLIER 4000
+
+static char help[] = "INTERFACE TO EIGENSOLVER \n";
 
 class SlepcAdapter {
 public:
     void setup(NetworKit::Graph const & g, NetworKit::count offset)  {
 
-      
         int arg_c = 0;
 	char ** v = NULL;
 	ierr = SlepcInitialize(&arg_c,NULL,(char*)0,help);
@@ -29,6 +31,7 @@ public:
 	// TODO: ADJUST FOR ALLOCATING MORE SPACE BASED ON k!
 	// INSTEAD OF DEGREE(V) + 1, ALLOCATE DEGREE(V) + 1 + k
 	// TO AVOID ANOTHER MALLOC (k IS SMALL COMPARED TO AVG DEGREE).	
+
 	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );	
 	g.forNodes([&](NetworKit::node v) {
 		     assert(v < n);
@@ -69,8 +72,6 @@ public:
 
     }
 
-    // Slepc Interface
-
 
   PetscErrorCode update_eigensolver() {
 
@@ -92,93 +93,88 @@ public:
 
 
 
+  // ROUTINE TO SET THE EIGENSOLVER PRIOR TO EXECUTION
   
-    /* ==========================================================================================
-    /* Create eigensolver context and set operators. Our case is a standard eigenvalue problem.
-    /* ==========================================================================================
-    */  
-    PetscErrorCode set_eigensolver(NetworKit::count numberOfEigenpairs) {
-      if ( !numberOfEigenpairs ) {
-	std::cout << "WARN: NO EIGENPAIRS ARE TO BE COMPUTED.\n";
-	return 0;
-      }
-
-      std::cout << " INFO: SETTING NUMBER OF EIGENPAIRS = " << numberOfEigenpairs << "\n";
-      c = (PetscInt) numberOfEigenpairs;
-      // storage for eigenpairs
-      e_vectors = (double *) calloc(1, n * c * sizeof(double));
-      e_values = (double *) calloc(1, (c + 1) * sizeof(double));
-      
-      ierr = EPSCreate(PETSC_COMM_WORLD, &eps); CHKERRQ(ierr);
-      ierr = EPSSetOperators(eps, A, NULL); CHKERRQ(ierr);
-      ierr = EPSSetProblemType(eps, EPS_HEP); CHKERRQ(ierr);
-      // request # of eigenpairs
-      ierr = EPSSetDimensions(eps, c, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-      ierr = EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL); CHKERRQ(ierr);
-      ierr = EPSSetFromOptions(eps); CHKERRQ(ierr);
-	
-      // Vec x;
-      ierr = MatCreateVecs(A, &x, NULL); CHKERRQ(ierr); // CLASS VARIABLE
-      ierr = VecSet(x, 1.0); CHKERRQ(ierr);
-      ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
-      //ierr = VecDestroy(&x); CHKERRQ(ierr);
-      std::cout << "INFO: SET EIGENSOLVER SUCCESSFULLY! \n";
-      return ierr;
+  PetscErrorCode set_eigensolver(NetworKit::count numberOfEigenpairs) {
+    if ( !numberOfEigenpairs ) {
+      std::cout << "WARN: NO EIGENPAIRS ARE TO BE COMPUTED.\n";
+      return 0;
     }
+    
+    std::cout << " INFO: SETTING NUMBER OF EIGENPAIRS = " << numberOfEigenpairs << "\n";
+    c = (PetscInt) numberOfEigenpairs;
+    // storage for eigenpairs
+    e_vectors = (double *) calloc(1, n * c * sizeof(double));
+    e_values = (double *) calloc(1, (c + 1) * sizeof(double));
+    
+    ierr = EPSCreate(PETSC_COMM_WORLD, &eps); CHKERRQ(ierr);
+    ierr = EPSSetOperators(eps, A, NULL); CHKERRQ(ierr);
+    ierr = EPSSetProblemType(eps, EPS_HEP); CHKERRQ(ierr);
+    // request # of eigenpairs
+    ierr = EPSSetDimensions(eps, c, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL); CHKERRQ(ierr);
+    ierr = EPSSetFromOptions(eps); CHKERRQ(ierr);
+    
+    // Vec x;
+    ierr = MatCreateVecs(A, &x, NULL); CHKERRQ(ierr); // CLASS VARIABLE
+    ierr = VecSet(x, 1.0); CHKERRQ(ierr);
+    ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
+    //ierr = VecDestroy(&x); CHKERRQ(ierr);
+    std::cout << "INFO: SET EIGENSOLVER SUCCESSFULLY! \n";
+    return ierr;
+  }
     /* ========================================================================================== */ 
 
 
-    /* ==========================================================================================
-    /* ================================ Run the eigensolver. ====================================
-    /* ==========================================================================================    
-    */
-    PetscErrorCode run_eigensolver() {
-      ierr = EPSSolve(eps); CHKERRQ(ierr);
-      std::cout << "INFO: RUN EIGENSOLVER SUCCESSFULLY! \n";
-      return ierr;
-    }
-    /* ========================================================================================== */
+  // ROUTINE TO RUN THE EIGENSOLVER
+  PetscErrorCode run_eigensolver() {
+    
+    ierr = EPSSolve(eps); CHKERRQ(ierr);
+    std::cout << "INFO: RUN EIGENSOLVER SUCCESSFULLY! \n";
+    return ierr;
+  }
 
-    /* ==========================================================================================
-    /* ======================= Get info from eigensolver and display it. ========================
-    /* ==========================================================================================
-    */  
+  // ROUTINE TO RUN DIAGNOSTICS ON THE EIGENSOLVER
     PetscErrorCode info_eigensolver() {
 
-        ierr = EPSGetType(eps, &type); CHKERRQ(ierr);
-	ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n\n",type); CHKERRQ(ierr);
-        EPSGetIterationNumber(eps, &its);
-        PetscPrintf(PETSC_COMM_WORLD," Number of iterations of the method: %D\n", its);
-	EPSGetTolerances(eps, &tol, &maxit);
-	PetscPrintf(PETSC_COMM_WORLD," Stopping cond: tol=%.4g, maxit=%D\n", (double)tol, maxit);
-	ierr = EPSGetDimensions(eps, &nev, NULL, NULL); CHKERRQ(ierr);
-	ierr = PetscPrintf(PETSC_COMM_WORLD," Number of requested eigenvalues: %D\n", c);
-	ierr = PetscPrintf(PETSC_COMM_WORLD," Number of computed eigenvalues: %D\n", nev);
-	EPSGetConverged(eps, &nconv);
-        PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs: %D\n\n", nconv);
-	ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL); CHKERRQ(ierr);
-	ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-	ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-	ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-	std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
+      ierr = EPSGetType(eps, &type); CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type); CHKERRQ(ierr);
+      EPSGetIterationNumber(eps, &its);
+      PetscPrintf(PETSC_COMM_WORLD," Iteration count: %D\n", its);
+      EPSGetTolerances(eps, &tol, &maxit);
+      PetscPrintf(PETSC_COMM_WORLD," Stopping cond: tol=%.4g, maxit=%D\n", (double)tol, maxit);
+      ierr = EPSGetDimensions(eps, &nev, NULL, NULL); CHKERRQ(ierr);
+      ierr = PetscPrintf(PETSC_COMM_WORLD," Requested eigenvalue count: %D\n", c);
+      ierr = PetscPrintf(PETSC_COMM_WORLD," Computed eigenvalue count: %D\n", nev);
+      ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
+      PetscPrintf(PETSC_COMM_WORLD," Converged eigenvalue count: %D\n", nconv);
+      ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
+      CHKERRQ(ierr);
+      ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
       return ierr;
     }
   /* ========================================================================================== */
     
 
+  // TODO: IMPORTANT I HAVENT COMPUTED THE LARGEST EIGENVALUE YET,
+  // ONLY APPROXIMATE IT TO BE c TIMES LARGER THAN THE CURRENTLY LARGEST ONE
+  // (FROM THE SET OF COMPUTED EVALUES).
   
-    void set_eigenpairs() {
-      PetscScalar val;
-      Vec vec;
-      // create once and overwrite in loop
-      MatCreateVecs(A, NULL, &vec);
-      PetscInt i;
-      for (i = 0 ; i < nconv; i++) {
-      	EPSGetEigenpair(eps, i, &val, NULL, vec, NULL);
-      	//Compute relative error associated to each eigenpair
-      	EPSComputeError(eps, i, EPS_ERROR_RELATIVE, &error);
-      	PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n", (double)val, (double)error);
-      	PetscPrintf(PETSC_COMM_WORLD,"\n");
+  void set_eigenpairs() {
+    PetscScalar val;
+    Vec vec;
+    // create once and overwrite in loop
+    MatCreateVecs(A, NULL, &vec);
+    PetscInt i;
+    for (i = 0 ; i < nconv; i++) {
+      EPSGetEigenpair(eps, i, &val, NULL, vec, NULL);
+      //Compute relative error associated to each eigenpair
+      EPSComputeError(eps, i, EPS_ERROR_RELATIVE, &error);
+      PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n", (double)val, (double)error);
+      PetscPrintf(PETSC_COMM_WORLD,"\n");
       	e_values[i] = (double) val;
       	for(PetscInt j = 0; j < n; j++) {
       	  PetscScalar w;
@@ -186,14 +182,13 @@ public:
       	  VecGetValues(vec, 1, &j, &w);
       	  *(e_vectors + i*c + j ) = (double) w; 
       	}
-      }
-      e_values[i+1] = c * e_values[i];
-      // TODO: IMPORTANT I HAVENT COMPUTED THE LARGEST EIGENVALUE YET,
-      // ONLY APPROXIMATE IT TO BE c TIMES LARGER THAN THE CURRENTLY LARGEST ONE
-      // (FROM THE SET OF COMPUTED EVALUES).
-      VecDestroy(&vec);
-      std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
     }
+    std::cout << "INFO: i = " << i <<" \n";
+    e_values[i] = EIGENVALUE_MULTIPLIER * e_values[i-1];
+    std::cout << "INFO: e_values[i+1] = " << e_values[i] <<" \n";
+    VecDestroy(&vec);
+    std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
+  }
 
 
   double * get_eigenpairs() const {return e_vectors;}
@@ -205,24 +200,34 @@ public:
   double SpectralApproximationGainDifference(NetworKit::node a, NetworKit::node b) {
     double * vectors = get_eigenpairs();
     double * values = get_eigenvalues();
+
+    std::cout << " eigenvalues are:\n [ ";
+    for (int i = 0 ; i < c + 1; i++)
+      std::cout << values[i] << " ";
+     std::cout << "]\n";
+
     double g = 0.0;
     double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
 
-    double constant_n = 1.0/(values[c] * values[c]);
-    double constant_c = 1.0/(values[c-1] * values[c-1]);
+    assert(values[nconv] > 0);
+    double constant_n = 1.0/(values[nconv] * values[nconv]);
+    double constant_c = 1.0/(values[nconv-1] * values[nconv-1]);
 
     double sq_diff;
     
-    for (int i = 0 ; i < c; i++) {
+    for (int i = 0 ; i < nconv; i++) {
+      assert(values[i] > 0);
       sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
       sq_diff *= sq_diff;
       dlow += (1.0/(values[i] * values[i]) - constant_n) * sq_diff;
       dup += (1.0/(values[i] * values[i]) - constant_c) * sq_diff;
-      rlow += (1.0/values[i] - 1.0/values[c]) * sq_diff;
-      rup += (1.0/values[i] - 1.0/values[c-1]) * sq_diff;      
+      rlow += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
+      rup += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
     }
 
-    g = (constant_c + dlow)/ (1.0 + 2.0/values[c] + rlow) + (constant_n + dup)/ (1.0 + 2.0/values[c-1] + rup);
+    
+    g = ( (constant_c + dlow)/ (1.0 + 2.0/values[nconv] + rlow)  ) +
+        ( (constant_n + dup) / (1.0 + 2.0/values[nconv-1] + rup) );
     //std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
     return (g / 2.0);
   }

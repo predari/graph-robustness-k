@@ -643,9 +643,11 @@ public:
 		
 		// Verify Results
 		if (!greedy->isValidSolution()) {
-			std::cout << name << " failed!\n";
-			throw std::logic_error(std::string("Algorithm") + name + "failed!");
+			std::cout << algorithmName << " failed!\n";
+			throw std::logic_error(std::string("Algorithm") + algorithmName + "failed!");
 		}
+		else { std::cout << name << " returns valid solution!\n";}
+		
 		edges = greedy->getResultItems();
 		resultResistance = greedy->getResultValue();
 		originalResistance = greedy->getOriginalValue();		
