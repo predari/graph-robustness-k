@@ -14,6 +14,7 @@ static char help[] = "My example with slepc following ex11.c in tutorials.\n";
 class SlepcAdapter {
 public:
     void setup(NetworKit::Graph const & g, NetworKit::count offset)  {
+
       
         int arg_c = 0;
 	char ** v = NULL;
@@ -31,15 +32,16 @@ public:
 	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );	
 	g.forNodes([&](NetworKit::node v) {
 		     assert(v < n);
-		     nnz[v] = (PetscInt) g.degree(v) + 1; // + offset;
+		     nnz[v] = (PetscInt) g.degree(v) + 1; //+ offset;
 		   });
 	
 	// =================================================================
 	// SEQUENTIAL SPARSE MATRIX CREATION (#rows, #columns)	
 	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // includes preallocation
 	MatSetOption(A, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
-	//MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // ignores new malloc error
-	MatSetType(A, MATSEQAIJ); // MATAIJ
+	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!!
+	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // ignores new malloc error
+	MatSetType(A, MATSEQAIJ); 
 	MatSetFromOptions(A);
 	MatSetUp(A);
 	//MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
@@ -49,11 +51,12 @@ public:
 	// SETTING MATRIX ELEMENTS
 	MatSetValues_Row(g, nnz, &A);
 	// MatSetValues_Elm(g, &A);
-	
+
+	// ALWAYS ASSEMBLY AFTER MATSETVALUES().
+	// TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
+
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-	// USE 'MAT_FLUSH_ASSEMBLY' FOR VIEWING BETWEEN INTERMEDIATE CALLS TO MATSETVALUES() 
-	ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
 	std::cout << "INFO: MATRIX PRINTING SUCCESSFULLY AFTER INSERTION!\n";	
 	free(nnz);
     }
@@ -64,22 +67,46 @@ public:
       free(e_values);
       EPSDestroy(&eps);
       MatDestroy(&A);
+      VecDestroy(&x);
       SlepcFinalize();
+
     }
 
     // Slepc Interface
 
+
+  PetscErrorCode update_eigensolver() {
+
+    // RESET 'NEW' MATRIX (AFTER ADDED EDGE)
+    ierr = EPSSetOperators(eps, A, NULL); CHKERRQ(ierr);
+
+    // RESET DEFLATION SPACE
+    ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
+
+    // SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
+    
+    run_eigensolver();
+    info_eigensolver(); 
+    set_eigenpairs();
+	
+    std::cout << "INFO: UPDATE EIGENSOLVER SUCCESSFULLY! \n";
+    return ierr;
+    }
+
+
+
+  
     /* ==========================================================================================
     /* Create eigensolver context and set operators. Our case is a standard eigenvalue problem.
     /* ==========================================================================================
     */  
-    PetscErrorCode set_eigensolver(unsigned int numberOfEigenpairs) {
-      
+    PetscErrorCode set_eigensolver(NetworKit::count numberOfEigenpairs) {
       if ( !numberOfEigenpairs ) {
-	std::cout << "Warning: No eigenpairs will be computed.";
+	std::cout << "WARN: NO EIGENPAIRS ARE TO BE COMPUTED.\n";
 	return 0;
       }
-      assert(numberOfEigenpairs <= n);
+
+      std::cout << " INFO: SETTING NUMBER OF EIGENPAIRS = " << numberOfEigenpairs << "\n";
       c = (PetscInt) numberOfEigenpairs;
       // storage for eigenpairs
       e_vectors = (double *) calloc(1, n * c * sizeof(double));
@@ -93,12 +120,11 @@ public:
       ierr = EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL); CHKERRQ(ierr);
       ierr = EPSSetFromOptions(eps); CHKERRQ(ierr);
 	
-      /* From tutorials/ex11.c: attach deflation space exploiting the constant nullspace (e_vector = [1 1 ... 1]^T of e_value = 0). */
-      Vec x;
-      ierr = MatCreateVecs(A, &x, NULL); CHKERRQ(ierr);
+      // Vec x;
+      ierr = MatCreateVecs(A, &x, NULL); CHKERRQ(ierr); // CLASS VARIABLE
       ierr = VecSet(x, 1.0); CHKERRQ(ierr);
       ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
-      ierr = VecDestroy(&x); CHKERRQ(ierr);
+      //ierr = VecDestroy(&x); CHKERRQ(ierr);
       std::cout << "INFO: SET EIGENSOLVER SUCCESSFULLY! \n";
       return ierr;
     }
@@ -165,9 +191,11 @@ public:
       	}
       }
       e_values[i+1] = c * e_values[i];
-      // TODO: IMPORTANT I HAVENT COMPUTED THE LARGEST EIGENVALUE YET, ONLY APPROXIMATE IT TO BE c TIMES LARGER THAN THE CURRENTLY LARGEST ONE (FROM THE SET OF COMPUTED EVALUES).
+      // TODO: IMPORTANT I HAVENT COMPUTED THE LARGEST EIGENVALUE YET,
+      // ONLY APPROXIMATE IT TO BE c TIMES LARGER THAN THE CURRENTLY LARGEST ONE
+      // (FROM THE SET OF COMPUTED EVALUES).
       VecDestroy(&vec);
-      
+      std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
     }
 
 
@@ -198,6 +226,7 @@ public:
     }
 
     g = (constant_c + dlow)/ (1.0 + 2.0/values[c] + rlow) + (constant_n + dup)/ (1.0 + 2.0/values[c-1] + rup);
+    //std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
     return (g / 2.0);
   }
   
@@ -217,6 +246,15 @@ public:
     MatSetValues(A, 1, &b, 1, &b, &w, ADD_VALUES);
     MatSetValues(A, 1, &a, 1, &b, &nw, ADD_VALUES);
     MatSetValues(A, 1, &b, 1, &a, &nw, ADD_VALUES);
+    // ALWAYS ASSEMBLY AFTER MATSETVALUES().
+    // TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
+
+
+    MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
+    
+    std::cout << "INFO: ADD EDGE FOR k SUCCESSFULLY! \n";
   }
     
   
@@ -227,12 +265,12 @@ private:
   {
     PetscErrorCode ierr; 
     PetscFunctionBegin;
-    // Matcreate: for general graphs. If sparse use also MatSeqAIJSetPreallocation to preallocate mem.
     ierr = MatCreate(comm, A); 
-    ierr = MatSetSizes(*A, m, n, m, n); 
-    //ierr = MatSetOption(*A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+    ierr = MatSetSizes(*A, m, n, m, n);
+    // TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!!
+    ierr = MatSetOption(*A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
     ierr = MatSetFromOptions(*A);
-    ierr = MatSetType(*A, MATSEQAIJ);
+    ierr = MatSetType(*A, MATSEQAIJ); // MATAIJ
     ierr = MatSeqAIJSetPreallocation(*A, nz, (PetscInt*)nnz);
     PetscFunctionReturn(0);
   }
@@ -297,7 +335,7 @@ private:
   EPS            eps;             /* eigenproblem solver context */
   Mat            A;               /* operator matrix */
   PetscInt       n, Istart, Iend;
-  
+  Vec            x; // necessary for the deflation space
   EPSType        type; // diagnostic
   PetscReal      error, tol; // diagnostic
   PetscInt       maxit, its; // diagnostic
@@ -307,6 +345,7 @@ private:
   double * e_vectors;  // stores the c eigenvalues (of size c+1) TODO: THE LARGEST EIGENVALUE IS CURRENTLY MISSING
   double * e_values; // stores the c eigenvectors (of size n*c)
 
+  
 };
 
 

@@ -468,10 +468,8 @@ public:
         this->n = g.numberOfNodes();
         this->k = params.k;
         this->epsilon = params.epsilon;
-	// TODO: store that in GreedyParams maybe
-	unsigned int numberOfEigenpairs = 3; // max(floor(0.05*n),1);
-	
-	// INSTEAD OF: this->lpinv = laplacianPseudoinverse(g); ...
+
+	cutOff();
         solver.setup(g, this->k);
 	solver.set_eigensolver(numberOfEigenpairs);
 	solver.run_eigensolver();
@@ -514,21 +512,42 @@ public:
 private:
     virtual double objectiveDifference(Edge e) override {
         // INSTEAD OF: return (-1.0) * laplacianPseudoinverseTraceDifference(lpinv, e.u, e.v) * n; ...
+      //std::cout << " CALLING RobustnessStochasticGreedySpectral::objectiveDifference() \n";
       return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {
       // INSTEAD OF: updateLaplacianPseudoinverse(this->lpinv, e); ...
+      std::cout << " CALLING RobustnessStochasticGreedySpectral::useItem() \n";
       solver.addEdge(e.u, e.v);
+      updateEigenpairs();
     }
 
+  
+   void cutOff() {
+     numberOfEigenpairs = ceil(0.01*n);
+     assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
+   }
 
+  void updateEigenpairs() {
+    solver.update_eigensolver();
+    double * e_values = solver.get_eigenvalues();
+    std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
+    for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
+      std::cout << e_values[i] << " ";
+    std::cout << "]\n;";
+  }
+
+  
+  
   Graph g;
   int n;
   double originalResistance = 0.;
   //EigenSolver solver;
   SlepcAdapter solver;
   // Slepc::EigenSolver solver;
+  // ------------------------
+  NetworKit::count numberOfEigenpairs = 1;
 };
 
 
