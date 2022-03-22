@@ -32,9 +32,9 @@
 #include <networkit/io/GMLGraphReader.hpp>
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
-
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
 
+#include <slepceps.h>
 
 #include <greedy.hpp>
 #include <laplacian.hpp>
@@ -711,9 +711,9 @@ public:
 int main(int argc, char* argv[])
 {
   // FOLLOWING : https://petsc.org/release/faq/#in-c-i-get-a-crash-on-vecdestroy-or-some-other-petsc-object-at-the-end-of-the-program
-  //PetscErrorCode ierr;
-  //ierr = PetscInitialize(); if(ierr) {return ierr;}
-  //{
+  PetscErrorCode ierr;
+  ierr = PetscInitialize(&argc,&argv,(char*)0, "START\n"); if(ierr) {return ierr;}
+  {
 	omp_set_num_threads(1);
 
 
@@ -1033,6 +1033,8 @@ int main(int argc, char* argv[])
 
 	}
 	
-
-	return 0;
+  }
+  
+  ierr = PetscFinalize(); if(ierr) {return ierr;}
+  return 0;
 }

@@ -44,14 +44,11 @@ public:
 	MatSetType(A, MATSEQAIJ); 
 	MatSetFromOptions(A);
 	MatSetUp(A);
-	//MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
 	std::cout << "INFO: MATRIX IS CREATED SUCCESSFULLY!\n";
 	// =================================================================
        	
 	// SETTING MATRIX ELEMENTS
 	MatSetValues_Row(g, nnz, &A);
-	// MatSetValues_Elm(g, &A);
-
 	// ALWAYS ASSEMBLY AFTER MATSETVALUES().
 	// TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
 
@@ -260,7 +257,7 @@ public:
   
 
 private:
-
+  // MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
   PetscErrorCode  MatCreateSeqAIJMP(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[],Mat *A)
   {
     PetscErrorCode ierr; 
@@ -276,6 +273,7 @@ private:
   }
 
   // FIRST APPROACH: INSERT ELEMENTS TO PETSc MATRIX (ONE BY ONE).
+  // MatSetValues_Elm(g, &A);
   void  MatSetValues_Elm(NetworKit::Graph const & g, Mat *A) {
     g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
 		 if (u == v) {
@@ -298,6 +296,7 @@ private:
   }
 
   // SECOND APPROACH: INSERT ROW BY ROW.
+  // MatSetValues_Row(g, nnz, &A);
   void  MatSetValues_Row(NetworKit::Graph const & g, PetscInt * nnz, Mat *A)
   {
     // g.balancedParallelForNodes([&](NetworKit::node v) {    
