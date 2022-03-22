@@ -25,45 +25,36 @@ public:
 	n = (PetscInt)g.numberOfNodes();
 	NetworKit::count m = (PetscInt)g.numberOfEdges();
 
-	// TODO: ADJUST FOR DYNAMIC BY ALLOCATING MORE SPACE !
-	// INSTEAD OF DEGREE(V) + 1 (FOR THE DIAGONAL ENTRY),
-	// ALLOCATE DEGREE(V) + 1 + k TO AVOID ANOTHER MALLOC.
-	// k IS EXPECTED TO BE SMALL COMPARED TO N!!	
+	// TODO: ADJUST FOR ALLOCATING MORE SPACE BASED ON k!
+	// INSTEAD OF DEGREE(V) + 1, ALLOCATE DEGREE(V) + 1 + k
+	// TO AVOID ANOTHER MALLOC (k IS SMALL COMPARED TO AVG DEGREE).	
 	PetscInt * nnz = (PetscInt *) malloc( n * sizeof( PetscInt ) );	
 	g.forNodes([&](NetworKit::node v) {
 		     assert(v < n);
 		     nnz[v] = (PetscInt) g.degree(v) + 1; // + offset;
 		   });
-	// for (int i = 0; i < n; i++)
-	//   std::cout<< " Row : " << i << " number of neighbors =  " << nnz[i] << "\n";
 	
 	// =================================================================
-	// // To create directly a sequential sparse matrix, A (m rows and n columns)	
-	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // preallocation happens here
+	// SEQUENTIAL SPARSE MATRIX CREATION (#rows, #columns)	
+	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // includes preallocation
 	MatSetOption(A, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
+	//MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // ignores new malloc error
 	MatSetType(A, MATSEQAIJ); // MATAIJ
 	MatSetFromOptions(A);
 	MatSetUp(A);
-	MatGetOwnershipRange(A, &Istart, &Iend);
-	std::cout << "INFO: MATRIX IS CREATED HERE!\n";
-	// =================================================================
 	//MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
-	//std::cout << "INFO: MATRIX IS CREATED HERE!\n";
-	//MatAssemblyBegin(A, MAT_FLUSH_ASSEMBLY);
-	//MatAssemblyEnd(A, MAT_FLUSH_ASSEMBLY);
-	//ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
-
-	
-	
-	//MatSetValues_Elm(g, &A);
-
+	std::cout << "INFO: MATRIX IS CREATED SUCCESSFULLY!\n";
+	// =================================================================
+       	
+	// SETTING MATRIX ELEMENTS
 	MatSetValues_Row(g, nnz, &A);
+	// MatSetValues_Elm(g, &A);
 	
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-	std::cout << "INFO: MATRIX AFTER INSERTION!\n";
+	// USE 'MAT_FLUSH_ASSEMBLY' FOR VIEWING BETWEEN INTERMEDIATE CALLS TO MATSETVALUES() 
 	ierr = MatView(A, PETSC_VIEWER_STDOUT_SELF);
-	
+	std::cout << "INFO: MATRIX PRINTING SUCCESSFULLY AFTER INSERTION!\n";	
 	free(nnz);
     }
 
@@ -216,15 +207,16 @@ public:
       std::cout << "Warning: Graph has edge with equal target and destination!";
       return;
     }
+    
+    PetscInt a = (PetscInt) u;
+    PetscInt b = (PetscInt) v; 
     PetscScalar w = 1.0;
-    // const PetscInt * u_adr = (PetscInt *)&u;
-    // const PetscInt * v_adr = (PetscInt *)&v;
-    // MatSetValues(A, 1, u_adr, 1, u_adr, &w, ADD_VALUES);
-    // MatSetValues(A, 1, v_adr, 1, v_adr, &w, ADD_VALUES);
-    // w = -w;
-    // MatSetValues(A, 1, u_adr, 1, v_adr, &w, INSERT_VALUES);
-    // MatSetValues(A, 1, v_adr, 1, u_adr, &w, INSERT_VALUES);
-
+    PetscScalar nw = -1.0;
+		 
+    MatSetValues(A, 1, &a, 1, &a, &w, ADD_VALUES);
+    MatSetValues(A, 1, &b, 1, &b, &w, ADD_VALUES);
+    MatSetValues(A, 1, &a, 1, &b, &nw, ADD_VALUES);
+    MatSetValues(A, 1, &b, 1, &a, &nw, ADD_VALUES);
   }
     
   

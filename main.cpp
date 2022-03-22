@@ -509,6 +509,7 @@ public:
 		}
 		else if(alg == AlgorithmType::stochastic_spectral) {
 		        algorithmName = "Stochastic Spectral";
+			std::cout << "INFO: STARTING POINT FOR STOCHASTIC_SPECTRA []\n";
 			createSpecific<RobustnessStochasticGreedySpectral>();
 		} else {
 			throw std::logic_error("Algorithm not implemented!");
