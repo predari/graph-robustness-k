@@ -209,7 +209,7 @@ public:
       ierr = VecNorm(vec, NORM_2, &norm);
       //assert(norm == 1.0);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
-      VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+      //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
       //std::cout << " e_vector "<< i << " : [ ";
       for(PetscInt j = 0; j < n; j++) {
 	PetscScalar w;
@@ -260,30 +260,30 @@ public:
   // input solver, a , b --- require c, e_vectors, e_values 
   double SpectralApproximationGainDifference2(NetworKit::node a, NetworKit::node b) {
 
-    std::cout << " SPECTRAL GAIN DIFF BETWEEN (" << a << ", " << b <<  ")\n";
+    // std::cout << " SPECTRAL GAIN DIFF BETWEEN (" << a << ", " << b <<  ")\n";
    
     double * vectors = get_eigenpairs();
     double * values = get_eigenvalues();
-    std::cout << " nconv =  " << nconv << " c = " << c <<  "\n";
-    std::cout << " eigenvalues are:\n [ ";
-    for (int i = 0 ; i < c + 1; i++)
-      std::cout << values[i] << " ";
-    std::cout << "]\n";
+    // std::cout << " nconv =  " << nconv << " c = " << c <<  "\n";
+    // std::cout << " eigenvalues are:\n [ ";
+    // for (int i = 0 ; i < c + 1; i++)
+    //   std::cout << values[i] << " ";
+    // std::cout << "]\n";
 
 
-    std::cout << " node 0: [ ";
-    for (int i = 0 ; i < n*c; i++) {
-      std::cout << vectors[i] << " ";
-      if (((i % c) == c-1 && i < (n*c-1) )) std::cout << "]\n node " << (i/c) + 1 << ":[ "; 
-    }
-    std::cout << "]\n";
+    // std::cout << " node 0: [ ";
+    // for (int i = 0 ; i < n*c; i++) {
+    //   std::cout << vectors[i] << " ";
+    //   if (((i % c) == c-1 && i < (n*c-1) )) std::cout << "]\n node " << (i/c) + 1 << ":[ "; 
+    // }
+    // std::cout << "]\n";
 
-    std::cout << "=========================\n";
-    std::cout << " all together: [ ";
-    for(int j = 0; j < n*c; j++) {
-      std::cout << *(vectors + j) << " ";
-    }
-    std::cout << "]\n";
+    // std::cout << "=========================\n";
+    // std::cout << " all together: [ ";
+    // for(int j = 0; j < n*c; j++) {
+    //   std::cout << *(vectors + j) << " ";
+    // }
+    // std::cout << "]\n";
     
     
     
@@ -292,18 +292,18 @@ public:
     double upnom = 0.0, updenom = 0.0, lownom = 0.0, lowdenom = 0.0;
 
     assert(values[nconv] > 0);
-    std::cout <<" values[nconv] = " << values[nconv] << " values[nconv-1] = " << values[nconv-1] << "\n";
+    //std::cout <<" values[nconv] = " << values[nconv] << " values[nconv-1] = " << values[nconv-1] << "\n";
     double lambda_n = 1.0/(values[nconv] * values[nconv]);
     double lambda_c = 1.0/(values[nconv-1] * values[nconv-1]);
     //std::cout << " constants are created. \n";
     double sq_diff;
-    std::cout << " looping over " << nconv << "... \n";
+    //std::cout << " looping over " << nconv << "... \n";
     for (int i = 0 ; i < nconv; i++) {
       assert(values[i] > 0);
       sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
-       std::cout << " diff = " << sq_diff << " and sq_diff = ";
+      //std::cout << " diff = " << sq_diff << " and sq_diff = ";
       sq_diff *= sq_diff;
-       std::cout << sq_diff << "\n ";            
+      //std::cout << sq_diff << "\n ";            
       upnom += (1.0/(values[i] * values[i]) - lambda_n) * sq_diff;
       updenom += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
 
@@ -322,10 +322,10 @@ public:
     lowdenom +=  1.0;
     
     g = ( upnom/updenom ) + ( lownom/lowdenom );
-    std::cout << "upper bound = " << upnom/updenom << "\n";
-    std::cout << "low bound = " << lownom/lowdenom << "\n";
-    std::cout << "g = " << g / 2.0 << "\n";
-    std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
+    // std::cout << "upper bound = " << upnom/updenom << "\n";
+    // std::cout << "low bound = " << lownom/lowdenom << "\n";
+    // std::cout << "g = " << g / 2.0 << "\n";
+    // std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
     return (g / 2.0);
   }
 

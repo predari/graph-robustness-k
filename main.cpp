@@ -646,7 +646,6 @@ public:
 			std::cout << algorithmName << " failed!\n";
 			throw std::logic_error(std::string("Algorithm") + algorithmName + "failed!");
 		}
-		else { std::cout << name << " returns valid solution!\n";}
 		
 		edges = greedy->getResultItems();
 		resultResistance = greedy->getResultValue();

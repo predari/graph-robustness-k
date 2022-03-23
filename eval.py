@@ -66,6 +66,7 @@ def parse(run, f):
 
 
 cfg = simexpal.config_for_dir()
+
 df = pd.DataFrame(cfg.collect_successful_results(parse))
 
 def print_df(df):
