@@ -468,7 +468,7 @@ public:
         this->n = g.numberOfNodes();
         this->k = params.k;
         this->epsilon = params.epsilon;
-
+	// TODO: TMP epsilon IS USED AS PERCENTAGE FOR CUTOFF
 	cutOff();
         solver.setup(g, this->k);
 	solver.set_eigensolver(numberOfEigenpairs);
@@ -511,7 +511,8 @@ public:
 
 private:
     virtual double objectiveDifference(Edge e) override {
-      return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+      //return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+      return (-1.0) * solver.SpectralApproximationGainDifference2(e.u, e.v);
     }
 
     virtual void useItem(Edge e) override {
@@ -522,7 +523,8 @@ private:
 
   
    void cutOff() {
-     numberOfEigenpairs = ceil(0.004*n);
+     std::cout << " CALLING cutOff:: epsilon = " << this->epsilon << "\n";
+     numberOfEigenpairs = ceil(this->epsilon*n); // 0.05
      assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
    }
 

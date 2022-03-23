@@ -82,14 +82,15 @@ public:
 
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
-
+    // DO I NEED IT EXPLICITLY?
+    //ierr = EPSReset(eps); CHKERRQ(ierr);
 
     // RESET 'NEW' MATRIX (AFTER ADDED EDGE)
     ierr = EPSSetOperators(eps_l, A, NULL); CHKERRQ(ierr);
 
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps_l, 1, &x); CHKERRQ(ierr);
-
+    //ierr = EPSReset(eps_l); CHKERRQ(ierr);
 
     
     // SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
@@ -203,24 +204,34 @@ public:
       EPSComputeError(eps, i, EPS_ERROR_RELATIVE, &error);
       PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n", (double)val, (double)error);
       PetscPrintf(PETSC_COMM_WORLD,"\n");
-      	e_values[i] = (double) val;
-      	for(PetscInt j = 0; j < n; j++) {
-      	  PetscScalar w;
-      	  //VecGetValues(Vec x,PetscInt ni,const PetscInt ix[],PetscScalar y[])
-      	  VecGetValues(vec, 1, &j, &w);
-      	  *(e_vectors + i*c + j ) = (double) w; 
-      	}
+      e_values[i] = (double) val;
+      PetscReal      norm;
+      ierr = VecNorm(vec, NORM_2, &norm);
+      //assert(norm == 1.0);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
+      VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+      //std::cout << " e_vector "<< i << " : [ ";
+      for(PetscInt j = 0; j < n; j++) {
+	PetscScalar w;
+	//VecGetValues(Vec x,PetscInt ni,const PetscInt ix[],PetscScalar y[])
+	VecGetValues(vec, 1, &j, &w);
+	*(e_vectors + i + j*c ) = (double) w;
+	//std::cout << *(e_vectors + i*c + j ) << " ";
+      }
+      //std::cout << "]\n";
     }
 
+
+
     EPSType type_l;
-    ierr = EPSGetType(eps_l, &type_l); CHKERRQ(ierr);
-    ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type_l); CHKERRQ(ierr);
+    ierr = EPSGetType(eps_l, &type_l); 
+    ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type_l); 
     EPSGetConverged(eps_l,&nconv_l);
     PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs FOR LARGE EIGENVALUE: %D\n\n",nconv_l);
     if ( !nconv_l ) {
       std::cout << "WARN: LARGEST EIGENVALUE IS NOT COMPUTED.\n";
     }
-    assert(nconv_l == 1);
+    assert(nconv_l >= 1);
     PetscPrintf(PETSC_COMM_WORLD,
 		"           k          ||Ax-kx||/||kx||\n"
 		"   ----------------- ------------------\n");
@@ -230,9 +241,9 @@ public:
     PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
     PetscPrintf(PETSC_COMM_WORLD,"\n");
 
-    std::cout << "INFO: i = " << i <<" \n";
+    //std::cout << "INFO: i = " << i <<" \n";
     e_values[i] = val; //EIGENVALUE_MULTIPLIER * e_values[i-1];
-    std::cout << "INFO: e_values[i+1] = " << e_values[i] <<" \n";
+    //std::cout << "INFO: e_values[i+1] = " << e_values[i] <<" \n";
 
     
     VecDestroy(&vec);
@@ -244,7 +255,80 @@ public:
 
   double * get_eigenvalues() const {return e_values;}
   
-  // TODO: rename to totalResistanceDifferenceExact
+
+    // TODO: rename to totalResistanceDifferenceExact
+  // input solver, a , b --- require c, e_vectors, e_values 
+  double SpectralApproximationGainDifference2(NetworKit::node a, NetworKit::node b) {
+
+    std::cout << " SPECTRAL GAIN DIFF BETWEEN (" << a << ", " << b <<  ")\n";
+   
+    double * vectors = get_eigenpairs();
+    double * values = get_eigenvalues();
+    std::cout << " nconv =  " << nconv << " c = " << c <<  "\n";
+    std::cout << " eigenvalues are:\n [ ";
+    for (int i = 0 ; i < c + 1; i++)
+      std::cout << values[i] << " ";
+    std::cout << "]\n";
+
+
+    std::cout << " node 0: [ ";
+    for (int i = 0 ; i < n*c; i++) {
+      std::cout << vectors[i] << " ";
+      if (((i % c) == c-1 && i < (n*c-1) )) std::cout << "]\n node " << (i/c) + 1 << ":[ "; 
+    }
+    std::cout << "]\n";
+
+    std::cout << "=========================\n";
+    std::cout << " all together: [ ";
+    for(int j = 0; j < n*c; j++) {
+      std::cout << *(vectors + j) << " ";
+    }
+    std::cout << "]\n";
+    
+    
+    
+    double g = 0.0;
+    //double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
+    double upnom = 0.0, updenom = 0.0, lownom = 0.0, lowdenom = 0.0;
+
+    assert(values[nconv] > 0);
+    std::cout <<" values[nconv] = " << values[nconv] << " values[nconv-1] = " << values[nconv-1] << "\n";
+    double lambda_n = 1.0/(values[nconv] * values[nconv]);
+    double lambda_c = 1.0/(values[nconv-1] * values[nconv-1]);
+    //std::cout << " constants are created. \n";
+    double sq_diff;
+    std::cout << " looping over " << nconv << "... \n";
+    for (int i = 0 ; i < nconv; i++) {
+      assert(values[i] > 0);
+      sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
+       std::cout << " diff = " << sq_diff << " and sq_diff = ";
+      sq_diff *= sq_diff;
+       std::cout << sq_diff << "\n ";            
+      upnom += (1.0/(values[i] * values[i]) - lambda_n) * sq_diff;
+      updenom += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
+
+      lownom += (1.0/(values[i] * values[i]) - lambda_c) * sq_diff;
+      lowdenom += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
+    }
+
+    upnom += lambda_n;
+    updenom += 1.0/values[nconv-1];
+    lownom += lambda_c;
+    lowdenom +=  1.0/values[nconv];
+
+    upnom =  n * upnom;
+    updenom += 1.0;
+    lownom = n * lownom;
+    lowdenom +=  1.0;
+    
+    g = ( upnom/updenom ) + ( lownom/lowdenom );
+    std::cout << "upper bound = " << upnom/updenom << "\n";
+    std::cout << "low bound = " << lownom/lowdenom << "\n";
+    std::cout << "g = " << g / 2.0 << "\n";
+    std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
+    return (g / 2.0);
+  }
+
   // input solver, a , b --- require c, e_vectors, e_values 
   double SpectralApproximationGainDifference(NetworKit::node a, NetworKit::node b) {
     double * vectors = get_eigenpairs();
@@ -254,14 +338,12 @@ public:
     // for (int i = 0 ; i < c + 1; i++)
     //   std::cout << values[i] << " ";
     //  std::cout << "]\n";
-
     double g = 0.0;
     double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
 
     assert(values[nconv] > 0);
     double constant_n = 1.0/(values[nconv] * values[nconv]);
     double constant_c = 1.0/(values[nconv-1] * values[nconv-1]);
-
     double sq_diff;
     
     for (int i = 0 ; i < nconv; i++) {
@@ -270,16 +352,19 @@ public:
       sq_diff *= sq_diff;
       dlow += (1.0/(values[i] * values[i]) - constant_n) * sq_diff;
       dup += (1.0/(values[i] * values[i]) - constant_c) * sq_diff;
+      
       rlow += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
       rup += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
     }
-
-    
-    g = ( (constant_c + dlow)/ (1.0 + 2.0/values[nconv] + rlow)  ) +
-        ( (constant_n + dup) / (1.0 + 2.0/values[nconv-1] + rup) );
+    g = ( (constant_c + dlow)/ (1.0 + 1.0/values[nconv] + rlow)  ) +
+        ( (constant_n + dup) / (1.0 + 1.0/values[nconv-1] + rup) );
     //std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
     return (g / 2.0);
   }
+
+
+
+  
   
   //TODO: supposing unweighted here!
   void addEdge(NetworKit::node u, NetworKit::node v) {
