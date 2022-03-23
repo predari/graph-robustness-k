@@ -8,8 +8,8 @@ experiments:
   - name: stochastic-greedy
     args: ['./build/robustness', '-a2', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
-  - name: stochastic-greedy-lu
-    args: ['./build/robustness', '-a3', '--lu', '-i', '@INSTANCE@', '@EXTRA_ARGS@']
+  - name: stochastic-greedy-lamg
+    args: ['./build/robustness', '-a3', '--lamg', '-i', '@INSTANCE@', '@EXTRA_ARGS@']
     stdout: out
   - name: greedy-3
     args: ['./build/robustness', '-a5', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
@@ -125,6 +125,10 @@ matrix:
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', 'eps_0.9', 'lamg', 'singlecore']
+    - experiments: ['stochastic-greedy-lamg']
+      instsets: ['large-graphs']
+      axes: ['k-size-const', 'threads', 'accuracy']
+      variants: ['eps_0.9', 'singlecore']
       
 
       # Main Algorithm

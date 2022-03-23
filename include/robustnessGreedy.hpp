@@ -336,7 +336,7 @@ private:
 class RobustnessStochasticGreedy : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedy(GreedyParams params) {
-        std::cout << " CALLING RobustnessStochasticGreedy() \n";
+      //std::cout << " CALLING RobustnessStochasticGreedy() \n";
         this->g = params.g;
         this->n = g.numberOfNodes();
         this->k = params.k;
@@ -463,7 +463,7 @@ private:
 class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedySpectral(GreedyParams params) {
-        std::cout << " CALLING RobustnessStochasticGreedySpectral() \n";
+      //std::cout << " CALLING RobustnessStochasticGreedySpectral() \n";
         this->g = params.g;
         this->n = g.numberOfNodes();
         this->k = params.k;
@@ -516,14 +516,14 @@ private:
     }
 
     virtual void useItem(Edge e) override {
-      std::cout << " CALLING RobustnessStochasticGreedySpectral::useItem() \n";
+      //std::cout << " CALLING RobustnessStochasticGreedySpectral::useItem() \n";
       solver.addEdge(e.u, e.v);
       updateEigenpairs();
     }
 
   
    void cutOff() {
-     std::cout << " CALLING cutOff:: epsilon = " << this->epsilon << "\n";
+     //std::cout << " CALLING cutOff:: epsilon = " << this->epsilon << "\n";
      numberOfEigenpairs = ceil(this->epsilon*n); // 0.05
      assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
    }
@@ -531,10 +531,10 @@ private:
   void updateEigenpairs() {
     solver.update_eigensolver();
     double * e_values = solver.get_eigenvalues();
-    std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
-    for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
-      std::cout << e_values[i] << " ";
-    std::cout << "]\n";
+    // std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
+    // for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
+    //   std::cout << e_values[i] << " ";
+    // std::cout << "]\n";
   }
 
   
