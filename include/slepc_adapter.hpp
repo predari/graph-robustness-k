@@ -63,9 +63,11 @@ public:
 
   
     ~SlepcAdapter() {
+      
       free(e_vectors);
       free(e_values);
       EPSDestroy(&eps);
+      EPSDestroy(&eps_l);
       MatDestroy(&A);
       VecDestroy(&x);
       SlepcFinalize();
@@ -81,6 +83,15 @@ public:
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
 
+
+    // RESET 'NEW' MATRIX (AFTER ADDED EDGE)
+    ierr = EPSSetOperators(eps_l, A, NULL); CHKERRQ(ierr);
+
+    // RESET DEFLATION SPACE
+    ierr = EPSSetDeflationSpace(eps_l, 1, &x); CHKERRQ(ierr);
+
+
+    
     // SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
     
     run_eigensolver();
@@ -91,7 +102,7 @@ public:
     return ierr;
     }
 
-
+  
 
   // ROUTINE TO SET THE EIGENSOLVER PRIOR TO EXECUTION
   
@@ -106,20 +117,32 @@ public:
     // storage for eigenpairs
     e_vectors = (double *) calloc(1, n * c * sizeof(double));
     e_values = (double *) calloc(1, (c + 1) * sizeof(double));
-    
-    ierr = EPSCreate(PETSC_COMM_WORLD, &eps); CHKERRQ(ierr);
-    ierr = EPSSetOperators(eps, A, NULL); CHKERRQ(ierr);
-    ierr = EPSSetProblemType(eps, EPS_HEP); CHKERRQ(ierr);
-    // request # of eigenpairs
-    ierr = EPSSetDimensions(eps, c, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
-    ierr = EPSSetWhichEigenpairs(eps, EPS_SMALLEST_REAL); CHKERRQ(ierr);
-    ierr = EPSSetFromOptions(eps); CHKERRQ(ierr);
-    
     // Vec x;
     ierr = MatCreateVecs(A, &x, NULL); CHKERRQ(ierr); // CLASS VARIABLE
     ierr = VecSet(x, 1.0); CHKERRQ(ierr);
+
+    // solver for c smallest eigenvalues
+    ierr = EPSCreate(PETSC_COMM_WORLD, &eps); CHKERRQ(ierr);
+    ierr = EPSSetOperators(eps, A, NULL); CHKERRQ(ierr);
+    ierr = EPSSetProblemType(eps, EPS_HEP); CHKERRQ(ierr);
+    // # of eigenpairs
+    ierr = EPSSetDimensions(eps, c, PETSC_DEFAULT, PETSC_DEFAULT); CHKERRQ(ierr);
+    ierr = EPSSetWhichEigenpairs(eps, EPS_SMALLEST_MAGNITUDE); CHKERRQ(ierr);
+    //ierr = EPSSetWhichEigenpairs(eps, EPS_LARGEST_MAGNITUDE); // EPSSetWhichEigenpairs(eps,EPS_LARGEST_REAL);
+    ierr = EPSSetFromOptions(eps); CHKERRQ(ierr);
+
+    // solver for largest eigenvalue
+    ierr = EPSCreate(PETSC_COMM_WORLD, &eps_l); CHKERRQ(ierr);
+    ierr = EPSSetOperators(eps_l, A, NULL); CHKERRQ(ierr);
+    ierr = EPSSetProblemType(eps_l, EPS_HEP); CHKERRQ(ierr);
+    ierr = EPSSetWhichEigenpairs(eps_l, EPS_LARGEST_MAGNITUDE);
+    //EPSSetWhichEigenpairs(eps_l,EPS_LARGEST_REAL);
+    ierr = EPSSetFromOptions(eps_l);
+    
+
     ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
-    //ierr = VecDestroy(&x); CHKERRQ(ierr);
+    ierr = EPSSetDeflationSpace(eps_l, 1, &x); CHKERRQ(ierr);
+
     std::cout << "INFO: SET EIGENSOLVER SUCCESSFULLY! \n";
     return ierr;
   }
@@ -130,12 +153,14 @@ public:
   PetscErrorCode run_eigensolver() {
     
     ierr = EPSSolve(eps); CHKERRQ(ierr);
+    ierr = EPSSolve(eps_l); CHKERRQ(ierr);
     std::cout << "INFO: RUN EIGENSOLVER SUCCESSFULLY! \n";
     return ierr;
   }
 
   // ROUTINE TO RUN DIAGNOSTICS ON THE EIGENSOLVER
-    PetscErrorCode info_eigensolver() {
+  // TODO: NOT ONLY DIAGNOSTICS! SETTING NCONV IS IMPORTANT AND IS DONE HERE!!
+  PetscErrorCode info_eigensolver() {
 
       ierr = EPSGetType(eps, &type); CHKERRQ(ierr);
       ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type); CHKERRQ(ierr);
@@ -148,11 +173,14 @@ public:
       ierr = PetscPrintf(PETSC_COMM_WORLD," Computed eigenvalue count: %D\n", nev);
       ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
       PetscPrintf(PETSC_COMM_WORLD," Converged eigenvalue count: %D\n", nconv);
+      if (nconv > c) nconv = c;
       ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
       CHKERRQ(ierr);
       ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
       ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
       ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+
+      
       std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
       return ierr;
     }
@@ -183,9 +211,30 @@ public:
       	  *(e_vectors + i*c + j ) = (double) w; 
       	}
     }
+
+    EPSType type_l;
+    ierr = EPSGetType(eps_l, &type_l); CHKERRQ(ierr);
+    ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type_l); CHKERRQ(ierr);
+    EPSGetConverged(eps_l,&nconv_l);
+    PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs FOR LARGE EIGENVALUE: %D\n\n",nconv_l);
+    if ( !nconv_l ) {
+      std::cout << "WARN: LARGEST EIGENVALUE IS NOT COMPUTED.\n";
+    }
+    assert(nconv_l == 1);
+    PetscPrintf(PETSC_COMM_WORLD,
+		"           k          ||Ax-kx||/||kx||\n"
+		"   ----------------- ------------------\n");
+    
+    EPSGetEigenvalue(eps_l, 0, &val, NULL);
+    EPSComputeError(eps_l, 0, EPS_ERROR_RELATIVE, &error);
+    PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
+    PetscPrintf(PETSC_COMM_WORLD,"\n");
+
     std::cout << "INFO: i = " << i <<" \n";
-    e_values[i] = EIGENVALUE_MULTIPLIER * e_values[i-1];
+    e_values[i] = val; //EIGENVALUE_MULTIPLIER * e_values[i-1];
     std::cout << "INFO: e_values[i+1] = " << e_values[i] <<" \n";
+
+    
     VecDestroy(&vec);
     std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
   }
@@ -201,10 +250,10 @@ public:
     double * vectors = get_eigenpairs();
     double * values = get_eigenvalues();
 
-    std::cout << " eigenvalues are:\n [ ";
-    for (int i = 0 ; i < c + 1; i++)
-      std::cout << values[i] << " ";
-     std::cout << "]\n";
+    // std::cout << " eigenvalues are:\n [ ";
+    // for (int i = 0 ; i < c + 1; i++)
+    //   std::cout << values[i] << " ";
+    //  std::cout << "]\n";
 
     double g = 0.0;
     double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
@@ -336,18 +385,19 @@ private:
 
 
   
-  EPS            eps;             /* eigenproblem solver context */
+  EPS            eps;             /* eigenproblem solver context (smallest eigenvalues)*/
+  EPS            eps_l;           /* eigenproblem solver context (largest eigenvalue) */
   Mat            A;               /* operator matrix */
   PetscInt       n, Istart, Iend;
-  Vec            x; // necessary for the deflation space
-  EPSType        type; // diagnostic
-  PetscReal      error, tol; // diagnostic
-  PetscInt       maxit, its; // diagnostic
-  PetscErrorCode ierr; // diagnostic
-  
-  PetscInt       c, nev, nconv; // c: # of eigenpairs (input), nev: # of eigenpairs (computed via slepc), nconv: # of converged eigenpairs
-  double * e_vectors;  // stores the c eigenvalues (of size c+1) TODO: THE LARGEST EIGENVALUE IS CURRENTLY MISSING
-  double * e_values; // stores the c eigenvectors (of size n*c)
+  Vec            x;               /* vector representing the nullspace */
+  EPSType        type;            /* diagnostic: type of solver */
+  PetscReal      error, tol;      /* diagnostic: error and tolerance of the solver */
+  PetscInt       maxit, its;      /* diagnostic: max iterations, actual iterations */
+  PetscErrorCode ierr;            /* diagnostic: petscerror */
+  PetscInt       c, nev, nconv;   /* diagnostic: # of eigenvalues, # of computed eigenvalues, # of converged eigenvalues */
+  PetscInt       nconv_l=0;         /* diagnostic: # of largest eigenvale (1 if converged)  */
+  double *       e_vectors;       /* stores the eigenvectors (of size n*nconv) */
+  double *       e_values;        /* stores eigenvalues (of size nconv + 1) */
 
   
 };
