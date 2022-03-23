@@ -47,7 +47,7 @@ public:
 	MatSetType(A, MATSEQAIJ); 
 	MatSetFromOptions(A);
 	MatSetUp(A);
-	std::cout << "INFO: MATRIX IS CREATED SUCCESSFULLY!\n";
+	//std::cout << "INFO: MATRIX IS CREATED SUCCESSFULLY!\n";
 	// =================================================================
        	
 	// SETTING MATRIX ELEMENTS
@@ -57,7 +57,7 @@ public:
 
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-	std::cout << "INFO: MATRIX PRINTING SUCCESSFULLY AFTER INSERTION!\n";	
+	//std::cout << "INFO: MATRIX PRINTING SUCCESSFULLY AFTER INSERTION!\n";	
 	free(nnz);
     }
 
@@ -99,7 +99,7 @@ public:
     info_eigensolver(); 
     set_eigenpairs();
 	
-    std::cout << "INFO: UPDATE EIGENSOLVER SUCCESSFULLY! \n";
+    //std::cout << "INFO: UPDATE EIGENSOLVER SUCCESSFULLY! \n";
     return ierr;
     }
 
@@ -113,7 +113,7 @@ public:
       return 0;
     }
     
-    std::cout << " INFO: SETTING NUMBER OF EIGENPAIRS = " << numberOfEigenpairs << "\n";
+    //std::cout << " INFO: SETTING NUMBER OF EIGENPAIRS = " << numberOfEigenpairs << "\n";
     c = (PetscInt) numberOfEigenpairs;
     // storage for eigenpairs
     e_vectors = (double *) calloc(1, n * c * sizeof(double));
@@ -144,7 +144,7 @@ public:
     ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
     ierr = EPSSetDeflationSpace(eps_l, 1, &x); CHKERRQ(ierr);
 
-    std::cout << "INFO: SET EIGENSOLVER SUCCESSFULLY! \n";
+    //std::cout << "INFO: SET EIGENSOLVER SUCCESSFULLY! \n";
     return ierr;
   }
     /* ========================================================================================== */ 
@@ -155,7 +155,7 @@ public:
     
     ierr = EPSSolve(eps); CHKERRQ(ierr);
     ierr = EPSSolve(eps_l); CHKERRQ(ierr);
-    std::cout << "INFO: RUN EIGENSOLVER SUCCESSFULLY! \n";
+    //std::cout << "INFO: RUN EIGENSOLVER SUCCESSFULLY! \n";
     return ierr;
   }
 
@@ -164,25 +164,26 @@ public:
   PetscErrorCode info_eigensolver() {
 
       ierr = EPSGetType(eps, &type); CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type); CHKERRQ(ierr);
+      //ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type); CHKERRQ(ierr);
       EPSGetIterationNumber(eps, &its);
-      PetscPrintf(PETSC_COMM_WORLD," Iteration count: %D\n", its);
+      //PetscPrintf(PETSC_COMM_WORLD," Iteration count: %D\n", its);
       EPSGetTolerances(eps, &tol, &maxit);
-      PetscPrintf(PETSC_COMM_WORLD," Stopping cond: tol=%.4g, maxit=%D\n", (double)tol, maxit);
+      //PetscPrintf(PETSC_COMM_WORLD," Stopping cond: tol=%.4g, maxit=%D\n", (double)tol, maxit);
       ierr = EPSGetDimensions(eps, &nev, NULL, NULL); CHKERRQ(ierr);
-      ierr = PetscPrintf(PETSC_COMM_WORLD," Requested eigenvalue count: %D\n", c);
-      ierr = PetscPrintf(PETSC_COMM_WORLD," Computed eigenvalue count: %D\n", nev);
+      //ierr = PetscPrintf(PETSC_COMM_WORLD," Requested eigenvalue count: %D\n", c);
+      //ierr = PetscPrintf(PETSC_COMM_WORLD," Computed eigenvalue count: %D\n", nev);
       ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
-      PetscPrintf(PETSC_COMM_WORLD," Converged eigenvalue count: %D\n", nconv);
+      //PetscPrintf(PETSC_COMM_WORLD," Converged eigenvalue count: %D\n", nconv);
       if (nconv > c) nconv = c;
       ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
       CHKERRQ(ierr);
-      ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      //// printing
+      //ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      //ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
       ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
 
       
-      std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
+      //std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
       return ierr;
     }
   /* ========================================================================================== */
@@ -202,13 +203,13 @@ public:
       EPSGetEigenpair(eps, i, &val, NULL, vec, NULL);
       //Compute relative error associated to each eigenpair
       EPSComputeError(eps, i, EPS_ERROR_RELATIVE, &error);
-      PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n", (double)val, (double)error);
-      PetscPrintf(PETSC_COMM_WORLD,"\n");
+      //PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n", (double)val, (double)error);
+      //PetscPrintf(PETSC_COMM_WORLD,"\n");
       e_values[i] = (double) val;
       PetscReal      norm;
       ierr = VecNorm(vec, NORM_2, &norm);
       //assert(norm == 1.0);
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
+      //ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
       //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
       //std::cout << " e_vector "<< i << " : [ ";
       for(PetscInt j = 0; j < n; j++) {
@@ -225,21 +226,21 @@ public:
 
     EPSType type_l;
     ierr = EPSGetType(eps_l, &type_l); 
-    ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type_l); 
+    //ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type_l); 
     EPSGetConverged(eps_l,&nconv_l);
-    PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs FOR LARGE EIGENVALUE: %D\n\n",nconv_l);
+    //PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenpairs FOR LARGE EIGENVALUE: %D\n\n",nconv_l);
     if ( !nconv_l ) {
       std::cout << "WARN: LARGEST EIGENVALUE IS NOT COMPUTED.\n";
     }
     assert(nconv_l >= 1);
-    PetscPrintf(PETSC_COMM_WORLD,
-		"           k          ||Ax-kx||/||kx||\n"
-		"   ----------------- ------------------\n");
+    //PetscPrintf(PETSC_COMM_WORLD,
+    //		"           k          ||Ax-kx||/||kx||\n"
+    //		"   ----------------- ------------------\n");
     
     EPSGetEigenvalue(eps_l, 0, &val, NULL);
     EPSComputeError(eps_l, 0, EPS_ERROR_RELATIVE, &error);
-    PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
-    PetscPrintf(PETSC_COMM_WORLD,"\n");
+    //PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
+    //PetscPrintf(PETSC_COMM_WORLD,"\n");
 
     //std::cout << "INFO: i = " << i <<" \n";
     e_values[i] = val; //EIGENVALUE_MULTIPLIER * e_values[i-1];
@@ -247,7 +248,7 @@ public:
 
     
     VecDestroy(&vec);
-    std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
+    //std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
   }
 
 
@@ -390,7 +391,7 @@ public:
     MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 
     
-    std::cout << "INFO: ADD EDGE FOR k SUCCESSFULLY! \n";
+    //std::cout << "INFO: ADD EDGE FOR k SUCCESSFULLY! \n";
   }
     
   
