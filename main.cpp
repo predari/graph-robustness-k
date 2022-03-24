@@ -711,10 +711,10 @@ public:
 
 int main(int argc, char* argv[])
 {
-  // FOLLOWING : https://petsc.org/release/faq/#in-c-i-get-a-crash-on-vecdestroy-or-some-other-petsc-object-at-the-end-of-the-program
-  PetscErrorCode ierr;
-  ierr = PetscInitialize(&argc,&argv,(char*)0, "START\n"); if(ierr) {return ierr;}
-  {
+  // // FOLLOWING : https://petsc.org/release/faq/#in-c-i-get-a-crash-on-vecdestroy-or-some-other-petsc-object-at-the-end-of-the-program
+  // PetscErrorCode ierr;
+  // ierr = PetscInitialize(&argc,&argv,(char*)0, "START\n"); if(ierr) {return ierr;}
+  // {
 	omp_set_num_threads(1);
 
 
@@ -1034,8 +1034,7 @@ int main(int argc, char* argv[])
 
 	}
 	
-  }
-  
-  ierr = PetscFinalize(); if(ierr) {return ierr;}
+  // }  
+  // ierr = PetscFinalize(); if(ierr) {return ierr;}
   return 0;
 }

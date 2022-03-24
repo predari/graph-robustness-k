@@ -101,7 +101,7 @@ instances:
   - repo: local
     items: 
       - facebook_ego_combined
-#      - inf-power.txt
+      - inf-power.txt
     set: [large-graphs]
 
 
