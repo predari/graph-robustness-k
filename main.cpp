@@ -34,6 +34,7 @@
 #include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
 
+#include <networkit/auxiliary/Log.hpp>
 #include <slepceps.h>
 
 #include <greedy.hpp>
@@ -799,6 +800,11 @@ int main(int argc, char* argv[])
 			std::cout << helpstring;
 			return 0;
 		}
+		if (arg == "--loglevel") {
+		  std::string logLevel = nextArg(i);
+		  Aux::Log::setLogLevel(logLevel);
+		}
+
 
 		if (arg == "-v" || arg == "--verbose") {
 			experiment.verbose = true;

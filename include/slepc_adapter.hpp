@@ -4,6 +4,7 @@
 // TODO: add path to petsc that is required by slec
 // following ex11.c from slepc/src/eps/tutorials/
 
+
 #include <vector>
 #include <iostream>
 #include <networkit/graph/Graph.hpp>
@@ -38,26 +39,19 @@ public:
 		     nnz[v] = (PetscInt) g.degree(v) + 1; //+ offset;
 		   });
 	
-	// =================================================================
-	// SEQUENTIAL SPARSE MATRIX CREATION (#rows, #columns)	
 	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // includes preallocation
 	MatSetOption(A, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
-	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!!
-	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // ignores new malloc error
+	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!! // INGORES NEW MALLOC ERROR!
+	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); 
 	MatSetType(A, MATSEQAIJ); 
 	MatSetFromOptions(A);
 	MatSetUp(A);
-	//std::cout << "INFO: MATRIX IS CREATED SUCCESSFULLY!\n";
-	// =================================================================
        	
 	// SETTING MATRIX ELEMENTS
-	MatSetValues_Row(g, nnz, &A);
-	// ALWAYS ASSEMBLY AFTER MATSETVALUES().
-	// TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
-
+	MatSetValuesROW(g, nnz, &A);
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-	//std::cout << "INFO: MATRIX PRINTING SUCCESSFULLY AFTER INSERTION!\n";	
+	DEBUG("MATRIX IS CREATED SUCCESSFULLY.");
 	free(nnz);
     }
 
@@ -82,7 +76,7 @@ public:
 
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
-    // DO I NEED IT EXPLICITLY?
+    // DO I NEED FOLLOWING LINE EXPLICITLY?
     //ierr = EPSReset(eps); CHKERRQ(ierr);
 
     // RESET 'NEW' MATRIX (AFTER ADDED EDGE)
@@ -91,22 +85,20 @@ public:
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps_l, 1, &x); CHKERRQ(ierr);
     //ierr = EPSReset(eps_l); CHKERRQ(ierr);
-
     
-    // SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
+    // TODO: SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
     
     run_eigensolver();
     info_eigensolver(); 
     set_eigenpairs();
 	
-    //std::cout << "INFO: UPDATE EIGENSOLVER SUCCESSFULLY! \n";
+    DEBUG("UPDATE EIGENSOLVER SUCCESSFULLY.");
     return ierr;
     }
 
   
 
   // ROUTINE TO SET THE EIGENSOLVER PRIOR TO EXECUTION
-  
   PetscErrorCode set_eigensolver(NetworKit::count numberOfEigenpairs) {
     if ( !numberOfEigenpairs ) {
       std::cout << "WARN: NO EIGENPAIRS ARE TO BE COMPUTED.\n";
@@ -509,7 +501,7 @@ public:
   
 
 private:
-  // MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
+  // MatCreateSeqAIJMP(PETSC_COMM_WORLD, #rows, #cols, 0, nnz, &A);
   PetscErrorCode  MatCreateSeqAIJMP(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[],Mat *A)
   {
     PetscErrorCode ierr; 
@@ -525,8 +517,8 @@ private:
   }
 
   // FIRST APPROACH: INSERT ELEMENTS TO PETSc MATRIX (ONE BY ONE).
-  // MatSetValues_Elm(g, &A);
-  void  MatSetValues_Elm(NetworKit::Graph const & g, Mat *A) {
+  // MatSetValuesELM(g, &A);
+  void  MatSetValuesELM(NetworKit::Graph const & g, Mat *A) {
     g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
 		 if (u == v) {
 		   std::cout << "Warning: Graph has edge with equal target and destination!";
@@ -548,8 +540,8 @@ private:
   }
 
   // SECOND APPROACH: INSERT ROW BY ROW.
-  // MatSetValues_Row(g, nnz, &A);
-  void  MatSetValues_Row(NetworKit::Graph const & g, PetscInt * nnz, Mat *A)
+  // MatSetValuesROW(g, nnz, &A);
+  void  MatSetValuesROW(NetworKit::Graph const & g, PetscInt * nnz, Mat *A)
   {
     // g.balancedParallelForNodes([&](NetworKit::node v) {    
     g.forNodes([&](const NetworKit::node v){
