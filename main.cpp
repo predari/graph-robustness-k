@@ -770,7 +770,8 @@ int main(int argc, char* argv[])
 		"\t-in\t\tFirst node of edge list instances\n"
 		"\t-isep\t\tSeparating character of edge list instance file\n"
 		"\t-ic\t\tComment character of edge list instance file\n"
-		"\n";
+	        "\t--loglevel\t\tActivate loging. Levels: TRACE, DEBUG, INFO, WARN, ERROR, FATAL.\n"
+	        "\n";
 
 
 	if (argc < 2) {
