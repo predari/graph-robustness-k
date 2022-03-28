@@ -477,7 +477,7 @@ public:
 	solver.set_eigenpairs();
 	
 	double res = solver.SpectralToTalEffectiveResistance();
-	std::cout << "Result = " << res << "\n";
+	//std::cout << "Result = " << res << "\n";
 
 	this->totalValue = 0.;
         this->originalResistance = 0.;
@@ -514,8 +514,9 @@ public:
 
 private:
     virtual double objectiveDifference(Edge e) override {
-      return (-1.0) * solver.SpectralApproximationGainDifference(e.u, e.v) * n;
-      //return (-1.0) * solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
+      return  solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+      //return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
+      //return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
     }
 
     virtual void useItem(Edge e) override {
@@ -539,7 +540,7 @@ private:
     //   std::cout << e_values[i] << " ";
     // std::cout << "]\n";
     double res = solver.SpectralToTalEffectiveResistance();
-    std::cout << "Result = " << res << "\n";
+    //std::cout << "Result = " << res << "\n";
     
   }
 

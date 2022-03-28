@@ -310,8 +310,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         ax2.set_ylabel('Time')
 
     if reference_restrictions:
-        ax1.set_ylim(0., 1.)
-        ax2.set_ylim(0., 1.)
+        ax1.set_ylim(0., 6.)
+        ax2.set_ylim(0., 6.)
     else:
         pass
 
@@ -519,7 +519,7 @@ restr_stochDynMP = {
 
 restr_stochSpectralMP = {
     "Experiment": "stochastic-spectral",
-#    "Epsilon": 0.005,
+#    "Epsilon": 0.01,
     "Threads": 1
 }
 
@@ -548,7 +548,7 @@ plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_st
 # MARIA {
 #plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
-plot_averaged(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_aggregated_5", True)
+plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_aggregated_5", True)
 
 
 #for i in large_graphs:
@@ -556,7 +556,7 @@ plot_averaged(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpe
 
 
 for i in large_graphs:
-   plot_averaged(df, [i], [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
+   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
 
 # MARIA }
 
