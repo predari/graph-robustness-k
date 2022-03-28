@@ -26,6 +26,7 @@ public:
 	  throw std::runtime_error("SlepcInitialize not working!");
 	}
 	
+	k = offset;
 	n = (PetscInt)g.numberOfNodes();
 	NetworKit::count m = (PetscInt)g.numberOfEdges();
 
@@ -52,6 +53,9 @@ public:
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 	DEBUG("MATRIX IS CREATED SUCCESSFULLY.");
+	DEBUG("VIEW MATRIX:");
+	MatView(A,PETSC_VIEWER_STDOUT_WORLD);
+
 	free(nnz);
     }
 
@@ -87,12 +91,16 @@ public:
     //ierr = EPSReset(eps_l); CHKERRQ(ierr);
     
     // TODO: SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
+
+    DEBUG("VIEW MATRIX:");
+    MatView(A,PETSC_VIEWER_STDOUT_WORLD);
+
     
     run_eigensolver();
     info_eigensolver(); 
     set_eigenpairs();
 	
-    DEBUG("UPDATE EIGENSOLVER SUCCESSFULLY.");
+    DEBUG("RERUN EIGENSOLVER SUCCESSFULLY.");
     return ierr;
     }
 
@@ -156,24 +164,24 @@ public:
   PetscErrorCode info_eigensolver() {
 
       ierr = EPSGetType(eps, &type); CHKERRQ(ierr);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type); CHKERRQ(ierr);
+      DEBUG(" SOLUTION METHOD: ", type); 
       EPSGetIterationNumber(eps, &its);
-      //PetscPrintf(PETSC_COMM_WORLD," Iteration count: %D\n", its);
+      DEBUG(" ITERATION COUNT: ", its);
       EPSGetTolerances(eps, &tol, &maxit);
-      //PetscPrintf(PETSC_COMM_WORLD," Stopping cond: tol=%.4g, maxit=%D\n", (double)tol, maxit);
+      DEBUG(" STOP COND: tol=",(double)tol , "maxit=", maxit);
       ierr = EPSGetDimensions(eps, &nev, NULL, NULL); CHKERRQ(ierr);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD," Requested eigenvalue count: %D\n", c);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD," Computed eigenvalue count: %D\n", nev);
+      DEBUG(" REQEST EVALUES: ", c);
+      DEBUG(" COMPUT EVALUES: ", nev);
       ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
-      //PetscPrintf(PETSC_COMM_WORLD," Converged eigenvalue count: %D\n", nconv);
+      DEBUG(" CONVRG EVALUES: ", nconv);
       if (nconv > c) nconv = c;
       ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
       CHKERRQ(ierr);
       //// printing
-      //ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      //ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
       ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-
+      //EPSView(eps,PETSC_VIEWER_STDOUT_WORLD);
       
       //std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
       return ierr;
@@ -225,14 +233,14 @@ public:
       std::cout << "WARN: LARGEST EIGENVALUE IS NOT COMPUTED.\n";
     }
     assert(nconv_l >= 1);
-    //PetscPrintf(PETSC_COMM_WORLD,
-    //		"           k          ||Ax-kx||/||kx||\n"
-    //		"   ----------------- ------------------\n");
+    PetscPrintf(PETSC_COMM_WORLD,
+    		"           k          ||Ax-kx||/||kx||\n"
+    		"   ----------------- ------------------\n");
     
     EPSGetEigenvalue(eps_l, 0, &val, NULL);
     EPSComputeError(eps_l, 0, EPS_ERROR_RELATIVE, &error);
-    //PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
-    //PetscPrintf(PETSC_COMM_WORLD,"\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
+    PetscPrintf(PETSC_COMM_WORLD,"\n");
 
     //std::cout << "INFO: i = " << i <<" \n";
     e_values[i] = val; //EIGENVALUE_MULTIPLIER * e_values[i-1];
@@ -487,15 +495,12 @@ public:
     MatSetValues(A, 1, &b, 1, &b, &w, ADD_VALUES);
     MatSetValues(A, 1, &a, 1, &b, &nw, ADD_VALUES);
     MatSetValues(A, 1, &b, 1, &a, &nw, ADD_VALUES);
-    // ALWAYS ASSEMBLY AFTER MATSETVALUES().
-    // TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
-
 
     MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 
-    
-    //std::cout << "INFO: ADD EDGE FOR k SUCCESSFULLY! \n";
+    DEBUG("ADDING NEW EDGE: (", u, ", ", v, ") SUCCESSFULLY.");    
+
   }
     
   
@@ -589,6 +594,7 @@ private:
   double *       e_vectors;       /* stores the eigenvectors (of size n*nconv) */
   double *       e_values;        /* stores eigenvalues (of size nconv + 1) */
 
+  NetworKit::count k;
   
 };
 

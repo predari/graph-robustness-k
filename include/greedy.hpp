@@ -32,6 +32,7 @@ public:
     virtual double getOriginalValue() = 0;
     virtual std::vector<T> getResultItems() = 0;
     virtual bool isValidSolution() = 0;
+  
 };
 
 
@@ -58,20 +59,27 @@ public:
 	std::vector<Item> getResultItems() { return results; }
 	double getTotalValue() { return totalValue; }
 	virtual bool isValidSolution() override { return validSolution; }
-	void summarize() {
-		std::cout << "Greedy Results Summary. ";
-		if (!this->hasRun) {
-			std::cout << "Not executed yet!";
-		}
-		std::cout << "Result Size: " << this->getResultSize() << std::endl;
-        if (this->getResultSize() < 1000) {
-            for (auto e: this->getResultItems()) {
-                std::cout << "(" << e.u << ", " << e.v << "), "; 
-            }
-        }
-		std::cout << std::endl;
-		std::cout << "Total Value: " << this->getTotalValue() << std::endl;
-	}
+  // void printItems() {
+  //   DEBUG("NUMBER OF ITEMS = ", itemQueue.size());
+  //   for (auto e = 0; e < itemQueue.size(); e++) {
+  //     DEBUG("ITEM:(", itemQueue[e].item.u, " ,",  itemQueue[e].item.v, ") value = ", itemQueue[e].value, " lastUpdated = ", itemQueue[e].lastUpdated);
+  //   }
+  // }
+  
+  void summarize() {
+    std::cout << "Greedy Results Summary. ";
+    if (!this->hasRun) {
+      std::cout << "Not executed yet!";
+    }
+    std::cout << "Result Size: " << this->getResultSize() << std::endl;
+    if (this->getResultSize() < 1000) {
+      for (auto e: this->getResultItems()) {
+	std::cout << "(" << e.u << ", " << e.v << "), "; 
+      }
+    }
+    std::cout << std::endl;
+    std::cout << "Total Value: " << this->getTotalValue() << std::endl;
+  }
 
 protected:
 	using ItemWrapper=_ItemWrapperType<Item>;
@@ -83,17 +91,17 @@ protected:
 	virtual void initRound() {}
     virtual void addDefaultItems() {};
 
-	void addItems(std::vector<Item> items);
-	void resetItems();
+  void addItems(std::vector<Item> items);
+  void resetItems();
 
 
-	std::priority_queue<ItemWrapper> itemQueue;
-
-	bool validSolution = false;
-	int round=0;
-	std::vector<Item> results;
-	double totalValue = 0.0;
-    int k;
+  std::priority_queue<ItemWrapper> itemQueue;
+  
+  bool validSolution = false;
+  int round=0;
+  std::vector<Item> results;
+  double totalValue = 0.0;
+  int k;
 };
 
 
@@ -124,6 +132,9 @@ template <class Item>
 void SubmodularGreedy<Item>::run() {
     this->round = 0;
     // this->totalValue = 0;
+
+    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+	
     this->validSolution = false;
     this->results.clear();
 
@@ -138,6 +149,7 @@ void SubmodularGreedy<Item>::run() {
     {
 		this->initRound();
 
+		DEBUG("AFTER POPULATING PRIORITY QUEUE.");
         // Get top updated entry from queue
         ItemWrapper c;
         while (true) {
@@ -146,7 +158,7 @@ void SubmodularGreedy<Item>::run() {
                 break;
             } else {
                 c = itemQueue.top();
-				itemQueue.pop();
+		itemQueue.pop();
             }
 
             if (this->isItemAcceptable(c.item)) {
@@ -154,14 +166,23 @@ void SubmodularGreedy<Item>::run() {
                     break; // top updated entry found.
                 } else {
                     c.value = this->objectiveDifference(c.item);
+		    DEBUG(" TOP new value : ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
                     c.lastUpdated = this->round;
                     itemQueue.push(c);
                 }
             } // Else: dont put it back
+
+	    // DEBUG("PRINTING ITEMS (START).");
+	    // printItems();
+	    // DEBUG("PRINTING ITEMS (END).");
+
+	    
         }
         if (candidatesLeft) {
             this->results.push_back(c.item);
             this->totalValue += c.value;
+	    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+	    DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
             this->useItem(c.item);
             
             if (this->checkSolution())
@@ -221,6 +242,14 @@ public:
 	std::vector<Item> getResultItems() { return results; }
 	double getTotalValue() { return totalValue; }
 	virtual bool isValidSolution() override { return validSolution; }
+
+  void printItems() {
+    DEBUG("NUMBER OF ITEMS = ", items.size());
+    for (auto e = 0; e < items.size(); e++) {
+      DEBUG("ITEM:(", items[e].item.u, " ,",  items[e].item.v, ") value = ", items[e].value, " lastUpdated = ", items[e].lastUpdated, " index = ", items[e].index, " selected = ", items[e].selected);
+    }
+  }
+  
 	void summarize() {
 		std::cout << "Stochastic Submodular Greedy Results Summary. ";
 		if (!this->hasRun) {
@@ -281,23 +310,30 @@ void StochasticGreedy<Item>::run() {
     this->validSolution = false;
     this->results.clear();
 
+
+    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+
     if (items.size() == 0) { addDefaultItems(); }
 
-
+    DEBUG(" N = ", N);
+    DEBUG("PRINTING ITEMS (START).");
+    printItems();
+    DEBUG("PRINTING ITEMS (END).");
     bool candidatesLeft = true;
     std::mt19937 g(Aux::Random::getSeed());
 
     while (candidatesLeft)
     {
-		this->initRound();
+      this->initRound();
 
-        std::priority_queue<ItemWrapper> R;
-        unsigned int s = (unsigned int)(1.0 * this->N / k * std::log(1.0/epsilon)) + 1;
-        s = std::min(s, (unsigned int) this->items.size() - round);
-
-        // Get a random subset of the items of size s.
-        // Do this via selecting individual elements resp via shuffling, depending on wether s is large or small.
-	// ==========================================================================
+      std::priority_queue<ItemWrapper> R;
+      unsigned int s = (unsigned int)(1.0 * this->N / k * std::log(1.0/epsilon)) + 1;
+      s = std::min(s, (unsigned int) this->items.size() - round);
+      
+      // Get a random subset of the items of size s.
+      // Do this via selecting individual elements resp via shuffling,
+      //depending on wether s is large or small.
+      // ==========================================================================
 	// Populating R set. What is the difference between small and large s?
 	if (s > N/4) { // This is not a theoretically justified estimate
             std::vector <unsigned int> allIndices = std::vector<unsigned int> (N);
@@ -309,7 +345,8 @@ void StochasticGreedy<Item>::run() {
             {
                 auto item = this->items[allIndices[i]];
                 if (!item.selected) {
-                    R.push(item);
+		    DEBUG("ITEM:(", item.item.u, " ,",  item.item.v, ") value = ", item.value, " lastUpdated = ", item.lastUpdated, " index = ", item.index, " selected = ", item.selected);
+		    R.push(item);
                     if (R.size() >= s) {
                         break;
                     }
@@ -324,6 +361,7 @@ void StochasticGreedy<Item>::run() {
                     indicesSet.insert(v);
                     auto item = this->items[v];
                     if (!item.selected) {
+		        DEBUG("ITEM:(", item.item.u, " ,",  item.item.v, ") value = ", item.value, " lastUpdated = ", item.lastUpdated, " index = ", item.index, " selected = ", item.selected);
                         R.push(item);
                     }
                 }
@@ -331,6 +369,9 @@ void StochasticGreedy<Item>::run() {
         }
 	// ==========================================================================
 
+
+	DEBUG("AFTER POPULATING PRIORITY QUEUE.");
+	
         // Get top updated entry from R
         ItemWrapper c;
         while (true) {
@@ -339,6 +380,7 @@ void StochasticGreedy<Item>::run() {
                 break;
             } else {
                 c = R.top();
+		DEBUG(" TOP :(", c.item.u, " ,",  c.item.v, ") value = ", c.value, " lastUpdated = ", c.lastUpdated, " index = ", c.index, " selected = ", c.selected);
 		R.pop();
             }
 
@@ -348,17 +390,26 @@ void StochasticGreedy<Item>::run() {
                 } else {
                     auto &item = this->items[c.index];
                     c.value = this->objectiveDifference(c.item);
+		    DEBUG(" TOP new value:", c.value);
                     item.value = c.value;
                     c.lastUpdated = this->round;
                     item.lastUpdated = this->round;
                     R.push(c);
                 }
             } // Else: dont put it back
-        }
+
+	    DEBUG("PRINTING ITEMS (START).");
+	    printItems();
+	    DEBUG("PRINTING ITEMS (END).");
+
+	    
+	}
         if (candidatesLeft) {
             this->results.push_back(c.item);
             this->totalValue += c.value;
-            this->useItem(c.item);
+	    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+	    DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
+	    this->useItem(c.item);
             this->items[c.index].selected = true;
             
             if (this->checkSolution())
