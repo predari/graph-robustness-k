@@ -40,10 +40,10 @@ variants:
         extra_args: ['-km', 'linear', '--k-factor', '4.0']
   - axis: 'k-size-const'
     items:
-#      - name: 'k-2'
-#        extra_args: ['--k-factor', '2']
-#      - name: 'k-5'
-#        extra_args: ['--k-factor', '5']
+      - name: 'k-2'
+        extra_args: ['--k-factor', '2']
+      - name: 'k-5'
+        extra_args: ['--k-factor', '5']
       - name: 'k-20'
         extra_args: ['--k-factor', '20']
       - name: 'k-50'
@@ -65,6 +65,10 @@ variants:
         extra_args: ['-eps', '0.99']
       - name: 'eps_0.01'
         extra_args: ['-eps', '0.01']
+      - name: 'eps_0.005'
+        extra_args: ['-eps', '0.005']
+      - name: 'eps_0.001'
+        extra_args: ['-eps', '0.001']	
   - axis: 'accuracy_trees'
     items:
 #      - name: 'eps2_1.0'
@@ -125,14 +129,22 @@ matrix:
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'accuracy']
       variants: ['eps_0.01', 'singlecore']
+    - experiments: ['stochastic-spectral']
+      instsets: ['large-graphs']
+      axes: ['k-size-const', 'threads', 'accuracy']
+      variants: ['eps_0.001', 'singlecore']
+    - experiments: ['stochastic-spectral']
+      instsets: ['large-graphs']
+      axes: ['k-size-const', 'threads', 'accuracy']
+      variants: ['eps_0.005', 'singlecore']     
     - experiments: ['sq-greedy']
       instsets: ['large-graphs']
       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
       variants: ['ust-diag', 'eps_0.9', 'lamg', 'singlecore']
-#    - experiments: ['stochastic-greedy-lamg']
-#      instsets: ['large-graphs']
-#      axes: ['k-size-const', 'threads', 'accuracy']
-#      variants: ['eps_0.9', 'singlecore']
+##    - experiments: ['stochastic-greedy-lamg']
+##      instsets: ['large-graphs']
+##      axes: ['k-size-const', 'threads', 'accuracy']
+##      variants: ['eps_0.9', 'singlecore']
       
 
       # Main Algorithm

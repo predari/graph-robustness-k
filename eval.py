@@ -506,7 +506,7 @@ restr_submodularMP = {"Threads": 1, "Experiment": "submodular-greedy"}
 
 restr_stochMP = {
     "Experiment": "stochastic-greedy",
-    "Epsilon": 0.9,# maybe not necessary
+    "Epsilon": 0.9,
     "Threads": 1
 }
 
@@ -517,9 +517,21 @@ restr_stochDynMP = {
     "Threads": 1
 }
 
-restr_stochSpectralMP = {
+restr_stochSpectralMP_Eps1 = {
     "Experiment": "stochastic-spectral",
-#    "Epsilon": 0.01,
+    "Epsilon": 0.01,
+    "Threads": 1
+}
+
+restr_stochSpectralMP_Eps2 = {
+    "Experiment": "stochastic-spectral",
+    "Epsilon": 0.005,
+    "Threads": 1
+}
+
+restr_stochSpectralMP_Eps3 = {
+    "Experiment": "stochastic-spectral",
+    "Epsilon": 0.001,
     "Threads": 1
 }
 
@@ -538,8 +550,8 @@ restr_USTDiagonalMP = {
 def exclude_large_k(row, restrictions, instance_name):
     return row['k'] > 20 #and 'Linalg' in restrictions and restrictions['Linalg'] == "JLT via Sparse LU"
 # MARIA {
-plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time", None, True)
-plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time_small_k", exclude_large_k, True)
+plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time", None, True)
+plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time_small_k", exclude_large_k, True)
 
 
 #plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
@@ -548,7 +560,7 @@ plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_st
 # MARIA {
 #plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
-plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_aggregated_5", True)
+plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Stochastic-Submodular-Spectral2","Main-Resistances-UST-Approx"], restr_submodularMP, "results_aggregated_5", True)
 
 
 #for i in large_graphs:
@@ -556,8 +568,14 @@ plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP, restr_UST
 
 
 for i in large_graphs:
-   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
+   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
 
+
+for i in large_graphs:
+   plot_averaged(df, [i], [restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps2, restr_stochSpectralMP_Eps3], ["Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.005", "Stochastic-Submodular-Spectral-0.001"], restr_submodularMP, "results_spectral_"+i, True, True, "Submodular-Greedy")
+
+
+   
 # MARIA }
 
 

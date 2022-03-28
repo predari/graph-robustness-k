@@ -627,7 +627,7 @@ public:
 			std::cout << "  Epsilon2: " << epsilon2 << "\n";
 		}
 
-		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::stochastic_dyn || alg == AlgorithmType::trees) {
+		if (alg == AlgorithmType::a5 || alg == AlgorithmType::stochastic || alg == AlgorithmType::stochastic_dyn || alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_spectral) {
 			std::cout << "  Epsilon: " << epsilon << "\n";
 		}
 
