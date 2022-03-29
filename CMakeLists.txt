@@ -9,9 +9,13 @@ find_package(PkgConfig REQUIRED)
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 # Use CMake's pkg-config to reference
-# $(SLEPC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/slepc.pc and
-# $(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/PETSc.pc
-# export PKG_CONFIG_PATH=$(SLEPC_DIR)/$(PETSC_ARCH)/lib/pkgconfig:$(PETSC_DIR)/$(PETSC_ARCH)/lib/pkgconfig/:$PKG_CONFIG_PATH
+# export SLEPC_DIR=/home/maria/Documents/postdoc/soft/slepc
+# export PETSC_DIR=/home/maria/Documents/postdoc/soft/petsc
+## CHOOSE OPT BUILD
+# export PETSC_ARCH=arch-linux-c-opt
+# $SLEPC_DIR/$PETSC_ARCH/lib/pkgconfig/slepc.pc and
+# $PETSC_DIR/$PETSC_ARCH/lib/pkgconfig/PETSc.pc
+# export PKG_CONFIG_PATH=$SLEPC_DIR/$PETSC_ARCH/lib/pkgconfig:$PETSC_DIR/$PETSC_ARCH/lib/pkgconfig/:$PKG_CONFIG_PATH
 # IF necessary add paths to PKG_CONFIG_PATH
 pkg_check_modules(PETSC_PKG REQUIRED IMPORTED_TARGET PETSc)
 pkg_check_modules(SLEPC_PKG REQUIRED IMPORTED_TARGET slepc)
