@@ -34,6 +34,7 @@
 #include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
 
+#include <networkit/auxiliary/Log.hpp>
 #include <slepceps.h>
 
 #include <greedy.hpp>
@@ -769,7 +770,8 @@ int main(int argc, char* argv[])
 		"\t-in\t\tFirst node of edge list instances\n"
 		"\t-isep\t\tSeparating character of edge list instance file\n"
 		"\t-ic\t\tComment character of edge list instance file\n"
-		"\n";
+	        "\t--loglevel\t\tActivate loging. Levels: TRACE, DEBUG, INFO, WARN, ERROR, FATAL.\n"
+	        "\n";
 
 
 	if (argc < 2) {
@@ -799,6 +801,11 @@ int main(int argc, char* argv[])
 			std::cout << helpstring;
 			return 0;
 		}
+		if (arg == "--loglevel") {
+		  std::string logLevel = nextArg(i);
+		  Aux::Log::setLogLevel(logLevel);
+		}
+
 
 		if (arg == "-v" || arg == "--verbose") {
 			experiment.verbose = true;

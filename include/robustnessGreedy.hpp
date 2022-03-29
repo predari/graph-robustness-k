@@ -154,6 +154,8 @@ private:
     virtual double objectiveDifference(Edge e) override {
         auto i = e.u;
         auto j = e.v;
+	//auto val = laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
+	//DEBUG(" obj = ", n * val , " - obj = ", n * (-1.0) * val );
         return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
     }
 
@@ -315,19 +317,19 @@ private:
         return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
     }
 
-    Graph g;
-    int n;
-    Eigen::MatrixXd lpinv;
-    std::mt19937 gen;
+  Graph g;
+  int n;
+  Eigen::MatrixXd lpinv;
+  std::mt19937 gen;
+  
 
-
-	bool validSolution = false;
-	int round=0;
-	std::vector<Edge> results;
-	double totalValue = 0.0;
-    double originalResistance = 0.;
-    double epsilon = 0.1;
-    int k;
+  bool validSolution = false;
+  int round=0;
+  std::vector<Edge> results;
+  double totalValue = 0.0;
+  double originalResistance = 0.;
+  double epsilon = 0.1;
+  int k;
 };
 
 
@@ -476,11 +478,18 @@ public:
 	solver.info_eigensolver(); 
 	solver.set_eigenpairs();
 	
-	double res = solver.SpectralToTalEffectiveResistance();
-	//std::cout << "Result = " << res << "\n";
+	double totalValueSpectralOriginal = solver.SpectralToTalEffectiveResistance();
+	//this->totalValue = totalValueSpectralOriginal;
 
 	this->totalValue = 0.;
-        this->originalResistance = 0.;
+        this->originalResistance = totalValue;
+	// ---------------------------------------------------
+	this->lpinv = laplacianPseudoinverse(g);
+        this->totalValueRefOriginal = this->lpinv.trace() * n ;
+	//DEBUG("totalValueRefOriginal: " , totalValueRefOriginal);
+	//DEBUG("totalValueSpectralOriginal: " , totalValueSpectralOriginal);
+
+	// ---------------------------------------------------
 
     }
 
@@ -513,23 +522,32 @@ public:
 
 
 private:
-    virtual double objectiveDifference(Edge e) override {
-      return  solver.SpectralApproximationGainDifference(e.u, e.v) * n;
-      //return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
-      //return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
-    }
+  virtual double objectiveDifference(Edge e) override {
+    return  solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+    //return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
+    //return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
+  }
 
     virtual void useItem(Edge e) override {
       //std::cout << " CALLING RobustnessStochasticGreedySpectral::useItem() \n";
+      // ---------------------------------------------------
+      updateLaplacianPseudoinverse(this->lpinv, e);
+      this->totalValueRefUpdate = this->lpinv.trace() * n;
+      //DEBUG("totalValueRefUpdate: " , totalValueRefUpdate);
+      // ---------------------------------------------------
+
       solver.addEdge(e.u, e.v);
       updateEigenpairs();
     }
 
   
    void cutOff() {
-     //std::cout << " CALLING cutOff:: epsilon = " << this->epsilon << "\n";
+
+     DEBUG(" RETURN cuOff :: epsilon =  " , this->epsilon); // 0.05
      numberOfEigenpairs = ceil(this->epsilon*n); // 0.05
      assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
+     DEBUG(" RETURN cuOff :: numberOfEigenpairs =  " , numberOfEigenpairs);
+    
    }
 
   void updateEigenpairs() {
@@ -539,9 +557,9 @@ private:
     // for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
     //   std::cout << e_values[i] << " ";
     // std::cout << "]\n";
-    double res = solver.SpectralToTalEffectiveResistance();
-    //std::cout << "Result = " << res << "\n";
-    
+    double totalValueSpectralUpdate = solver.SpectralToTalEffectiveResistance();
+    //DEBUG("totalValueSpectralUpdate: " , totalValueSpectralUpdate);
+    //DEBUG(" Gain : " , totalValueRefOriginal - totalValueRefUpdate);
   }
 
   
@@ -553,7 +571,10 @@ private:
   SlepcAdapter solver;
   // Slepc::EigenSolver solver;
   // ------------------------
-  //
+
+  Eigen::MatrixXd lpinv;
+  double totalValueRefUpdate = 0.0;
+  double totalValueRefOriginal = 0.0;
   NetworKit::count numberOfEigenpairs = 1;
 };
 

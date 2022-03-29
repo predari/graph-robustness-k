@@ -4,6 +4,7 @@
 // TODO: add path to petsc that is required by slec
 // following ex11.c from slepc/src/eps/tutorials/
 
+
 #include <vector>
 #include <iostream>
 #include <networkit/graph/Graph.hpp>
@@ -25,6 +26,7 @@ public:
 	  throw std::runtime_error("SlepcInitialize not working!");
 	}
 	
+	k = offset;
 	n = (PetscInt)g.numberOfNodes();
 	NetworKit::count m = (PetscInt)g.numberOfEdges();
 
@@ -38,26 +40,22 @@ public:
 		     nnz[v] = (PetscInt) g.degree(v) + 1; //+ offset;
 		   });
 	
-	// =================================================================
-	// SEQUENTIAL SPARSE MATRIX CREATION (#rows, #columns)	
 	MatCreateSeqAIJ(PETSC_COMM_WORLD, n, n, 0, nnz, &A); // includes preallocation
 	MatSetOption(A, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
-	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!!
-	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); // ignores new malloc error
+	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!! // INGORES NEW MALLOC ERROR!
+	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); 
 	MatSetType(A, MATSEQAIJ); 
 	MatSetFromOptions(A);
 	MatSetUp(A);
-	//std::cout << "INFO: MATRIX IS CREATED SUCCESSFULLY!\n";
-	// =================================================================
        	
 	// SETTING MATRIX ELEMENTS
-	MatSetValues_Row(g, nnz, &A);
-	// ALWAYS ASSEMBLY AFTER MATSETVALUES().
-	// TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
-
+	MatSetValuesROW(g, nnz, &A);
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
-	//std::cout << "INFO: MATRIX PRINTING SUCCESSFULLY AFTER INSERTION!\n";	
+	DEBUG("MATRIX IS CREATED SUCCESSFULLY.");
+	DEBUG("VIEW MATRIX:");
+	//MatView(A,PETSC_VIEWER_STDOUT_WORLD);
+
 	free(nnz);
     }
 
@@ -85,7 +83,7 @@ public:
 
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps, 1, &x); CHKERRQ(ierr);
-    // DO I NEED IT EXPLICITLY?
+    // DO I NEED FOLLOWING LINE EXPLICITLY?
     //ierr = EPSReset(eps); CHKERRQ(ierr);
 
     // RESET 'NEW' MATRIX (AFTER ADDED EDGE)
@@ -94,25 +92,25 @@ public:
     // RESET DEFLATION SPACE
     ierr = EPSSetDeflationSpace(eps_l, 1, &x); CHKERRQ(ierr);
     //ierr = EPSReset(eps_l); CHKERRQ(ierr);
-
     
-    // SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
 
     EPSSetInitialSpace(eps,nconv,Q);
-    //EPSSetInitialSpace(eps_l,1,&top);
+    EPSSetInitialSpace(eps_l,1,&top);
+
+    //DEBUG("VIEW MATRIX:");
+    //MatView(A,PETSC_VIEWER_STDOUT_WORLD);
     
     run_eigensolver();
     info_eigensolver(); 
     set_eigenpairs();
 	
-    //std::cout << "INFO: UPDATE EIGENSOLVER SUCCESSFULLY! \n";
+    DEBUG("RERUN EIGENSOLVER SUCCESSFULLY.");
     return ierr;
     }
 
   
 
   // ROUTINE TO SET THE EIGENSOLVER PRIOR TO EXECUTION
-  
   PetscErrorCode set_eigensolver(NetworKit::count numberOfEigenpairs) {
     if ( !numberOfEigenpairs ) {
       std::cout << "WARN: NO EIGENPAIRS ARE TO BE COMPUTED.\n";
@@ -170,24 +168,24 @@ public:
   PetscErrorCode info_eigensolver() {
 
       ierr = EPSGetType(eps, &type); CHKERRQ(ierr);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n",type); CHKERRQ(ierr);
+      DEBUG(" SOLUTION METHOD: ", type); 
       EPSGetIterationNumber(eps, &its);
-      //PetscPrintf(PETSC_COMM_WORLD," Iteration count: %D\n", its);
+      DEBUG(" ITERATION COUNT: ", its);
       EPSGetTolerances(eps, &tol, &maxit);
-      //PetscPrintf(PETSC_COMM_WORLD," Stopping cond: tol=%.4g, maxit=%D\n", (double)tol, maxit);
+      DEBUG(" STOP COND: tol=",(double)tol , "maxit=", maxit);
       ierr = EPSGetDimensions(eps, &nev, NULL, NULL); CHKERRQ(ierr);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD," Requested eigenvalue count: %D\n", c);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD," Computed eigenvalue count: %D\n", nev);
+      DEBUG(" REQEST EVALUES: ", c);
+      DEBUG(" COMPUT EVALUES: ", nev);
       ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
-      //PetscPrintf(PETSC_COMM_WORLD," Converged eigenvalue count: %D\n", nconv);
+      DEBUG(" CONVRG EVALUES: ", nconv);
       if (nconv > c) nconv = c;
       ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
       CHKERRQ(ierr);
       //// printing
-      //ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      //ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
       ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-
+      //EPSView(eps,PETSC_VIEWER_STDOUT_WORLD);
       
       //std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
       return ierr;
@@ -221,7 +219,7 @@ public:
       PetscReal      norm;
       ierr = VecNorm(vec, NORM_2, &norm);
       //assert(norm == 1.0);
-      //ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
+      ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
       //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
       VecCopy(vec,Q[i]);
       //std::cout << " e_vector "<< i << " : [ ";
@@ -246,15 +244,15 @@ public:
       std::cout << "WARN: LARGEST EIGENVALUE IS NOT COMPUTED.\n";
     }
     assert(nconv_l >= 1);
-    //PetscPrintf(PETSC_COMM_WORLD,
-    //		"           k          ||Ax-kx||/||kx||\n"
-    //		"   ----------------- ------------------\n");
+    PetscPrintf(PETSC_COMM_WORLD,
+    		"           k          ||Ax-kx||/||kx||\n"
+    		"   ----------------- ------------------\n");
     
     //EPSGetEigenvalue(eps_l, 0, &val, NULL);
     EPSGetEigenpair(eps_l, 0, &val, NULL, vec, NULL);
     EPSComputeError(eps_l, 0, EPS_ERROR_RELATIVE, &error);
-    //PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
-    //PetscPrintf(PETSC_COMM_WORLD,"\n");
+    PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
+    PetscPrintf(PETSC_COMM_WORLD,"\n");
 
     //std::cout << "INFO: i = " << i <<" \n";
     VecCopy(vec,top);
@@ -512,21 +510,18 @@ public:
     MatSetValues(A, 1, &b, 1, &b, &w, ADD_VALUES);
     MatSetValues(A, 1, &a, 1, &b, &nw, ADD_VALUES);
     MatSetValues(A, 1, &b, 1, &a, &nw, ADD_VALUES);
-    // ALWAYS ASSEMBLY AFTER MATSETVALUES().
-    // TODO: MAT_FINAL_ASSEMBLY OR MAT_FLUSH_ASSEMBLY
-
 
     MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 
-    
-    //std::cout << "INFO: ADD EDGE FOR k SUCCESSFULLY! \n";
+    DEBUG("ADDING NEW EDGE: (", u, ", ", v, ") SUCCESSFULLY.");    
+
   }
     
   
 
 private:
-  // MatCreateSeqAIJMP(PETSC_COMM_WORLD, n, n, 0, nnz, &A);
+  // MatCreateSeqAIJMP(PETSC_COMM_WORLD, #rows, #cols, 0, nnz, &A);
   PetscErrorCode  MatCreateSeqAIJMP(MPI_Comm comm,PetscInt m,PetscInt n,PetscInt nz,const PetscInt nnz[],Mat *A)
   {
     PetscErrorCode ierr; 
@@ -542,8 +537,8 @@ private:
   }
 
   // FIRST APPROACH: INSERT ELEMENTS TO PETSc MATRIX (ONE BY ONE).
-  // MatSetValues_Elm(g, &A);
-  void  MatSetValues_Elm(NetworKit::Graph const & g, Mat *A) {
+  // MatSetValuesELM(g, &A);
+  void  MatSetValuesELM(NetworKit::Graph const & g, Mat *A) {
     g.forEdges([&](NetworKit::node u, NetworKit::node v, double w) {
 		 if (u == v) {
 		   std::cout << "Warning: Graph has edge with equal target and destination!";
@@ -565,8 +560,8 @@ private:
   }
 
   // SECOND APPROACH: INSERT ROW BY ROW.
-  // MatSetValues_Row(g, nnz, &A);
-  void  MatSetValues_Row(NetworKit::Graph const & g, PetscInt * nnz, Mat *A)
+  // MatSetValuesROW(g, nnz, &A);
+  void  MatSetValuesROW(NetworKit::Graph const & g, PetscInt * nnz, Mat *A)
   {
     // g.balancedParallelForNodes([&](NetworKit::node v) {    
     g.forNodes([&](const NetworKit::node v){
@@ -614,6 +609,7 @@ private:
   double *       e_vectors;       /* stores the eigenvectors (of size n*nconv) */
   double *       e_values;        /* stores eigenvalues (of size nconv + 1) */
   Vec            *Q,top;
+  NetworKit::count k;
   
 };
 
