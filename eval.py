@@ -568,7 +568,7 @@ plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, rest
 
 
 for i in large_graphs:
-   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
+   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Stochastic-Submodular-Spectral2", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
 
 
 for i in large_graphs:
