@@ -210,7 +210,7 @@ public:
       ierr = VecNorm(vec, NORM_2, &norm);
       //assert(norm == 1.0);
       ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
-      VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+      //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
       //std::cout << " e_vector "<< i << " : [ ";
       for(PetscInt j = 0; j < n; j++) {
 	PetscScalar w;
