@@ -70,6 +70,9 @@ public:
       EPSDestroy(&eps_l);
       MatDestroy(&A);
       VecDestroy(&x);
+      VecDestroyVecs(nconv,&Q);
+      VecDestroy(&top);
+
       SlepcFinalize();
 
     }
@@ -94,6 +97,9 @@ public:
 
     
     // SET EPSSetInitialSpace() TO EXPLOIT INITIAL SOLUTION
+
+    EPSSetInitialSpace(eps,nconv,Q);
+    //EPSSetInitialSpace(eps_l,1,&top);
     
     run_eigensolver();
     info_eigensolver(); 
@@ -198,6 +204,12 @@ public:
     Vec vec;
     // create once and overwrite in loop
     MatCreateVecs(A, NULL, &vec);
+    MatCreateVecs(A,&top,NULL); 
+    VecDuplicateVecs(top,nconv,&Q);
+    //EPSGetInvariantSubspace(eps,Q);
+    //EPSGetInvariantSubspace(eps_l,&top);
+
+    
     PetscInt i;
     for (i = 0 ; i < nconv; i++) {
       EPSGetEigenpair(eps, i, &val, NULL, vec, NULL);
@@ -211,6 +223,7 @@ public:
       //assert(norm == 1.0);
       //ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
       //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
+      VecCopy(vec,Q[i]);
       //std::cout << " e_vector "<< i << " : [ ";
       for(PetscInt j = 0; j < n; j++) {
 	PetscScalar w;
@@ -237,18 +250,22 @@ public:
     //		"           k          ||Ax-kx||/||kx||\n"
     //		"   ----------------- ------------------\n");
     
-    EPSGetEigenvalue(eps_l, 0, &val, NULL);
+    //EPSGetEigenvalue(eps_l, 0, &val, NULL);
+    EPSGetEigenpair(eps_l, 0, &val, NULL, vec, NULL);
     EPSComputeError(eps_l, 0, EPS_ERROR_RELATIVE, &error);
     //PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
     //PetscPrintf(PETSC_COMM_WORLD,"\n");
 
     //std::cout << "INFO: i = " << i <<" \n";
+    VecCopy(vec,top);
+
     e_values[i] = val; //EIGENVALUE_MULTIPLIER * e_values[i-1];
     //std::cout << "INFO: e_values[i+1] = " << e_values[i] <<" \n";
-
-    
     VecDestroy(&vec);
     //std::cout << "INFO: RUN SETTING_EIGENPAIRS SUCCESSFULLY! \n";
+
+
+    
   }
 
 
@@ -596,7 +613,7 @@ private:
   PetscInt       nconv_l=0;         /* diagnostic: # of largest eigenvale (1 if converged)  */
   double *       e_vectors;       /* stores the eigenvectors (of size n*nconv) */
   double *       e_values;        /* stores eigenvalues (of size nconv + 1) */
-
+  Vec            *Q,top;
   
 };
 

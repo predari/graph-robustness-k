@@ -310,8 +310,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         ax2.set_ylabel('Time')
 
     if reference_restrictions:
-        ax1.set_ylim(0., 6.)
-        ax2.set_ylim(0., 6.)
+        ax1.set_ylim(0., 1.)
+        ax2.set_ylim(0., 1.)
     else:
         pass
 
@@ -535,6 +535,13 @@ restr_stochSpectralMP_Eps3 = {
     "Threads": 1
 }
 
+restr_stochSpectralMP_Eps4 = {
+    "Experiment": "stochastic-spectral",
+    "Epsilon": 0.02,
+    "Threads": 1
+}
+
+
 restr_USTDiagonalMP = {
     "Experiment": "sq-greedy",
     "Heuristic": "Lpinv Diagonal",
@@ -560,7 +567,11 @@ plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_st
 # MARIA {
 #plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
-plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Stochastic-Submodular-Spectral2","Main-Resistances-UST-Approx"], restr_submodularMP, "results_aggregated_5", True)
+
+plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_5", True)
+
+
+plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps4, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-Small", "Stochastic-Submodular-Spectral-Large", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_6", True)
 
 
 #for i in large_graphs:
@@ -568,11 +579,11 @@ plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, rest
 
 
 for i in large_graphs:
-   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Stochastic-Submodular-Spectral2", "Main-Resistances-UST-Approx"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
+   plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps4, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-Small", "Stochastic-Submodular-Spectral-Large", "Main-Resistances-UST"], restr_submodularMP, "results_"+i, True, True, "Submodular-Greedy")
 
 
 for i in large_graphs:
-   plot_averaged(df, [i], [restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps2, restr_stochSpectralMP_Eps3], ["Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.005", "Stochastic-Submodular-Spectral-0.001"], restr_submodularMP, "results_spectral_"+i, True, True, "Submodular-Greedy")
+   plot_averaged(df, [i], [restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps2, restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4], ["Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.005", "Stochastic-Submodular-Spectral-0.001", "Stochastic-Submodular-Spectral-0.02"], restr_submodularMP, "results_spectral_"+i, True, True, "Submodular-Greedy")
 
 
    
