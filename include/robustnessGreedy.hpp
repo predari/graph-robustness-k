@@ -154,8 +154,8 @@ private:
     virtual double objectiveDifference(Edge e) override {
         auto i = e.u;
         auto j = e.v;
-	auto val = laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
-	DEBUG(" obj = ", n * val , " - obj = ", n * (-1.0) * val );
+	//auto val = laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
+	//DEBUG(" obj = ", n * val , " - obj = ", n * (-1.0) * val );
         return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
     }
 

@@ -345,7 +345,7 @@ void StochasticGreedy<Item>::run() {
             {
                 auto item = this->items[allIndices[i]];
                 if (!item.selected) {
-		    DEBUG("ITEM:(", item.item.u, " ,",  item.item.v, ") value = ", item.value, " lastUpdated = ", item.lastUpdated, " index = ", item.index, " selected = ", item.selected);
+		  //DEBUG("ITEM:(", item.item.u, " ,",  item.item.v, ") value = ", item.value, " lastUpdated = ", item.lastUpdated, " index = ", item.index, " selected = ", item.selected);
 		    R.push(item);
                     if (R.size() >= s) {
                         break;
@@ -361,7 +361,7 @@ void StochasticGreedy<Item>::run() {
                     indicesSet.insert(v);
                     auto item = this->items[v];
                     if (!item.selected) {
-		        DEBUG("ITEM:(", item.item.u, " ,",  item.item.v, ") value = ", item.value, " lastUpdated = ", item.lastUpdated, " index = ", item.index, " selected = ", item.selected);
+		      // DEBUG("ITEM:(", item.item.u, " ,",  item.item.v, ") value = ", item.value, " lastUpdated = ", item.lastUpdated, " index = ", item.index, " selected = ", item.selected);
                         R.push(item);
                     }
                 }
@@ -380,7 +380,6 @@ void StochasticGreedy<Item>::run() {
                 break;
             } else {
                 c = R.top();
-		DEBUG(" TOP :(", c.item.u, " ,",  c.item.v, ") value = ", c.value, " lastUpdated = ", c.lastUpdated, " index = ", c.index, " selected = ", c.selected);
 		R.pop();
             }
 
@@ -390,7 +389,7 @@ void StochasticGreedy<Item>::run() {
                 } else {
                     auto &item = this->items[c.index];
                     c.value = this->objectiveDifference(c.item);
-		    DEBUG(" TOP new value:", c.value);
+		    DEBUG(" TOP :(", c.item.u, " ,",  c.item.v, ") value = ", c.value, " lastUpdated = ", c.lastUpdated, " index = ", c.index, " selected = ", c.selected);
                     item.value = c.value;
                     c.lastUpdated = this->round;
                     item.lastUpdated = this->round;
@@ -398,9 +397,9 @@ void StochasticGreedy<Item>::run() {
                 }
             } // Else: dont put it back
 
-	    DEBUG("PRINTING ITEMS (START).");
-	    printItems();
-	    DEBUG("PRINTING ITEMS (END).");
+	    // DEBUG("PRINTING ITEMS (START).");
+	    // printItems();
+	    // DEBUG("PRINTING ITEMS (END).");
 
 	    
 	}
