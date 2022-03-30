@@ -48,8 +48,8 @@ variants:
         extra_args: ['--k-factor', '10']	
       - name: 'k-20'
         extra_args: ['--k-factor', '20']
-#      - name: 'k-50'
-#        extra_args: ['--k-factor', '50']	
+      - name: 'k-50'
+        extra_args: ['--k-factor', '50']	
   - axis: 'threads'
     items:
       - name: 'singlecore'

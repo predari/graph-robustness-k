@@ -179,12 +179,11 @@ public:
       ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
       DEBUG(" CONVRG EVALUES: ", nconv);
       if (nconv > c) nconv = c;
-      ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
-      CHKERRQ(ierr);
+      //ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
       //// printing
-      ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      //ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      //ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      //ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
       //EPSView(eps,PETSC_VIEWER_STDOUT_WORLD);
       
       //std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
@@ -219,7 +218,7 @@ public:
       PetscReal      norm;
       ierr = VecNorm(vec, NORM_2, &norm);
       //assert(norm == 1.0);
-      ierr = PetscPrintf(PETSC_COMM_WORLD,"Norm of evector %d : %g\n", i, norm);
+      DEBUG("Norm of evector %d : %g\n", i, norm);
       //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
       VecCopy(vec,Q[i]);
       //std::cout << " e_vector "<< i << " : [ ";
@@ -244,15 +243,13 @@ public:
       std::cout << "WARN: LARGEST EIGENVALUE IS NOT COMPUTED.\n";
     }
     assert(nconv_l >= 1);
-    PetscPrintf(PETSC_COMM_WORLD,
-    		"           k          ||Ax-kx||/||kx||\n"
-    		"   ----------------- ------------------\n");
+    DEBUG("           k          ||Ax-kx||/||kx||\n"
+	  "   ----------------- ------------------\n");
     
     //EPSGetEigenvalue(eps_l, 0, &val, NULL);
     EPSGetEigenpair(eps_l, 0, &val, NULL, vec, NULL);
     EPSComputeError(eps_l, 0, EPS_ERROR_RELATIVE, &error);
-    PetscPrintf(PETSC_COMM_WORLD,"   %12f       %12g\n",(double)val,(double)error);
-    PetscPrintf(PETSC_COMM_WORLD,"\n");
+    DEBUG("   %12f       %12g\n",(double)val,(double)error, "\n");
 
     //std::cout << "INFO: i = " << i <<" \n";
     VecCopy(vec,top);
