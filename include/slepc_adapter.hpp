@@ -529,6 +529,7 @@ private:
     ierr = MatSetOption(*A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
     ierr = MatSetFromOptions(*A);
     ierr = MatSetType(*A, MATSEQAIJ); // MATAIJ
+    //ierr = MatSetType(*A, MATSEQSBAIJ); // MATSBAIJ
     ierr = MatSeqAIJSetPreallocation(*A, nz, (PetscInt*)nnz);
     PetscFunctionReturn(0);
   }

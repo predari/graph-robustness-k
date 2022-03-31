@@ -118,6 +118,44 @@ instances:
 
 
 
+# matrix:
+#   include:
+#       # Comparison Algorithms
+# #     - experiments: ['submodular-greedy']
+# #       instsets: ['large-graphs']
+# #       axes: ['k-size-const', 'threads']
+# #       variants: ['singlecore']
+# #     - experiments: ['stochastic-greedy']
+# #       instsets: ['large-graphs']
+# #       axes: ['k-size-const', 'threads', 'accuracy']
+# #       variants: ['eps_0.9', 'singlecore']
+#      - experiments: ['stochastic-spectral']
+#        instsets: ['large-graphs']
+#        axes: ['k-size-const', 'threads', 'accuracy']
+#        variants: ['eps_0.01', 'singlecore']
+#      - experiments: ['stochastic-spectral']
+#        instsets: ['large-graphs']
+#        axes: ['k-size-const', 'threads', 'accuracy']
+#        variants: ['eps_0.02', 'singlecore']    
+#      - experiments: ['stochastic-spectral']
+#        instsets: ['large-graphs']
+#        axes: ['k-size-const', 'threads', 'accuracy']
+#        variants: ['eps_0.001', 'singlecore']
+#      - experiments: ['stochastic-spectral']
+#        instsets: ['large-graphs']
+#        axes: ['k-size-const', 'threads', 'accuracy']
+#        variants: ['eps_0.005', 'singlecore']     
+# #     - experiments: ['sq-greedy']
+# #       instsets: ['large-graphs']
+# #       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
+# #       variants: ['ust-diag', 'eps_0.9', 'lamg', 'singlecore']
+# ##    - experiments: ['stochastic-greedy-lamg']
+# ##      instsets: ['large-graphs']
+# ##      axes: ['k-size-const', 'threads', 'accuracy']
+# ##      variants: ['eps_0.9', 'singlecore']
+
+
+
 matrix:
   include:
       # Comparison Algorithms
@@ -153,7 +191,11 @@ matrix:
 ##      instsets: ['large-graphs']
 ##      axes: ['k-size-const', 'threads', 'accuracy']
 ##      variants: ['eps_0.9', 'singlecore']
-      
+
+
+
+
+
 
       # Main Algorithm
 #    - experiments: ['sq-greedy']

@@ -523,7 +523,7 @@ public:
 
 private:
   virtual double objectiveDifference(Edge e) override {
-    return  solver.SpectralApproximationGainDifference(e.u, e.v) * n;
+    return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
     //return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
     //return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
   }
