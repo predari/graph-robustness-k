@@ -523,9 +523,9 @@ public:
 
 private:
   virtual double objectiveDifference(Edge e) override {
-    return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
+    return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
     //return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
-    //return  solver.SpectralApproximationGainDifference3(e.u, e.v) * n;
+    //return  solver.SpectralApproximationGainDifference1(e.u, e.v) * n;
   }
 
     virtual void useItem(Edge e) override {

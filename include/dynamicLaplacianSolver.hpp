@@ -758,7 +758,7 @@ public:
   }
 
   virtual double totalResistanceDifferenceExact(node u, node v) override {
-    return solver.SpectralApproximationGainDifference(u, v);
+    return solver.SpectralApproximationGainDifference1(u, v);
   }
   
   void solve() {

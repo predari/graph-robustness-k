@@ -42,6 +42,7 @@
 #include <dynamicLaplacianSolver.hpp>
 #include <robustnessGreedy.hpp>
 #include <robustnessUSTGreedy.hpp>
+#include <slepc_adapter.hpp>
 
 //#include <robustnessSimulatedAnnealing.hpp>
 
@@ -131,6 +132,52 @@ void testLaplacian(int seed, bool verbose=false)
 	std::cout << " " << lpinv(5, 5);
 	*/
 }
+
+
+
+void testEigensolver(NetworKit::Graph const & g, int count, bool verbose=false, int k=0)
+{
+
+
+        SlepcAdapter solver;
+	Time beforeInit;
+	if (verbose) {
+	  std::cout << " Graph =  (" << g.numberOfNodes() << "," <<g.numberOfEdges() <<  ")\n";
+	  std::cout << " count =  " << count <<  "\n";
+	  std::cout << " k =  " << k <<  "\n";
+	}
+	beforeInit = std::chrono::high_resolution_clock::now();
+
+	solver.setup(g, k);	
+	
+	solver.set_eigensolver(count);
+	solver.run_eigensolver();
+	solver.info_eigensolver(); 
+	solver.set_eigenpairs();
+	double * vectors = solver.get_eigenpairs();
+	double * values = solver.get_eigenvalues();
+
+	auto t = std::chrono::high_resolution_clock::now();
+	auto duration = t - beforeInit;
+
+	using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+	std::cout << "  Time =  " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+
+	
+	if (verbose) {
+	  assert(values);
+	  std::cout << " eigenvalues are:\n [ ";
+	  for (int i = 0 ; i < count + 1; i++)
+	    std::cout << values[i] << " ";
+	  std::cout << "]\n";
+	  
+	}
+}
+
+
+
+
+
 
 /*
 void testSampleUSTWithEdge() {
@@ -737,6 +784,8 @@ int main(int argc, char* argv[])
 	bool km_crt = false;
 
 	bool test_jlt = false;
+	bool test_esolve = false;
+	int count = 0;
 
 	LinAlgType linalg;
 
@@ -821,6 +870,13 @@ int main(int argc, char* argv[])
 		if (arg == "--test-jlt") {
 			test_jlt = true;
 		}
+
+		if (arg == "--test-esolve") {
+		  auto arg_esolve = nextArg(i);
+		  count = atoi(arg_esolve);
+		  test_esolve = true;
+		}
+
 
 		if (arg == "-tr") { 
 			experiment.verify_result = true;
@@ -1020,6 +1076,12 @@ int main(int argc, char* argv[])
 		run_experiments = false;
 		testJLT(g, instance_filename, k);
 	}
+
+	if (test_esolve) {
+	  run_experiments = false;
+	  testEigensolver(g,count,true);
+	}
+	
 
 	if (run_experiments) {
 		NetworKit::ConnectedComponents comp {g};

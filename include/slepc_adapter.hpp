@@ -45,7 +45,10 @@ public:
 	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!! // INGORES NEW MALLOC ERROR!
 	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); 
 	MatSetType(A, MATSEQAIJ); 
-	MatSetFromOptions(A);
+	// SBAIJ IS SLOWER
+	//MatSetType(A, MATSEQSBAIJ);
+	// Q: WHY DO I NEED THE FOLLOWING ?
+	//MatSetFromOptions(A);
 	MatSetUp(A);
        	
 	// SETTING MATRIX ELEMENTS
@@ -53,7 +56,7 @@ public:
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 	DEBUG("MATRIX IS CREATED SUCCESSFULLY.");
-	DEBUG("VIEW MATRIX:");
+	//DEBUG("VIEW MATRIX:");
 	//MatView(A,PETSC_VIEWER_STDOUT_WORLD);
 
 	free(nnz);
@@ -269,162 +272,53 @@ public:
   double * get_eigenvalues() const {return e_values;}
   
 
-    // TODO: rename to totalResistanceDifferenceExact
-  // input solver, a , b --- require c, e_vectors, e_values 
+
+
+  // gain =  D_appx / (1.0 + R_approx). D_appx = (upD + lowD)/2, R_appx = (upR + lowR)/2
   double SpectralApproximationGainDifference2(NetworKit::node a, NetworKit::node b) {
 
     // std::cout << " SPECTRAL GAIN DIFF BETWEEN (" << a << ", " << b <<  ")\n";
    
     double * vectors = get_eigenpairs();
-    double * values = get_eigenvalues();
-    // std::cout << " nconv =  " << nconv << " c = " << c <<  "\n";
-    // std::cout << " eigenvalues are:\n [ ";
-    // for (int i = 0 ; i < c + 1; i++)
-    //   std::cout << values[i] << " ";
-    // std::cout << "]\n";
-
-
-    // std::cout << " node 0: [ ";
-    // for (int i = 0 ; i < n*c; i++) {
-    //   std::cout << vectors[i] << " ";
-    //   if (((i % c) == c-1 && i < (n*c-1) )) std::cout << "]\n node " << (i/c) + 1 << ":[ "; 
-    // }
-    // std::cout << "]\n";
-
-    // std::cout << "=========================\n";
-    // std::cout << " all together: [ ";
-    // for(int j = 0; j < n*c; j++) {
-    //   std::cout << *(vectors + j) << " ";
-    // }
-    // std::cout << "]\n";
+    double * values = get_eigenvalues();    
     
-    
-    
-    double g = 0.0;
-    //double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
-    double upnom = 0.0, updenom = 0.0, lownom = 0.0, lowdenom = 0.0;
+
+    double upD = 0.0, upR = 0.0, lowD = 0.0, lowR = 0.0;
 
     assert(values[nconv] > 0);
-    //std::cout <<" values[nconv] = " << values[nconv] << " values[nconv-1] = " << values[nconv-1] << "\n";
     double lambda_n = 1.0/(values[nconv] * values[nconv]);
-    double lambda_c = 1.0/(values[nconv-1] * values[nconv-1]);
-    //std::cout << " constants are created. \n";
+    double lambda_c = 1.0/(values[nconv-1] * values[nconv-1]);    
     double sq_diff;
-    //std::cout << " looping over " << nconv << "... \n";
+
     for (int i = 0 ; i < nconv; i++) {
       assert(values[i] > 0);
       sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
-      //std::cout << " diff = " << sq_diff << " and sq_diff = ";
-      sq_diff *= sq_diff;
-      //std::cout << sq_diff << "\n ";            
-      upnom += (1.0/(values[i] * values[i]) - lambda_n) * sq_diff;
-      updenom += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
 
-      lownom += (1.0/(values[i] * values[i]) - lambda_c) * sq_diff;
-      lowdenom += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
+      sq_diff *= sq_diff;
+
+      upD += (1.0/(values[i] * values[i]) - lambda_c) * sq_diff;
+      lowD += (1.0/(values[i] * values[i]) - lambda_n) * sq_diff;
+      
+      upR += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
+      lowR += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
     }
 
-    upnom += 2.0*lambda_n;
-    updenom += 2.0/values[nconv-1];
-    lownom += 2.0*lambda_c;
-    lowdenom +=  2.0/values[nconv];
+    upD += 2.0*lambda_c;
+    lowD += 2.0*lambda_n;
+    
+    upR += 2.0/values[nconv-1];
+    lowR +=  2.0/values[nconv];
 
+    return (upD + lowD)/(2.0 + upR + lowR);
+        
 
-    double S1 = (upnom + lownom)/2.0;
-    double S2 = (updenom + lowdenom)/2.0;
-    return S1/(1.0 + S2);
-    
-    
-    // //upnom =  n * upnom;
-    // updenom += 1.0;
-    // //lownom = n * lownom;
-    // lowdenom +=  1.0;
-    
-    // //g = ( upnom/updenom ) + ( lownom/lowdenom );
-    // // std::cout << "upper bound = " << upnom/updenom << "\n";
-    // // std::cout << "low bound = " << lownom/lowdenom << "\n";
-    // // std::cout << "g = " << g / 2.0 << "\n";
-    // // std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
-    // //return (g / 2.0);
-    // return ( lownom/lowdenom );
   }
-
-
-  // old version
-  double SpectralApproximationGainDifference3(NetworKit::node a, NetworKit::node b) {
-
-    // std::cout << " SPECTRAL GAIN DIFF BETWEEN (" << a << ", " << b <<  ")\n";
-   
-    double * vectors = get_eigenpairs();
-    double * values = get_eigenvalues();
-    // std::cout << " nconv =  " << nconv << " c = " << c <<  "\n";
-    // std::cout << " eigenvalues are:\n [ ";
-    // for (int i = 0 ; i < c + 1; i++)
-    //   std::cout << values[i] << " ";
-    // std::cout << "]\n";
-
-
-    // std::cout << " node 0: [ ";
-    // for (int i = 0 ; i < n*c; i++) {
-    //   std::cout << vectors[i] << " ";
-    //   if (((i % c) == c-1 && i < (n*c-1) )) std::cout << "]\n node " << (i/c) + 1 << ":[ "; 
-    // }
-    // std::cout << "]\n";
-
-    // std::cout << "=========================\n";
-    // std::cout << " all together: [ ";
-    // for(int j = 0; j < n*c; j++) {
-    //   std::cout << *(vectors + j) << " ";
-    // }
-    // std::cout << "]\n";
-    
-    
-    
-    double g = 0.0;
-    //double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
-    double upnom = 0.0, updenom = 0.0, lownom = 0.0, lowdenom = 0.0;
-
-    assert(values[nconv] > 0);
-    //std::cout <<" values[nconv] = " << values[nconv] << " values[nconv-1] = " << values[nconv-1] << "\n";
-    double lambda_n = 1.0/(values[nconv] * values[nconv]);
-    double lambda_c = 1.0/(values[nconv-1] * values[nconv-1]);
-    //std::cout << " constants are created. \n";
-    double sq_diff;
-    //std::cout << " looping over " << nconv << "... \n";
-    for (int i = 0 ; i < nconv; i++) {
-      assert(values[i] > 0);
-      sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
-      //std::cout << " diff = " << sq_diff << " and sq_diff = ";
-      sq_diff *= sq_diff;
-      //std::cout << sq_diff << "\n ";            
-      upnom += (1.0/(values[i] * values[i]) - lambda_n) * sq_diff;
-      updenom += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
-
-      lownom += (1.0/(values[i] * values[i]) - lambda_c) * sq_diff;
-      lowdenom += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
-    }
-    
-    
-    //upnom =  n * upnom;
-    updenom += 1.0;
-    //lownom = n * lownom;
-    lowdenom +=  1.0;
-    
-    g = ( upnom/updenom ) + ( lownom/lowdenom );
-    // std::cout << "upper bound = " << upnom/updenom << "\n";
-    // std::cout << "low bound = " << lownom/lowdenom << "\n";
-    // std::cout << "g = " << g / 2.0 << "\n";
-    // std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
-    return (g / 2.0);
-    
-  }
-
 
 
 
   
-  // input solver, a , b --- require c, e_vectors, e_values 
-  double SpectralApproximationGainDifference(NetworKit::node a, NetworKit::node b) {
+  // gain = (U_bound + L_bound)/2
+  double SpectralApproximationGainDifference1(NetworKit::node a, NetworKit::node b) {
     double * vectors = get_eigenpairs();
     double * values = get_eigenvalues();
 
@@ -444,11 +338,12 @@ public:
       assert(values[i] > 0);
       sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
       sq_diff *= sq_diff;
-      dlow += (1.0/(values[i] * values[i]) - constant_n) * sq_diff;
-      dup += (1.0/(values[i] * values[i]) - constant_c) * sq_diff;
+      dup += (1.0/(values[i] * values[i]) - constant_n) * sq_diff;
+      rup += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;
       
+      dlow += (1.0/(values[i] * values[i]) - constant_c) * sq_diff;
       rlow += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
-      rup += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
+
     }
     g = ( (constant_c + dlow)/ (1.0 + 1.0/values[nconv] + rlow)  ) +
         ( (constant_n + dup) / (1.0 + 1.0/values[nconv-1] + rup) );
