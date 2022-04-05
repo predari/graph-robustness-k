@@ -23,7 +23,7 @@ experiments:
     stdout: out
     #slurm_args: ['--partition=single', '--nodelist=ego']
   - name: stochastic-spectral
-    args: ['./build/robustness', '-a7', '-i', '@INSTANCE@', '@EXTRA_ARGS@', '-eps_type jd -st_ksp_rtol 0.001 -st_ksp_type cg -st_pc_type bjacobi', ]
+    args: ['./build/robustness', '-a7', '-i', '@INSTANCE@', '@EXTRA_ARGS@', ]
     stdout: out
     
 
@@ -38,18 +38,24 @@ variants:
         extra_args: ['-km', 'linear', '--k-factor', '1.0']
       - name: '2**2'
         extra_args: ['-km', 'linear', '--k-factor', '4.0']
+  - axis: 'eps-args'
+    items:
+      - name: 'cond-bjacobi'
+        extra_args: ['-eps_type jd -st_ksp_rtol 0.001 -st_ksp_type cg -eps_tol 0.01 -st_pc_type bjacobi']  
+      - name: 'cond-lu'
+        extra_args: ['-eps_type jd -st_ksp_rtol 0.1 -st_ksp_type cg -eps_tol 0.01 -st_pc_type lu']      
   - axis: 'k-size-const'
     items:
       - name: 'k-2'
         extra_args: ['--k-factor', '2']
-      - name: 'k-5'
-        extra_args: ['--k-factor', '5']
+#      - name: 'k-5'
+#        extra_args: ['--k-factor', '5']
       - name: 'k-10'
         extra_args: ['--k-factor', '10']	
       - name: 'k-20'
         extra_args: ['--k-factor', '20']
-      - name: 'k-50'
-        extra_args: ['--k-factor', '50']	
+#      - name: 'k-50'
+#        extra_args: ['--k-factor', '50']	
   - axis: 'threads'
     items:
       - name: 'singlecore'
@@ -112,45 +118,60 @@ instdir: "instances"
 instances:
   - repo: local
     items: 
-      - facebook_ego_combined
       - inf-power.txt
-    set: [large-graphs]
+    set: [lu-graphs]
+
+  - repo: local
+    items: 
+      - facebook_ego_combined
+      - p2p-Gnutella04.txt
+      - p2p-Gnutella09.txt
+      - ca-HepPh.txt
+      - Wiki-Vote.txt
+      - web-spam.mtx
+      - out.subelj_euroroad_euroroad
+    set: [medium-graphs]
+
 
 
 
 matrix:
   include:
       # Comparison Algorithms
-#     - experiments: ['submodular-greedy']
-#       instsets: ['large-graphs']
-#       axes: ['k-size-const', 'threads']
-#       variants: ['singlecore']
-#     - experiments: ['stochastic-greedy']
-#       instsets: ['large-graphs']
-#       axes: ['k-size-const', 'threads', 'accuracy']
-#       variants: ['eps_0.9', 'singlecore']
-     - experiments: ['stochastic-spectral']
-       instsets: ['large-graphs']
+     - experiments: ['submodular-greedy']
+       instsets: ['medium-graphs']
+       axes: ['k-size-const', 'threads']
+       variants: ['singlecore']
+     - experiments: ['stochastic-greedy']
+       instsets: ['medium-graphs']
        axes: ['k-size-const', 'threads', 'accuracy']
-       variants: ['eps_0.01', 'singlecore']
+       variants: ['eps_0.9', 'singlecore']
+     - experiments: ['stochastic-spectral']
+       instsets: ['medium-graphs']
+       axes: ['k-size-const', 'threads', 'accuracy', 'eps-args']
+       variants: ['eps_0.01', 'singlecore', 'cond-bjacobi']
+     - experiments: ['stochastic-spectral']
+       instsets: ['lu-graphs']
+       axes: ['k-size-const', 'threads', 'accuracy', 'eps-args']
+       variants: ['eps_0.02', 'singlecore', 'cond-lu']       
 #     - experiments: ['stochastic-spectral']
-#       instsets: ['large-graphs']
+#       instsets: ['medium-graphs']
 #       axes: ['k-size-const', 'threads', 'accuracy']
 #       variants: ['eps_0.02', 'singlecore']    
-     - experiments: ['stochastic-spectral']
-       instsets: ['large-graphs']
-       axes: ['k-size-const', 'threads', 'accuracy']
-       variants: ['eps_0.001', 'singlecore']
-     - experiments: ['stochastic-spectral']
-       instsets: ['large-graphs']
-       axes: ['k-size-const', 'threads', 'accuracy']
-       variants: ['eps_0.005', 'singlecore']     
-#     - experiments: ['sq-greedy']
-#       instsets: ['large-graphs']
-#       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
-#       variants: ['ust-diag', 'eps_0.9', 'lamg', 'singlecore']
+#     - experiments: ['stochastic-spectral']
+#       instsets: ['medium-graphs']
+#       axes: ['k-size-const', 'threads', 'accuracy']
+#       variants: ['eps_0.001', 'singlecore']
+#     - experiments: ['stochastic-spectral']
+#       instsets: ['medium-graphs']
+#       axes: ['k-size-const', 'threads', 'accuracy']
+#       variants: ['eps_0.005', 'singlecore']     
+     - experiments: ['sq-greedy']
+       instsets: ['medium-graphs']
+       axes: ['k-size-const', 'threads', 'accuracy', 'linalg', 'accuracy_trees', 'heuristic']
+       variants: ['ust-diag', 'eps_0.9', 'lamg', 'singlecore']
 ##    - experiments: ['stochastic-greedy-lamg']
-##      instsets: ['large-graphs']
+##      instsets: ['medium-graphs']
 ##      axes: ['k-size-const', 'threads', 'accuracy']
 ##      variants: ['eps_0.9', 'singlecore']
 
@@ -191,7 +212,6 @@ matrix:
 # ##      instsets: ['large-graphs']
 # ##      axes: ['k-size-const', 'threads', 'accuracy']
 # ##      variants: ['eps_0.9', 'singlecore']
-
 
 
 

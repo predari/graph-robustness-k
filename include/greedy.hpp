@@ -32,6 +32,11 @@ public:
     virtual double getOriginalValue() = 0;
     virtual std::vector<T> getResultItems() = 0;
     virtual bool isValidSolution() = 0;
+    virtual double getReferenceResultValue() { return 0.0; };
+    virtual double getReferenceOriginalResistance() { return 0.0;};
+    virtual double getSpectralResultValue() { return 0.0; };
+    virtual double getSpectralOriginalResistance() { return 0.0;};
+
   
 };
 
@@ -59,12 +64,6 @@ public:
 	std::vector<Item> getResultItems() { return results; }
 	double getTotalValue() { return totalValue; }
 	virtual bool isValidSolution() override { return validSolution; }
-  // void printItems() {
-  //   DEBUG("NUMBER OF ITEMS = ", itemQueue.size());
-  //   for (auto e = 0; e < itemQueue.size(); e++) {
-  //     DEBUG("ITEM:(", itemQueue[e].item.u, " ,",  itemQueue[e].item.v, ") value = ", itemQueue[e].value, " lastUpdated = ", itemQueue[e].lastUpdated);
-  //   }
-  // }
   
   void summarize() {
     std::cout << "Greedy Results Summary. ";
@@ -89,7 +88,8 @@ protected:
 	virtual bool checkSolution() { return this->round == this->k - 1; };
 	virtual bool isItemAcceptable(Item c) { return true; }
 	virtual void initRound() {}
-    virtual void addDefaultItems() {};
+        virtual void addDefaultItems() {};
+
 
   void addItems(std::vector<Item> items);
   void resetItems();
@@ -133,7 +133,7 @@ void SubmodularGreedy<Item>::run() {
     this->round = 0;
     // this->totalValue = 0;
 
-    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+    //DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
 	
     this->validSolution = false;
     this->results.clear();
@@ -148,8 +148,8 @@ void SubmodularGreedy<Item>::run() {
     while (candidatesLeft)
     {
 		this->initRound();
-
-		DEBUG("AFTER POPULATING PRIORITY QUEUE.");
+		
+		//DEBUG("AFTER POPULATING PRIORITY QUEUE.");
         // Get top updated entry from queue
         ItemWrapper c;
         while (true) {
@@ -166,23 +166,19 @@ void SubmodularGreedy<Item>::run() {
                     break; // top updated entry found.
                 } else {
                     c.value = this->objectiveDifference(c.item);
-		    DEBUG(" TOP new value : ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
+		    // DEBUG(" TOP new value : ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
                     c.lastUpdated = this->round;
                     itemQueue.push(c);
                 }
             } // Else: dont put it back
-
-	    // DEBUG("PRINTING ITEMS (START).");
-	    // printItems();
-	    // DEBUG("PRINTING ITEMS (END).");
 
 	    
         }
         if (candidatesLeft) {
             this->results.push_back(c.item);
             this->totalValue += c.value;
-	    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
-	    DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
+	    //DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+	    //DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
             this->useItem(c.item);
             
             if (this->checkSolution())
@@ -272,7 +268,7 @@ protected:
 	virtual void initRound() {}
         virtual void addDefaultItems() {};
 
-	void addItems(std::vector<Item> items);
+        void addItems(std::vector<Item> items);
 	void resetItems();
 
 
@@ -311,14 +307,14 @@ void StochasticGreedy<Item>::run() {
     this->results.clear();
 
 
-    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+    //DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
 
     if (items.size() == 0) { addDefaultItems(); }
 
-    DEBUG(" N = ", N);
-    DEBUG("PRINTING ITEMS (START).");
-    printItems();
-    DEBUG("PRINTING ITEMS (END).");
+    // DEBUG(" N = ", N);
+    // DEBUG("PRINTING ITEMS (START).");
+    // printItems();
+    // DEBUG("PRINTING ITEMS (END).");
     bool candidatesLeft = true;
     std::mt19937 g(Aux::Random::getSeed());
 
@@ -389,7 +385,7 @@ void StochasticGreedy<Item>::run() {
                 } else {
                     auto &item = this->items[c.index];
                     c.value = this->objectiveDifference(c.item);
-		    DEBUG(" TOP :(", c.item.u, " ,",  c.item.v, ") value = ", c.value, " lastUpdated = ", c.lastUpdated, " index = ", c.index, " selected = ", c.selected);
+		    //DEBUG(" TOP :(", c.item.u, " ,",  c.item.v, ") value = ", c.value, " lastUpdated = ", c.lastUpdated, " index = ", c.index, " selected = ", c.selected);
                     item.value = c.value;
                     c.lastUpdated = this->round;
                     item.lastUpdated = this->round;
@@ -406,8 +402,8 @@ void StochasticGreedy<Item>::run() {
         if (candidatesLeft) {
             this->results.push_back(c.item);
             this->totalValue += c.value;
-	    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
-	    DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
+	    //DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+	    //DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
 	    this->useItem(c.item);
             this->items[c.index].selected = true;
             

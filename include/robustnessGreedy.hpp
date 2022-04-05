@@ -1,7 +1,7 @@
 #ifndef ROBUSTNESS_GREEDY_H
 #define ROBUSTNESS_GREEDY_H
 
-
+#include <chrono>
 #include <utility>
 #include <random>
 #include <exception>
@@ -32,6 +32,8 @@ inline bool operator<(const NetworKit::Edge& lhs, const NetworKit::Edge& rhs) {
 
 
 using namespace NetworKit;
+
+typedef decltype(std::chrono::high_resolution_clock::now()) Time;
 
 
 
@@ -456,39 +458,55 @@ private:
 };
  
 
-// ================================================================
-// ================================================================
-// ===== implementation of the stochastic spectral approach =======
-// ================================================================
-// ================================================================
-
 class RobustnessStochasticGreedySpectral : public StochasticGreedy<Edge>{
 public:
     RobustnessStochasticGreedySpectral(GreedyParams params) {
-      //std::cout << " CALLING RobustnessStochasticGreedySpectral() \n";
         this->g = params.g;
         this->n = g.numberOfNodes();
         this->k = params.k;
         this->epsilon = params.epsilon;
-	// TODO: TMP epsilon IS USED AS PERCENTAGE FOR CUTOFF
 	cutOff();
+	DEBUG("numberOfEigenpairs: " , numberOfEigenpairs);
+
+	//Time beforeInit = std::chrono::high_resolution_clock::now();
+	
         solver.setup(g, this->k);
 	solver.set_eigensolver(numberOfEigenpairs);
-	solver.run_eigensolver();
-	solver.info_eigensolver(); 
-	solver.set_eigenpairs();
+	//auto t = std::chrono::high_resolution_clock::now();
+	//auto duration = t - beforeInit;
+	//using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+	//std::cout << "  Solver Setup Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+	//beforeInit = std::chrono::high_resolution_clock::now();
 	
-	double totalValueSpectralOriginal = solver.SpectralToTalEffectiveResistance();
-	//this->totalValue = totalValueSpectralOriginal;
+	solver.run_eigensolver();
+	//t = std::chrono::high_resolution_clock::now();
+	//duration = t - beforeInit;
+	//std::cout << "  Solver Run Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+	//beforeInit = std::chrono::high_resolution_clock::now();
+	solver.info_eigensolver();
+
+	//t = std::chrono::high_resolution_clock::now();
+	//duration = t - beforeInit;
+	//std::cout << "  Solver Info Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+	//beforeInit = std::chrono::high_resolution_clock::now();
+	solver.set_eigenpairs();
+
+	//t = std::chrono::high_resolution_clock::now();
+	//duration = t - beforeInit;
+	//std::cout << "  Solver SetResult Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+	//double * e_values = solver.get_eigenvalues();
+	//std::cout << " CALLING computeEigenpairs::eigenvalues are to:\n [ ";
+	//for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
+	//  std::cout << e_values[i] << " ";
+	//std::cout << "]\n";
+
 
 	this->totalValue = 0.;
         this->originalResistance = totalValue;
 	// ---------------------------------------------------
-	this->lpinv = laplacianPseudoinverse(g);
-        this->totalValueRefOriginal = this->lpinv.trace() * n ;
-	//DEBUG("totalValueRefOriginal: " , totalValueRefOriginal);
-	//DEBUG("totalValueSpectralOriginal: " , totalValueSpectralOriginal);
-
+	//this->lpinv = laplacianPseudoinverse(g);
+        //this->ReferenceOriginalResistance = this->lpinv.trace() * n ;
+	//this->SpectralOriginalResistance = solver.SpectralToTalEffectiveResistance();
 	// ---------------------------------------------------
 
     }
@@ -521,30 +539,47 @@ public:
     }
 
 
-private:
-  virtual double objectiveDifference(Edge e) override {
-    return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
-    //return  solver.SpectralApproximationGainDifference2(e.u, e.v) * n;
-    //return  solver.SpectralApproximationGainDifference1(e.u, e.v) * n;
-  }
-
-    virtual void useItem(Edge e) override {
-      //std::cout << " CALLING RobustnessStochasticGreedySpectral::useItem() \n";
-      // ---------------------------------------------------
-      updateLaplacianPseudoinverse(this->lpinv, e);
-      this->totalValueRefUpdate = this->lpinv.trace() * n;
-      //DEBUG("totalValueRefUpdate: " , totalValueRefUpdate);
-      // ---------------------------------------------------
-
-      solver.addEdge(e.u, e.v);
-      updateEigenpairs();
+  double getReferenceResultValue() override {
+        return this->ReferenceTotalValue;
     }
 
+  double getReferenceOriginalResistance() override {
+        return this-> ReferenceOriginalResistance;
+    }
+
+
+  double getSpectralResultValue() override {
+    return this->SpectralTotalValue;
+  }
+  
+  double getSpectralOriginalResistance() override {
+    return this-> SpectralOriginalResistance;
+  }
+  
+ 
+
+private:
+  virtual double objectiveDifference(Edge e) override {
+    return  solver.SpectralApproximationGainDifference1(e.u, e.v) * n;
+  }
+
+    virtual void useItem(Edge e) override {      
+      //Time beforeInit = std::chrono::high_resolution_clock::now();
+      solver.addEdge(e.u, e.v);
+      updateEigenpairs();
+      //auto t = std::chrono::high_resolution_clock::now();
+      //auto duration = t - beforeInit;
+      //using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+      //std::cout << "  Solver Update Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+      // ---------------------------------------------------
+      //updateLaplacianPseudoinverse(this->lpinv, e);
+      //this->ReferenceTotalValue = this->lpinv.trace() * n;
+      //this->SpectralTotalValue = solver.SpectralToTalEffectiveResistance();
+      // ---------------------------------------------------
+    }
   
    void cutOff() {
-
-     DEBUG(" RETURN cuOff :: epsilon =  " , this->epsilon); // 0.05
-     numberOfEigenpairs = ceil(this->epsilon*n); // 0.05
+     numberOfEigenpairs = ceil(this->epsilon*n);
      assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
      DEBUG(" RETURN cuOff :: numberOfEigenpairs =  " , numberOfEigenpairs);
     
@@ -552,14 +587,11 @@ private:
 
   void updateEigenpairs() {
     solver.update_eigensolver();
-    double * e_values = solver.get_eigenvalues();
-    // std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
-    // for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
-    //   std::cout << e_values[i] << " ";
-    // std::cout << "]\n";
-    double totalValueSpectralUpdate = solver.SpectralToTalEffectiveResistance();
-    //DEBUG("totalValueSpectralUpdate: " , totalValueSpectralUpdate);
-    //DEBUG(" Gain : " , totalValueRefOriginal - totalValueRefUpdate);
+    //double * e_values = solver.get_eigenvalues();
+    //std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
+    //for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
+    //  std::cout << e_values[i] << " ";
+    //std::cout << "]\n";
   }
 
   
@@ -570,20 +602,18 @@ private:
   //EigenSolver solver;
   SlepcAdapter solver;
   // Slepc::EigenSolver solver;
-  // ------------------------
-
+  // ---------------------------------------------------
   Eigen::MatrixXd lpinv;
-  double totalValueRefUpdate = 0.0;
-  double totalValueRefOriginal = 0.0;
+  double ReferenceTotalValue = 0.0;
+  double ReferenceOriginalResistance = 0.0;
+  double SpectralTotalValue = 0.0;
+  double SpectralOriginalResistance = 0.0;
+  // ---------------------------------------------------
+
   NetworKit::count numberOfEigenpairs = 1;
 };
 
 
-// ================================================================
-// ================================================================
-// ========== end of the stochastic spectral approach =============
-// ================================================================
-// ================================================================
 
 
 

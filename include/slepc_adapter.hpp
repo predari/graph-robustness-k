@@ -29,6 +29,7 @@ public:
 	k = offset;
 	n = (PetscInt)g.numberOfNodes();
 	NetworKit::count m = (PetscInt)g.numberOfEdges();
+	DEBUG("GRAPH INPUT: (n = ", n, " m = ", m, ")\n");
 
 	// TODO: ADJUST FOR ALLOCATING MORE SPACE BASED ON k!
 	// INSTEAD OF DEGREE(V) + 1, ALLOCATE DEGREE(V) + 1 + k
@@ -45,20 +46,21 @@ public:
 	// TODO: TEMP. PLEASE REMOVE FOLLOWING LINE!! // INGORES NEW MALLOC ERROR!
 	MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE); 
 	MatSetType(A, MATSEQAIJ); 
-	// SBAIJ IS SLOWER
-	//MatSetType(A, MATSEQSBAIJ);
+	// SBAIJ IS SLOWER //MatSetType(A, MATSEQSBAIJ);
 	// Q: WHY DO I NEED THE FOLLOWING ?
 	//MatSetFromOptions(A);
+	// Q: WHY DO I NEED THE FOLLOWING ?
 	MatSetUp(A);
-       	
+	////MatCreateSeqAIJMP(PETSC_COMM_WORLD,n,n,0,nnz,&A);
+	
+	
 	// SETTING MATRIX ELEMENTS
 	MatSetValuesROW(g, nnz, &A);
 	MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
 	MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
 	DEBUG("MATRIX IS CREATED SUCCESSFULLY.");
-	//DEBUG("VIEW MATRIX:");
+	DEBUG("VIEW MATRIX:");
 	//MatView(A,PETSC_VIEWER_STDOUT_WORLD);
-
 	free(nnz);
     }
 
@@ -120,7 +122,7 @@ public:
       return 0;
     }
     
-    //std::cout << " INFO: SETTING NUMBER OF EIGENPAIRS = " << numberOfEigenpairs << "\n";
+
     c = (PetscInt) numberOfEigenpairs;
     // storage for eigenpairs
     e_vectors = (double *) calloc(1, n * c * sizeof(double));
@@ -175,21 +177,21 @@ public:
       EPSGetIterationNumber(eps, &its);
       DEBUG(" ITERATION COUNT: ", its);
       EPSGetTolerances(eps, &tol, &maxit);
-      DEBUG(" STOP COND: tol=",(double)tol , "maxit=", maxit);
+      DEBUG(" STOP COND: tol= ",(double)tol , "maxit= ", maxit);
       ierr = EPSGetDimensions(eps, &nev, NULL, NULL); CHKERRQ(ierr);
       DEBUG(" REQEST EVALUES: ", c);
       DEBUG(" COMPUT EVALUES: ", nev);
       ierr = EPSGetConverged(eps, &nconv); CHKERRQ(ierr);
       DEBUG(" CONVRG EVALUES: ", nconv);
       if (nconv > c) nconv = c;
-      //ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
-      //// printing
-      //ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      //ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      //ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
-      //EPSView(eps,PETSC_VIEWER_STDOUT_WORLD);
+      // ierr = PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_INFO_DETAIL);
+      // // //printing
+      // ierr = EPSConvergedReasonView(eps,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      // ierr = EPSErrorView(eps,EPS_ERROR_RELATIVE,PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      // ierr = PetscViewerPopFormat(PETSC_VIEWER_STDOUT_WORLD); CHKERRQ(ierr);
+      // EPSView(eps,PETSC_VIEWER_STDOUT_WORLD);
       
-      //std::cout << "INFO: INFO EIGENSOLVER SUCCESSFULLY! \n";
+     DEBUG("INFO: INFO EIGENSOLVER SUCCESSFULLY!");
       return ierr;
     }
   /* ========================================================================================== */
@@ -208,7 +210,7 @@ public:
     VecDuplicateVecs(top,nconv,&Q);
     //EPSGetInvariantSubspace(eps,Q);
     //EPSGetInvariantSubspace(eps_l,&top);
-
+    
     
     PetscInt i;
     for (i = 0 ; i < nconv; i++) {
@@ -218,10 +220,9 @@ public:
       //PetscPrintf(PETSC_COMM_WORLD,"   %12f      %12g\n", (double)val, (double)error);
       //PetscPrintf(PETSC_COMM_WORLD,"\n");
       e_values[i] = (double) val;
-      PetscReal      norm;
-      ierr = VecNorm(vec, NORM_2, &norm);
-      //assert(norm == 1.0);
-      DEBUG("Norm of evector %d : %g\n", i, norm);
+      //PetscReal      norm;
+      //ierr = VecNorm(vec, NORM_2, &norm);
+      //DEBUG("Norm of evector %d : %g\n", i, norm);
       //VecView(vec,PETSC_VIEWER_STDOUT_WORLD);
       VecCopy(vec,Q[i]);
       //std::cout << " e_vector "<< i << " : [ ";
@@ -274,80 +275,71 @@ public:
 
 
 
-  // gain =  D_appx / (1.0 + R_approx). D_appx = (upD + lowD)/2, R_appx = (upR + lowR)/2
+  // gain =  D_appx / (1.0 + R_approx).
+  // D_appx = (upD + lowD)/2,
+  // R_appx = (upR + lowR)/2.
+  // DOES NOT WORK AS EXPECTED!
   double SpectralApproximationGainDifference2(NetworKit::node a, NetworKit::node b) {
-
-    // std::cout << " SPECTRAL GAIN DIFF BETWEEN (" << a << ", " << b <<  ")\n";
-   
-    double * vectors = get_eigenpairs();
-    double * values = get_eigenvalues();    
-    
+    //double * vectors = get_eigenpairs();
+    //double * values = get_eigenvalues();
 
     double upD = 0.0, upR = 0.0, lowD = 0.0, lowR = 0.0;
 
-    assert(values[nconv] > 0);
-    double lambda_n = 1.0/(values[nconv] * values[nconv]);
-    double lambda_c = 1.0/(values[nconv-1] * values[nconv-1]);    
+    //assert(e_values[nconv] > 0);
+    double lambda_n = 1.0/(e_values[nconv] * e_values[nconv]);
+    double lambda_c = 1.0/(e_values[nconv-1] * e_values[nconv-1]);    
     double sq_diff;
 
     for (int i = 0 ; i < nconv; i++) {
-      assert(values[i] > 0);
-      sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
+      //assert(e_values[i] > 0);
+      sq_diff = *(e_vectors+a*c+i) - *(e_vectors+b*c+i);
 
       sq_diff *= sq_diff;
 
-      upD += (1.0/(values[i] * values[i]) - lambda_c) * sq_diff;
-      lowD += (1.0/(values[i] * values[i]) - lambda_n) * sq_diff;
+      upD += (1.0/(e_values[i] * e_values[i]) - lambda_c) * sq_diff;
+      lowD += (1.0/(e_values[i] * e_values[i]) - lambda_n) * sq_diff;
       
-      upR += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;      
-      lowR += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
+      upR += (1.0/e_values[i] - 1.0/e_values[nconv-1]) * sq_diff;      
+      lowR += (1.0/e_values[i] - 1.0/e_values[nconv]) * sq_diff;
     }
 
     upD += 2.0*lambda_c;
     lowD += 2.0*lambda_n;
     
-    upR += 2.0/values[nconv-1];
-    lowR +=  2.0/values[nconv];
+    upR += 2.0/e_values[nconv-1];
+    lowR +=  2.0/e_values[nconv];
 
     return (upD + lowD)/(2.0 + upR + lowR);
-        
-
   }
 
-
-
   
-  // gain = (U_bound + L_bound)/2
-  double SpectralApproximationGainDifference1(NetworKit::node a, NetworKit::node b) {
-    double * vectors = get_eigenpairs();
-    double * values = get_eigenvalues();
+  // gain = (U_bound + L_bound)/2.
 
-    // std::cout << " eigenvalues are:\n [ ";
-    // for (int i = 0 ; i < c + 1; i++)
-    //   std::cout << values[i] << " ";
-    //  std::cout << "]\n";
+  double SpectralApproximationGainDifference1(NetworKit::node a, NetworKit::node b) {
+    //double * vectors = get_eigenpairs();
+    //double * values = get_eigenvalues();
+
     double g = 0.0;
     double dlow = 0.0, dup = 0.0, rlow = 0.0, rup = 0.0;
 
-    assert(values[nconv] > 0);
-    double constant_n = 1.0/(values[nconv] * values[nconv]);
-    double constant_c = 1.0/(values[nconv-1] * values[nconv-1]);
+    //assert(e_values[nconv] > 0);
+    double constant_n = 1.0/(e_values[nconv] * e_values[nconv]);
+    double constant_c = 1.0/(e_values[nconv-1] * e_values[nconv-1]);
     double sq_diff;
     
     for (int i = 0 ; i < nconv; i++) {
-      assert(values[i] > 0);
-      sq_diff = *(vectors+a*c+i) - *(vectors+b*c+i);
+      //assert(e_values[i] > 0);
+      sq_diff = *(e_vectors+a*c+i) - *(e_vectors+b*c+i);
       sq_diff *= sq_diff;
-      dup += (1.0/(values[i] * values[i]) - constant_n) * sq_diff;
-      rup += (1.0/values[i] - 1.0/values[nconv-1]) * sq_diff;
+      dup += (1.0/(e_values[i] * e_values[i]) - constant_n) * sq_diff;
+      rup += (1.0/e_values[i] - 1.0/e_values[nconv-1]) * sq_diff;
       
-      dlow += (1.0/(values[i] * values[i]) - constant_c) * sq_diff;
-      rlow += (1.0/values[i] - 1.0/values[nconv]) * sq_diff;
-
+      dlow += (1.0/(e_values[i] * e_values[i]) - constant_c) * sq_diff;
+      rlow += (1.0/e_values[i] - 1.0/e_values[nconv]) * sq_diff;
     }
-    g = ( (constant_c + dlow)/ (1.0 + 1.0/values[nconv] + rlow)  ) +
-        ( (constant_n + dup) / (1.0 + 1.0/values[nconv-1] + rup) );
-    //std::cout << "INFO: COMPUTING METRIC SUCCESSFULLY! \n";
+    g = ( (constant_c + dlow)/ (1.0 + 1.0/e_values[nconv] + rlow)  ) +
+        ( (constant_n + dup) / (1.0 + 1.0/e_values[nconv-1] + rup) );
+
     return (g / 2.0);
   }
 
@@ -355,7 +347,7 @@ public:
 
   double SpectralToTalEffectiveResistance() {
 
-    double * values = get_eigenvalues();
+    // double * values = get_eigenvalues();
     // std::cout << " nconv =  " << nconv << " c = " << c <<  "\n";
     // std::cout << " eigenvalues are:\n [ ";
     // for (int i = 0 ; i < c + 1; i++)
@@ -373,14 +365,12 @@ public:
     //   std::cout << *(vectors + j) << " ";
     // }
     // std::cout << "]\n";
-
     double Sum = 0.0;
-    
    
-    assert(values[nconv] > 0);
+    assert(e_values[nconv] > 0);
     for (int i = 0 ; i < nconv; i++) {
-      assert(values[i] > 0);
-      Sum += 1.0/values[i];
+      assert(e_values[i] > 0);
+      Sum += 1.0/e_values[i];
     }
     return n*Sum;
   }

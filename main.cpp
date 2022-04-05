@@ -699,6 +699,8 @@ public:
 		resultResistance = greedy->getResultValue();
 		originalResistance = greedy->getOriginalValue();		
 
+
+		
 		// Output Results
 		std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
 
@@ -710,6 +712,20 @@ public:
 		std::cout << "  Value:  " << resultResistance << "\n";
 		std::cout << "  Original Value:  " << originalResistance << "\n";
 		std::cout << "  Gain:  " << originalResistance - resultResistance << "\n";
+
+		// if(alg == AlgorithmType::stochastic_spectral) {
+		//   double referenceResultResistance = greedy->getReferenceResultValue();
+		//   double referenceOriginalResistance = greedy->getReferenceOriginalResistance();
+		//   std::cout << "  Reference Value:  " << referenceResultResistance << "\n";
+		//   std::cout << "  Reference Original Value:  " << referenceOriginalResistance << "\n";
+		//   std::cout << "  Reference Gain:  " << referenceOriginalResistance - referenceResultResistance << "\n";
+		//   double spectralResultResistance = greedy->getSpectralResultValue();
+		//   double spectralOriginalResistance = greedy->getSpectralOriginalResistance();
+		//   std::cout << "  Spectral Value:  " << spectralResultResistance << "\n";
+		//   std::cout << "  Spectral Original Value:  " << spectralOriginalResistance << "\n";
+		//   std::cout << "  Spectral Gain:  " << spectralOriginalResistance - spectralResultResistance << "\n";
+		// }
+
 
 		using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
 		std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
@@ -794,7 +810,8 @@ int main(int argc, char* argv[])
 	int instance_first_node = 0;
 	char instance_sep_char = ' ';
 	bool instance_directed = false;
-	std::string instance_comment_prefix = "%";
+	//std::string instance_comment_prefix = "%";
+	std::string instance_comment_prefix = "#";
 
 	std::string helpstring = "EXAMPLE CALL\n"
     	"\trobustness -a1 -i graph.gml\n"
@@ -1037,13 +1054,13 @@ int main(int argc, char* argv[])
 			GMLGraphReader reader;
 			try { g = reader.read(instance_filename); }
 			catch(const std::exception& e) { std::cout << "Failed to open or parse gml file " + instance_filename << '\n'; return 1; }
-		} else if (hasEnding(instance_filename, "nkb")) {
+		} else if (hasEnding(instance_filename, "nkb") || hasEnding(instance_filename, "networkit")) {
 			NetworkitBinaryReader reader;
 			try {g = reader.read(instance_filename); }
 			catch(const std::exception& e) { std::cout << "Failed to open or parse networkit binary file " << instance_filename << '\n'; return 1; }
 		} else {
 			try {
-				NetworKit::EdgeListReader reader(instance_sep_char, NetworKit::node(instance_first_node), instance_comment_prefix, true, instance_directed);
+			        NetworKit::EdgeListReader reader(instance_sep_char, NetworKit::node(instance_first_node), instance_comment_prefix, true, instance_directed);
 				g = reader.read(instance_filename);
 			}
 			catch (const std::exception& e) { 
@@ -1055,7 +1072,6 @@ int main(int argc, char* argv[])
 		g.removeSelfLoops();
 		assert(g.checkConsistency());
 	}
-
 	int k = 1;
 	int n = g.numberOfNodes();
 	if (km_sqrt) {
