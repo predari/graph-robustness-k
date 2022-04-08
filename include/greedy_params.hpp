@@ -23,6 +23,7 @@ public:
   double solverEpsilon = 0.00001;
   double epsilon = 0.1;
   double epsilon2 = 0.1;
+  unsigned int ne = 1;
   NetworKit::Graph& g;
   unsigned int threads = 1;
   HeuristicType heuristic;

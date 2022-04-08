@@ -72,7 +72,9 @@ df = pd.DataFrame(cfg.collect_successful_results(parse))
 def print_df(df):
     print(df.to_string())
 
+#print_df(df)    
 df.drop('Call', inplace=True, axis=1)
+# DROPPING BECAUSE SQ-GREEDY RUNS WITH -v (verbose) SO SUPRESS
 df.drop('AddedEdgeList', inplace=True, axis=1)
 #df.drop('All-Columns', inplace=True, axis=1)
 
@@ -212,7 +214,10 @@ def analyze_experiment(df, restrictions, instance_names, ks=None, additional_exc
     if not ks:
         ks = set()
 
+#    print(restrictions)    
     restricted_frame = restrict_frame(df, restrictions)
+#    print("Restricted_frame")
+#    print(restricted_frame)
     for instance_name in instance_names:
         instance_frame = project(restricted_frame, "Instance", instance_name)
 
@@ -233,9 +238,9 @@ def analyze_experiment(df, restrictions, instance_names, ks=None, additional_exc
 
             insert(resistances, k, row['Gain'])
             insert(times, k, row['Time'])
-#    print(resistances)
-#    print(times)
-#    print(ks)
+ #   print(resistances)
+ #   print(times)
+ #   print(ks)
     return resistances, times, ks
 
 def analyze_multiple_experiments(df, experiment_restriction_list, instance_names, additional_exclusion=None):
@@ -394,7 +399,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     #ax1.legend()
     #ax2.legend()
     plt.legend(ncol = 1, bbox_to_anchor=(1, 1), loc='lower right')
-
+    
+    
     fig.tight_layout()
     if filename == None:
         filename = "results_aggregated"
@@ -443,7 +449,12 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
 
 # MARIA {
 # large_graphs = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph", "ia-email-EU"]
-large_graphs = ["inf-power", "facebook_ego_combined"]
+
+
+large_graphs = ["web-spam", "facebook_ego_combined"]
+
+
+#large_graphs = ["facebook_ego_combined", "ca-HepPh","p2p-Gnutella04","p2p-Gnutella09","web-spam", "Wiki-Vote"]#, "inf-power"]
 # MARIA }
 
 
@@ -517,29 +528,29 @@ restr_stochDynMP = {
     "Threads": 1
 }
 
-restr_stochSpectralMP_Eps1 = {
-    "Experiment": "stochastic-spectral",
-    "Epsilon": 0.001,
-    "Threads": 1
-}
+# restr_stochSpectralMP_Eps1 = {
+#     "Experiment": "stochastic-spectral",
+#     "Epsilon": 0.9,
+#     "Threads": 1
+# }
 
-restr_stochSpectralMP_Eps2 = {
-    "Experiment": "stochastic-spectral",
-    "Epsilon": 0.005,
-    "Threads": 1
-}
+# restr_stochSpectralMP_Eps2 = {
+#     "Experiment": "stochastic-spectral",
+#     "Epsilon": 0.9,
+#     "Threads": 1
+# }
 
 restr_stochSpectralMP_Eps3 = {
     "Experiment": "stochastic-spectral",
-    "Epsilon": 0.01,
+    "Epsilon": 0.9,
     "Threads": 1
 }
 
-restr_stochSpectralMP_Eps4 = {
-    "Experiment": "stochastic-spectral",
-    "Epsilon": 0.02,
-    "Threads": 1
-}
+# restr_stochSpectralMP_Eps4 = {
+#     "Experiment": "stochastic-spectral",
+#     "Epsilon": 0.9,
+#     "Threads": 1
+# }
 
 
 restr_USTDiagonalMP = {
@@ -547,6 +558,7 @@ restr_USTDiagonalMP = {
     "Heuristic": "Lpinv Diagonal",
     "Linalg": "LAMG",
     "Epsilon": 0.9,
+    "Epsilon2": 10,
     "Threads": 1,
     "All-Columns": False
 }
@@ -557,8 +569,8 @@ restr_USTDiagonalMP = {
 def exclude_large_k(row, restrictions, instance_name):
     return row['k'] > 20 #and 'Linalg' in restrictions and restrictions['Linalg'] == "JLT via Sparse LU"
 # MARIA {
-plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time", None, True)
-plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-LAMG", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time_small_k", exclude_large_k, True)
+plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time", None, True)
+plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-", "Main-Resistances-UST-Approx"], "gain_vs_time_small_k", exclude_large_k, True)
 
 
 #plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
@@ -568,14 +580,21 @@ plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochDynMP, restr_st
 #plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
 
-plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_5", True)
+plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_5", True)
 
 
-plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps4, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-Small", "Stochastic-Submodular-Spectral-Large", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_6", True)
+# plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.02", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_6", True)
 
+# for i in large_graphs:
+#     plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "individual_"+i, True, True, "Submodular-Greedy")
+# for i in large_graphs:
+#     plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps2, restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-1", "Stochastic-Submodular-Spectral-2", "Stochastic-Submodular-Spectral-3", "Stochastic-Submodular-Spectral-4", "Stochastic-Submodular-Spectral-3"], restr_submodularMP, "spectral_"+i, True, True, "Submodular-Greedy")
+
+# for i in large_graphs:
+#     plot_averaged(df, [i], [restr_stochMP, restr_USTDiagonalMP , restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4], ["Stochastic-Submodular", "Main-Resistances-UST", "Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.02"], restr_submodularMP, "individual_"+i, True, True, "Submodular-Greedy")
 
 for i in large_graphs:
-    plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps2, restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-1", "Stochastic-Submodular-Spectral-2", "Stochastic-Submodular-Spectral-3", "Stochastic-Submodular-Spectral-4", "Stochastic-Submodular-Spectral-3"], restr_submodularMP, "spectral_"+i, True, True, "Submodular-Greedy")
+    plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "individual_"+i, True, True, "Submodular-Greedy")
 
 
 # MARIA }

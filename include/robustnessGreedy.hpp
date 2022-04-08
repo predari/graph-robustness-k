@@ -433,7 +433,7 @@ public:
         return this->results;
     }
     virtual double getResultValue() override {
-        return this->totalValue * (-1.0);
+      return this->totalValue * (-1.0);
     }
 
     virtual double getOriginalValue() override {
@@ -465,48 +465,39 @@ public:
         this->n = g.numberOfNodes();
         this->k = params.k;
         this->epsilon = params.epsilon;
-	cutOff();
-	DEBUG("numberOfEigenpairs: " , numberOfEigenpairs);
+	this->ne = params.ne;
+	//assert(ne > 0 && ne <= n);
+	DEBUG("epsilon: " , epsilon);
+	DEBUG("numberOfEigenpairs: " , ne);
 
 	//Time beforeInit = std::chrono::high_resolution_clock::now();
 	
-        solver.setup(g, this->k);
-	solver.set_eigensolver(numberOfEigenpairs);
-	//auto t = std::chrono::high_resolution_clock::now();
-	//auto duration = t - beforeInit;
-	//using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-	//std::cout << "  Solver Setup Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-	//beforeInit = std::chrono::high_resolution_clock::now();
+        solver.setup(g, this->k, ne);
+	
+	// auto t = std::chrono::high_resolution_clock::now();
+	// auto duration = t - beforeInit;
+	// using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+	// std::cout << "  Solver Setup Time:    "  << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+	// beforeInit = std::chrono::high_resolution_clock::now();
 	
 	solver.run_eigensolver();
-	//t = std::chrono::high_resolution_clock::now();
-	//duration = t - beforeInit;
-	//std::cout << "  Solver Run Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-	//beforeInit = std::chrono::high_resolution_clock::now();
-	solver.info_eigensolver();
 
-	//t = std::chrono::high_resolution_clock::now();
-	//duration = t - beforeInit;
-	//std::cout << "  Solver Info Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-	//beforeInit = std::chrono::high_resolution_clock::now();
-	solver.set_eigenpairs();
+	// t = std::chrono::high_resolution_clock::now();
+	// duration = t - beforeInit;
+	// std::cout << "  Solver Run Time:    "  << std::chrono::duration_cast<scnds>(duration).count() << "\n";
 
-	//t = std::chrono::high_resolution_clock::now();
-	//duration = t - beforeInit;
-	//std::cout << "  Solver SetResult Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-	//double * e_values = solver.get_eigenvalues();
-	//std::cout << " CALLING computeEigenpairs::eigenvalues are to:\n [ ";
-	//for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
+	// double * e_values = solver.get_eigenvalues();
+	// std::cout << " CALLING computeEigenpairs::eigenvalues are to:\n [ ";
+	// for (int i = 0 ; i < ne + 1; i++)
 	//  std::cout << e_values[i] << " ";
-	//std::cout << "]\n";
-
+	// std::cout << "]\n";
 
 	this->totalValue = 0.;
         this->originalResistance = totalValue;
 	// ---------------------------------------------------
-	//this->lpinv = laplacianPseudoinverse(g);
-        //this->ReferenceOriginalResistance = this->lpinv.trace() * n ;
-	//this->SpectralOriginalResistance = solver.SpectralToTalEffectiveResistance();
+	// this->lpinv = laplacianPseudoinverse(g);
+        // this->ReferenceOriginalResistance = this->lpinv.trace() * n ;
+	this->SpectralOriginalResistance = solver.SpectralToTalEffectiveResistance();
 	// ---------------------------------------------------
 
     }
@@ -531,7 +522,7 @@ public:
         return this->results;
     }
     virtual double getResultValue() override {
-        return this->totalValue * (-1.0);
+      return this->totalValue * (-1.0);
     }
 
     virtual double getOriginalValue() override {
@@ -549,6 +540,7 @@ public:
 
 
   double getSpectralResultValue() override {
+    this->SpectralTotalValue = solver.SpectralToTalEffectiveResistance();
     return this->SpectralTotalValue;
   }
   
@@ -564,34 +556,34 @@ private:
   }
 
     virtual void useItem(Edge e) override {      
-      //Time beforeInit = std::chrono::high_resolution_clock::now();
+      // Time beforeInit = std::chrono::high_resolution_clock::now();
       solver.addEdge(e.u, e.v);
       updateEigenpairs();
-      //auto t = std::chrono::high_resolution_clock::now();
-      //auto duration = t - beforeInit;
-      //using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-      //std::cout << "  Solver Update Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+      // auto t = std::chrono::high_resolution_clock::now();
+      // auto duration = t - beforeInit;
+      // using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+      // std::cout << "  Solver Update Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
       // ---------------------------------------------------
-      //updateLaplacianPseudoinverse(this->lpinv, e);
-      //this->ReferenceTotalValue = this->lpinv.trace() * n;
-      //this->SpectralTotalValue = solver.SpectralToTalEffectiveResistance();
+      // updateLaplacianPseudoinverse(this->lpinv, e);
+      // this->ReferenceTotalValue = this->lpinv.trace() * n;
+      // this->SpectralTotalValue = solver.SpectralToTalEffectiveResistance();
       // ---------------------------------------------------
     }
   
    void cutOff() {
-     numberOfEigenpairs = ceil(this->epsilon*n);
-     assert(numberOfEigenpairs > 0 && numberOfEigenpairs <= n);
-     DEBUG(" RETURN cuOff :: numberOfEigenpairs =  " , numberOfEigenpairs);
+     ne = ceil(this->epsilon*n);
+     assert(ne > 0 && ne <= n);
+     DEBUG(" RETURN cuOff :: numberOfEigenpairs =  " , ne);
     
    }
 
   void updateEigenpairs() {
     solver.update_eigensolver();
-    //double * e_values = solver.get_eigenvalues();
-    //std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
-    //for (int i = 0 ; i < numberOfEigenpairs + 1; i++)
+    // double * e_values = solver.get_eigenvalues();
+    // std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
+    // for (int i = 0 ; i < ne + 1; i++)
     //  std::cout << e_values[i] << " ";
-    //std::cout << "]\n";
+    // std::cout << "]\n";
   }
 
   
@@ -599,18 +591,14 @@ private:
   Graph g;
   int n;
   double originalResistance = 0.;
-  //EigenSolver solver;
   SlepcAdapter solver;
-  // Slepc::EigenSolver solver;
-  // ---------------------------------------------------
-  Eigen::MatrixXd lpinv;
+  unsigned int ne = 1;  
+  // ----------------------------- //
+  //Eigen::MatrixXd lpinv;
   double ReferenceTotalValue = 0.0;
   double ReferenceOriginalResistance = 0.0;
   double SpectralTotalValue = 0.0;
   double SpectralOriginalResistance = 0.0;
-  // ---------------------------------------------------
-
-  NetworKit::count numberOfEigenpairs = 1;
 };
 
 

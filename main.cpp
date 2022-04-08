@@ -148,12 +148,10 @@ void testEigensolver(NetworKit::Graph const & g, int count, bool verbose=false, 
 	}
 	beforeInit = std::chrono::high_resolution_clock::now();
 
-	solver.setup(g, k);	
-	
-	solver.set_eigensolver(count);
+	solver.setup(g, k, count);	
 	solver.run_eigensolver();
-	solver.info_eigensolver(); 
-	solver.set_eigenpairs();
+	solver.info_eigensolver();
+	
 	double * vectors = solver.get_eigenpairs();
 	double * values = solver.get_eigenvalues();
 
@@ -517,6 +515,7 @@ public:
 	int seed;
 	std::string name;
 	unsigned int threads = 1;
+        unsigned int ne = 1;
 	std::unique_ptr<GreedyParams> params;
 	HeuristicType heuristic;
 	bool always_use_known_columns_as_candidates = false;
@@ -613,6 +612,7 @@ public:
 		params = std::make_unique<GreedyParams>(g_cpy, k);
 		params->epsilon = epsilon;
 		params->epsilon2 = epsilon2;
+		params->ne = ne;
 		params->threads = threads;
 		params->heuristic = heuristic;
 		if (linalg == LinAlgType::jlt_lu_sparse || linalg == LinAlgType::jlt_lamg) {
@@ -712,23 +712,24 @@ public:
 		std::cout << "  Value:  " << resultResistance << "\n";
 		std::cout << "  Original Value:  " << originalResistance << "\n";
 		std::cout << "  Gain:  " << originalResistance - resultResistance << "\n";
-
-		// if(alg == AlgorithmType::stochastic_spectral) {
-		//   double referenceResultResistance = greedy->getReferenceResultValue();
-		//   double referenceOriginalResistance = greedy->getReferenceOriginalResistance();
-		//   std::cout << "  Reference Value:  " << referenceResultResistance << "\n";
-		//   std::cout << "  Reference Original Value:  " << referenceOriginalResistance << "\n";
-		//   std::cout << "  Reference Gain:  " << referenceOriginalResistance - referenceResultResistance << "\n";
-		//   double spectralResultResistance = greedy->getSpectralResultValue();
-		//   double spectralOriginalResistance = greedy->getSpectralOriginalResistance();
-		//   std::cout << "  Spectral Value:  " << spectralResultResistance << "\n";
-		//   std::cout << "  Spectral Original Value:  " << spectralOriginalResistance << "\n";
-		//   std::cout << "  Spectral Gain:  " << spectralOriginalResistance - spectralResultResistance << "\n";
-		// }
-
+		
 
 		using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
 		std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
+
+		if(alg == AlgorithmType::stochastic_spectral) {
+		  // double referenceResultResistance = greedy->getReferenceResultValue();
+		  // double referenceOriginalResistance = greedy->getReferenceOriginalResistance();
+		  // std::cout << "  Reference Value:  " << referenceResultResistance << "\n";
+		  // std::cout << "  Reference Original Value:  " << referenceOriginalResistance << "\n";
+		  // std::cout << "  Reference Gain:  " << referenceOriginalResistance - referenceResultResistance << "\n";
+		  double spectralResultResistance = greedy->getSpectralResultValue();
+		  double spectralOriginalResistance = greedy->getSpectralOriginalResistance();
+		  // std::cout << "  Spectral Value:  " << spectralResultResistance << "\n";
+		  // std::cout << "  Spectral Original Value:  " << spectralOriginalResistance << "\n";
+		  std::cout << "  Spectral Gain:  " << spectralOriginalResistance - spectralResultResistance << "\n";
+		  std::cout << "  Eigenpairs:  " << (double)(100*ne)/n << "\n";
+		}
 
 		if (verbose) {
 			std::cout << "  AddedEdgeList:  [";
@@ -836,6 +837,7 @@ int main(int argc, char* argv[])
 		"\t-in\t\tFirst node of edge list instances\n"
 		"\t-isep\t\tSeparating character of edge list instance file\n"
 		"\t-ic\t\tComment character of edge list instance file\n"
+	        "\t-ne\t\tNumber of eigenpairs to be calculated. \n"
 	        "\t--loglevel\t\tActivate loging. Levels: TRACE, DEBUG, INFO, WARN, ERROR, FATAL.\n"
 	        "\n";
 
@@ -934,7 +936,11 @@ int main(int argc, char* argv[])
 			experiment.epsilon2 = std::stod(nextArg(i));
 			continue;
 		}
-
+		if (arg == "-ne" || arg == "--ne") {
+			auto arg_ne = nextArg(i);
+			experiment.ne = atoi(arg_ne);
+		}
+		
 		if (arg == "--all-columns") {
 			experiment.always_use_known_columns_as_candidates = true;
 		}

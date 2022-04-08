@@ -724,9 +724,7 @@ public:
     assert(eqnsPerRound <= n);
     
     G = g;
-    solver.setup(g, 3); // TODO:CORRECT!!!!!! INMPORTANT
-    // TODO: could I use some epsilon as input for slepc??
-    solver.set_eigensolver(numberOfEigenpairs);
+    solver.setup(g, 3, numberOfEigenpairs); // TODO:CORRECT!!!!!! INMPORTANT
     //solver.setup(g, 0.0001, 2*l + 2);	
     //G.indexEdges();
   }
@@ -764,9 +762,7 @@ public:
   void solve() {
     INFO("Calling eigensolver.");
     solver.run_eigensolver();
-    solver.info_eigensolver(); 
-    solver.set_eigenpairs(); // should not be public and performance here
-
+    //solver.info_eigensolver(); 
   }
 
   double * get_eigenpairs() {
