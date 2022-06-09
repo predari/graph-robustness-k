@@ -25,12 +25,12 @@ def addWS(nNodes, nNeighbors, p):
     writer.write(g, "/dev/stdout")
 
 
-def writeER(n, p):
-    print("  - generator:\n      args: ['./generator.py', '-er', '{0}', '{1}']\n    items: ErdosRenyi_{0}_{1}.gml".format(n, p))
-def writeWS(a, b, p):
-    print("  - generator:\n      args: ['./generator.py', '-ws', '{0}', '{1}', '{2}']\n    items: WattsStrogatz_{0}_{1}_{2}.gml".format(a, b, p))
-def writeBA(a, b, p):
-    print("  - generator:\n      args: ['./generator.py', '-ba', '{0}', '{1}']\n    items: BarabasiAlbert_{0}_{1}_{2}.gml".format(n, p))
+#def writeER(n, p):
+#    print("  - generator:\n      args: ['./generator.py', '-er', '{0}', '{1}']\n    items: ErdosRenyi_{0}_{1}.gml".format(n, p))
+#def writeWS(a, b, p):
+#    print("  - generator:\n      args: ['./generator.py', '-ws', '{0}', '{1}', '{2}']\n    items: WattsStrogatz_{0}_{1}_{2}.gml".format(a, b, p))
+#def writeBA(a, b, p):
+#    print("  - generator:\n      args: ['./generator.py', '-ba', '{0}', '{1}']\n    items: BarabasiAlbert_{0}_{1}_{2}.gml".format(n, p))
 
 
 if __name__ == "__main__":
@@ -75,5 +75,5 @@ if __name__ == "__main__":
     #writeWS(300, 7, 0.5)
     #writeWS(1000, 7, 0.3)
 
-    writeBA(2, 128, 2)
-    writeBA(2, 1000, 2)
+    #writeBA(2, 128, 2)
+    #writeBA(2, 1000, 2)

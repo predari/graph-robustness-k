@@ -49,14 +49,20 @@ template <class DynamicLaplacianSolver=LamgDynamicLaplacianSolver>
 class RobustnessTreeGreedy final : public AbstractOptimizer<NetworKit::Edge> {
 public:
     RobustnessTreeGreedy(GreedyParams params) : G(params.g) {
+
         this->n = G.numberOfNodes();
         this->k = params.k;
         this->epsilon = params.epsilon;
         this->heuristic = params.heuristic;
+	this->candidatesize = params.candidatesize;
         this->round = 0;
 
-        solver.setup(G, params.solverEpsilon, numberOfNodeCandidates());
-        this->totalValue = 0.;
+	if (this->k > 20)
+	  solver.setup(G, params.solverEpsilon, numberOfNodeCandidates());
+	else
+	  solver.setup(G, params.solverEpsilon, std::ceil(n * std::sqrt(std::log(1.0/epsilon))));
+	
+	this->totalValue = 0.;
         this->originalResistance = 0.;
         this->always_use_known_columns_as_candidates = params.always_use_known_columns_as_candidates;
 
@@ -68,7 +74,7 @@ public:
             this->diag = apx->getDiagonal();
             G.forNodes([&](node u) { this->totalValue -= static_cast<double>(this->n) * this->diag[u]; });
             originalResistance = -1. * totalValue;
-            INFO("Usts: ", apx->getUstCount());
+            //INFO("Usts: ", apx->getUstCount());
         } else {
             similarityIterations = params.similarityIterations;
             totalValue = 0.;
@@ -93,12 +99,25 @@ public:
         return this->validSolution;
     }
 
-    count numberOfNodeCandidates() {
-        unsigned int s = std::ceil(n * std::sqrt(1. / (double)k * std::log(1.0/epsilon)));
-        if (s < 2) { s = 2; }
-        if (s > n/2) { s = n/2; }
-        return s;
-    }
+  count numberOfNodeCandidates() {
+    unsigned int s;
+    // TODO: hardcoded
+    if (this->k > 20) {
+      s = std::ceil( (n - std::log(n)) * std::sqrt(1. / (double)k * std::log(1.0/epsilon)));
+      if (s < 2) { s = 2; }
+      if (s > (n - std::log(n))/2) {
+	s = (n - std::log(n))/2;
+      }
+    } else
+      { // DEFAULT OPTION
+	s = std::ceil(n * std::sqrt(1. / (double)k * std::log(1.0/epsilon)));
+	if (s < 2) { s = 2; }
+	if (s > n) {
+	  s = n/2;
+	}
+      }
+    return s;
+  }
 
     void run() {
         this->round = 0;
@@ -128,7 +147,7 @@ public:
                 // Collect nodes set for current round
                 std::set<NetworKit::node> nodes;
                 unsigned int s = numberOfNodeCandidates();
-                if (r == 0) { INFO("Columns in round 1: ", s); }
+                //if (r == 0) { INFO("Columns in round 1: ", s); }
 
                 double min = std::numeric_limits<double>::infinity();
 
@@ -262,9 +281,10 @@ public:
             auto u = bestEdge.u;
             auto v = bestEdge.v;
             G.addEdge(u, v);
-
+	    // computing final result on exact value
             bestGain = solver.totalResistanceDifferenceExact(u, v);
 
+	 
             this->totalValue += bestGain;
 
             if (this->round < k-1) {
@@ -289,7 +309,7 @@ public:
         }
         this->hasRun = true;
         this->results = {resultSet.begin(), resultSet.end()};
-        INFO("Computed columns: ", solver.getComputedColumnCount());        
+        //INFO("Computed columns: ", solver.getComputedColumnCount());        
     }
 
     
@@ -299,10 +319,10 @@ private:
 
     int n;
     bool validSolution = false;
-	int round=0;
+    int round=0;
     int k;
 
-	double totalValue = 0.0;
+    double totalValue = 0.0;
     double epsilon = 0.1;
     double originalResistance = 0.;
 
@@ -316,6 +336,7 @@ private:
     std::set<node> knownColumns;
 
     HeuristicType heuristic;
+    CandidateSetSize candidatesize;
     bool always_use_known_columns_as_candidates = false;
 
     std::priority_queue<QueueItem> queue;

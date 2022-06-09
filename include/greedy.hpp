@@ -36,7 +36,7 @@ public:
     virtual double getReferenceOriginalResistance() { return 0.0;};
     virtual double getSpectralResultValue() { return 0.0; };
     virtual double getSpectralOriginalResistance() { return 0.0;};
-
+  virtual double getMaxEigenvalue() { return 0.0; };
   
 };
 
@@ -177,8 +177,8 @@ void SubmodularGreedy<Item>::run() {
         if (candidatesLeft) {
             this->results.push_back(c.item);
             this->totalValue += c.value;
-	    //DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
-	    //DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
+	    DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
+	    DEBUG(" SELECTED value = ", c.value, " of edge = (", c.item.u, ", ", c.item.v, ")");
             this->useItem(c.item);
             
             if (this->checkSolution())
@@ -239,12 +239,12 @@ public:
 	double getTotalValue() { return totalValue; }
 	virtual bool isValidSolution() override { return validSolution; }
 
-  void printItems() {
-    DEBUG("NUMBER OF ITEMS = ", items.size());
-    for (auto e = 0; e < items.size(); e++) {
-      DEBUG("ITEM:(", items[e].item.u, " ,",  items[e].item.v, ") value = ", items[e].value, " lastUpdated = ", items[e].lastUpdated, " index = ", items[e].index, " selected = ", items[e].selected);
-    }
-  }
+        void printItems() {
+	    DEBUG("NUMBER OF ITEMS = ", items.size());
+	    for (auto e = 0; e < items.size(); e++) {
+	        DEBUG("ITEM:(", items[e].item.u, " ,",  items[e].item.v, ") value = ", items[e].value, " lastUpdated = ", items[e].lastUpdated, " index = ", items[e].index, " selected = ", items[e].selected);
+	    }
+	}
   
 	void summarize() {
 		std::cout << "Stochastic Submodular Greedy Results Summary. ";
@@ -309,12 +309,12 @@ void StochasticGreedy<Item>::run() {
 
     //DEBUG(" >>> TOTALVALUE = ", this->totalValue, " <<< ");
 
-    if (items.size() == 0) { addDefaultItems(); }
+    if (items.size() == 0) { DEBUG(" >>> ADDING DEFAULT ITEMS <<< "); addDefaultItems(); }
 
-    // DEBUG(" N = ", N);
-    // DEBUG("PRINTING ITEMS (START).");
-    // printItems();
-    // DEBUG("PRINTING ITEMS (END).");
+    DEBUG(" N = ", N);
+    //DEBUG("PRINTING ITEMS (START).");
+    //printItems();
+    //DEBUG("PRINTING ITEMS (END).");
     bool candidatesLeft = true;
     std::mt19937 g(Aux::Random::getSeed());
 

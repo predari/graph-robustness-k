@@ -180,8 +180,7 @@ protected:
     std::vector<Eigen::VectorXd> rhs;
     MatrixType laplacian;
     MatrixType solverLaplacian;
-
-	Solver solver; 
+    Solver solver; 
     double rChange = 0.;
     count computedColumns = 0;
 
@@ -315,7 +314,10 @@ public:
     std::vector<NetworKit::Vector> parallelSolve(std::vector<NetworKit::Vector> &rhss) {
         auto size = rhss.size();
         std::vector<NetworKit::Vector> xs(size, NetworKit::Vector(n));
-        lamg.parallelSolve(rhss, xs);
+        //lamg.parallelSolve(rhss, xs);
+	for (count i = 0; i < size; ++i) {
+	  lamg.solve(rhss[i], xs[i]);
+	}
 
         #pragma omp parallel for
         for (int i = 0; i < size; i++) {
@@ -471,9 +473,9 @@ public:
 
         l = jltDimension(eqnsPerRound, epsilon);
 
+	
         G = g;
-
-        solver.setup(g, 0.01, 2*l + 2);
+	solver.setup(g, 0.01, 2*l + 2);
 
         G.indexEdges();
         incidence = incidenceMatrix(G);
@@ -503,7 +505,6 @@ public:
     virtual double totalResistanceDifferenceApprox(node u, node v) override {
         double R = effR(u, v);
         double phiNormSq = phiNormSquared(u, v);
-
         return n / (1. + R) * phiNormSq;
     }
 
@@ -522,7 +523,7 @@ public:
 
 private:
     int jltDimension(int n, double epsilon) {
-        return 2 * std::max(std::log(n) / (epsilon * epsilon / 2 - epsilon * epsilon * epsilon / 3), 1.);
+	return std::max(std::log(n) / (epsilon * epsilon), 1.);
     }
 
     void computeIntermediateMatrices() {
@@ -577,6 +578,224 @@ private:
 typedef JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver> JLTLUSolver;
 template class JLTSolver<Eigen::SparseMatrix<double>, SparseLUSolver>;
 
+///////////////////////////////////////////////////////////////////////////
+
+template <class MatrixType, class DynamicSolver>
+class JLTSolverBiH : virtual public IDynamicLaplacianSolver {
+public:
+    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound) override {
+
+        n = g.numberOfNodes();
+        m = g.numberOfEdges();
+        epsilon = tolerance;
+        l = jltDimension(eqnsPerRound, epsilon);
+	G = g;
+	solver.setup(g, 0.01, 2*l + 2);
+        G.indexEdges();
+	// B = (n \times m)
+        incidence = incidenceMatrix(G);
+        computeIntermediateMatrices();
+    }
+
+    virtual void computeColumns(std::vector<node> nodes) override {
+        // pass
+    }
+
+    virtual void addEdge(node u, node v) override {
+        G.addEdge(u, v);
+        solver.addEdge(u, v);
+        m++;
+        G.indexEdges();
+        incidence = incidenceMatrix(G);
+        computeIntermediateMatrices();
+    }
+
+    virtual count getComputedColumnCount() override {
+
+      return solver.getComputedColumnCount();
+    }
+
+    virtual double totalResistanceDifferenceApprox(node u, node v) override {
+
+        double R = effR(u, v);
+        double phiNormSq = phiNormSquared(u, v);
+        return n / (1. + R) * phiNormSq;
+    }
+
+    virtual double totalResistanceDifferenceExact(node u, node v) override {
+        return solver.totalResistanceDifferenceExact(u, v);
+    }
+
+    double effR(node u, node v) {
+	return (BLP.col(u) - BLP.col(v)).squaredNorm();
+    }
+
+    double phiNormSquared(node u, node v) {
+        return (PL.col(u) - PL.col(v)).squaredNorm();
+    }
+
+private:
+    int jltDimension(int n, double epsilon) {
+      return std::max(std::log(n) / (epsilon * epsilon), 1.);
+    }
+
+    void computeIntermediateMatrices() {
+        // Generate projection matrices
+
+        auto random_projection = [&](count n_rows, count n_cols) {
+            auto normal = [&](int) { return d(gen) / std::sqrt(n_rows); };
+            Eigen::MatrixXd P = Eigen::MatrixXd::NullaryExpr(n_rows, n_cols, normal);
+            Eigen::VectorXd avg = P * Eigen::VectorXd::Constant(n_cols, 1. / n_cols);
+            P -= avg * Eigen::MatrixXd::Constant(1, n_cols, 1.);
+            return P;
+        };
+
+        P_n = random_projection(l, n);
+        P_m = random_projection(l, m);
+
+        Eigen::MatrixXd rhs1 = P_n.transpose(); 
+	Eigen::MatrixXd rhs2 = incidence * P_m.transpose();
+	
+	PL = solver.solve(rhs1);
+	PL.transposeInPlace();
+	BLP = rhs1 * PL * rhs2;
+	BLP.transposeInPlace();
+
+     }
+
+    DynamicSolver solver;
+    count n, m;
+    count l;
+
+    Eigen::MatrixXd P_n, P_m;
+    Eigen::MatrixXd PL, BLP;
+
+    double epsilon;
+
+    std::mt19937 gen{1};
+    std::normal_distribution<> d{0, 1};
+
+    Graph G;
+    Eigen::SparseMatrix<double> incidence;
+};
+
+
+typedef JLTSolverBiH<Eigen::SparseMatrix<double>, SparseLUSolver> JLTBiHLUSolver;
+template class JLTSolverBiH<Eigen::SparseMatrix<double>, SparseLUSolver>;
+
+class JLTLamgSolverBiH : virtual public IDynamicLaplacianSolver {
+public:
+    virtual void setup(const Graph &g, double tolerance, count eqnsPerRound) override {
+        n = g.numberOfNodes();
+        m = g.numberOfEdges();
+
+        epsilon = tolerance;
+        l = jltDimension(eqnsPerRound, epsilon);
+	G = g;
+        solver.setup(g, 0.0001, 2*l + 2);
+
+        G.indexEdges();
+        incidence = CSRMatrix::incidenceMatrix(G);        
+        computeIntermediateMatrices();
+    }
+
+    virtual void computeColumns(std::vector<node> nodes) override {
+        // pass
+    }
+
+    virtual void addEdge(node u, node v) override {
+        G.addEdge(u, v);
+        solver.addEdge(u, v);
+        m++;
+        G.indexEdges();
+        incidence = CSRMatrix::incidenceMatrix(G);
+        computeIntermediateMatrices();
+    }
+
+    virtual count getComputedColumnCount() override {
+        return solver.getComputedColumnCount();
+    }
+
+    virtual double totalResistanceDifferenceApprox(node u, node v) override {
+        double R = effR(u, v);
+        double phiNormSq = phiNormSquared(u, v);
+        return n / (1. + R) * phiNormSq;
+    }
+
+    virtual double totalResistanceDifferenceExact(node u, node v) override {
+        return solver.totalResistanceDifferenceExact(u, v);
+    }
+
+    double effR(node u, node v) {
+	auto r = PBL.column(u) - PBL.column(v); 
+        return NetworKit::Vector::innerProduct(r, r);
+    }
+
+    double phiNormSquared(node u, node v) {
+        auto r = PL.column(u) - PL.column(v); 
+        return NetworKit::Vector::innerProduct(r, r);
+    }
+
+private:
+    int jltDimension(int perRound, double epsilon) {
+      return std::max(std::log(perRound) / (epsilon * epsilon), 1.);
+    }
+
+    void computeIntermediateMatrices() {
+
+        // Generate projection matrices
+
+        auto random_projection = [&](count n_rows, count n_cols) -> NetworKit::DenseMatrix {
+            auto normal = [&]() { return d(gen) / std::sqrt(n_rows); };
+            auto normal_expr = [&](NetworKit::count, NetworKit::count) {return normal(); };
+            DenseMatrix P = nk_matrix_from_expr<DenseMatrix>(n_rows, n_cols, normal_expr);
+            NetworKit::Vector avg = P * NetworKit::Vector(n_cols, 1. / n_cols);
+            P -= NetworKit::Vector::outerProduct<DenseMatrix>(avg, NetworKit::Vector(n_cols, 1.));
+            return P;
+        };
+
+        auto P_n = random_projection(l, n);
+	auto P_m = random_projection(l, m);
+	
+	CSRMatrix rhs2_mat = incidence * nk_dense_to_csr(P_m.transpose());
+        std::vector<NetworKit::Vector> rhss1;
+
+        for (int i = 0; i < l; i++) {
+            rhss1.push_back(P_n.row(i).transpose());
+        }
+        auto xs1 = solver.parallelSolve(rhss1);
+
+	PL = DenseMatrix (l, n);
+	PBL = DenseMatrix (l, n);
+	auto S = DenseMatrix (l, l);
+
+	double value = 0.0;
+        for (int i = 0; i < l; i++) {
+            for (int j = 0; j < n; j++) {
+                PL.setValue(i, j, xs1[i][j]);
+		for (int k = 0; k < l; k++) {
+		  S.setValue(i, k , S(i,k) + (xs1[i][j] * rhs2_mat(j,k)));
+		}
+	    }
+        }
+	PBL = S * P_n;
+    }
+
+    LamgDynamicLaplacianSolver solver;
+    count n, m;
+    count l;
+
+    DenseMatrix PL;
+    DenseMatrix PBL;
+    double epsilon;
+
+    std::mt19937 gen{1};
+    std::normal_distribution<> d{0, 1};
+
+    Graph G;
+    CSRMatrix incidence;
+};
+
 
 
 
@@ -587,11 +806,9 @@ public:
         m = g.numberOfEdges();
 
         epsilon = tolerance;
-
+	
         l = jltDimension(eqnsPerRound, epsilon);
-
         G = g;
-
         solver.setup(g, 0.0001, 2*l + 2);
 
         G.indexEdges();
@@ -643,11 +860,11 @@ public:
 
 private:
     int jltDimension(int perRound, double epsilon) {
-        return std::ceil(2. * std::max(std::log(perRound) / (epsilon * epsilon / 2. - epsilon * epsilon * epsilon / 3.), 1.));
+      return std::max(std::log(perRound) / (epsilon * epsilon), 1.);
     }
 
     void computeIntermediateMatrices() {
-	INFO("Generating new matrices for JLT");
+
         // Generate projection matrices
 
         auto random_projection = [&](count n_rows, count n_cols) -> NetworKit::DenseMatrix {
@@ -668,7 +885,6 @@ private:
 
         //CSRMatrix rhs1 = P_n.transpose(); 
         CSRMatrix rhs2_mat = incidence * nk_dense_to_csr(P_m.transpose());
-
         std::vector<NetworKit::Vector> rhss1;
         std::vector<NetworKit::Vector> rhss2;
 
@@ -689,6 +905,7 @@ private:
                 PBL.setValue(i, j, xs2[i][j]);
             }
         }
+
     }
 
 
@@ -709,6 +926,12 @@ private:
     CSRMatrix incidence;
 };
 
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// NOT USED /////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 class EigenSolver : virtual public IDynamicLaplacianSolver {
 public:

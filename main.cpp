@@ -33,6 +33,7 @@
 #include <networkit/numerics/ConjugateGradient.hpp>
 #include <networkit/numerics/Preconditioner/DiagonalPreconditioner.hpp>
 #include <networkit/centrality/ApproxElectricalCloseness.hpp>
+#include <networkit/graph/GraphTools.hpp>
 
 #include <networkit/auxiliary/Log.hpp>
 #include <slepceps.h>
@@ -134,45 +135,157 @@ void testLaplacian(int seed, bool verbose=false)
 }
 
 
+int testEigensolver(NetworKit::Graph const & g, int count, bool verbose=false, bool expe=false) {
+  SlepcAdapter solver;
+  Time beforeInit;
+  auto n = g.numberOfNodes();
+  if (verbose) {
+    std::cout << " Graph =  (" << n << "," <<g.numberOfEdges() <<  ")\n";
+    std::cout << " count =  " << count <<  "\n";
+  }
+  
+  beforeInit = std::chrono::high_resolution_clock::now();
+  solver.setup(g, 0, count);	
+  solver.run_eigensolver();
+  //if(verbose) { solver.info_eigensolver(); }
+  auto t = std::chrono::high_resolution_clock::now();
+  auto duration = t - beforeInit;
+  using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
+  double * vectors = solver.get_eigenpairs();
+  double * values = solver.get_eigenvalues();
+  PetscInt nconv = solver.get_nconv();
+  std::cout << "  Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
 
-void testEigensolver(NetworKit::Graph const & g, int count, bool verbose=false, int k=0)
-{
+  auto maxDegree = [&]() -> NetworKit::count {
+		     NetworKit::count maxDeg = 0;
+		     g.forNodes([&](const node u) {
+				  const auto degU = g.degree(u);
+				  if (degU > maxDeg) {
+				    maxDeg = degU;
+				  }
+				});
+		     return maxDeg;
+		   };
+  
+  auto minDegree = [&]() -> NetworKit::count {
+		     NetworKit::count minDeg = std::numeric_limits<NetworKit::count>::max();
+		     g.forNodes([&](const node u) {
+				  const auto degU = g.degree(u);
+				  if (degU < minDeg) {
+				    minDeg = degU;
+				  }
+				});
+		     return minDeg;
+		   };
 
 
-        SlepcAdapter solver;
-	Time beforeInit;
-	if (verbose) {
-	  std::cout << " Graph =  (" << g.numberOfNodes() << "," <<g.numberOfEdges() <<  ")\n";
-	  std::cout << " count =  " << count <<  "\n";
-	  std::cout << " k =  " << k <<  "\n";
+    if (verbose) {
+    assert(values);
+    std::cout << " eigenvalues are:\n [ ";
+    for (int i = 0 ; i < count + 1; i++)
+      std::cout << values[i] << " ";
+    std::cout << "]\n";
+
+    // for (int i = 0 ; i < count; i++) {
+    //   std::cout << "Vector " << i << " " ;
+    //   for(int j = 0; j < n; j++) {
+    // 	std::cout << *(vectors + i + j*nconv ) << " ";
+    //   }
+    //   std::cout << "\n";
+    // }
+    std::cout << " max degree = " << maxDegree() << "\n";
+    std::cout << " min degree = " << minDegree() << "\n";
+  }
+
+
+
+  
+  
+  if (expe) {
+     
+     auto lpinv = laplacianPseudoinverse(g);
+     NetworKit::count seeds = 1;
+    // int sizes[] = {1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800};
+    // int s = 26;
+    // if (nconv < 800) {
+    //   std::cout << "Warning: Eigensolver did not converged (" << nconv <<") \n";
+    //   s = 18 + (nconv / 100);
+    // }
+
+    int sizes[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,33,35,36,37,38,39,40,41,42,43};
+    int s = 43;
+    std::cout << "converged =" << nconv << "\n";
+    // if (nconv < 800) {
+    //   std::cout << "Warning: Eigensolver did not converged (" << nconv <<") \n";
+    //   s = 18 + (nconv / 100);
+    // }
+
+
+    
+    double * gain1 = (double *) calloc(1, s * sizeof(double));
+    double * gain2 = (double *) calloc(1, s * sizeof(double));
+    double * gain3 = (double *) calloc(1, s * sizeof(double));
+    double reference = 0.0;
+    
+    for (NetworKit::count i = 0; i < seeds; i++) {
+      NetworKit::node u, v;
+      Aux::Random::setSeed(42, false);
+      do {
+	u = GraphTools::randomNode(g);
+	v = GraphTools::randomNode(g);
+      } while (g.hasEdge(u, v));
+      std::cout << "Edge (" << u << "," << v <<") \n";
+      for (NetworKit::count e = 0; e < s; e++) {
+	if (sizes[e] <= nconv) {
+	  std::cout << "Eigencount = " << sizes[e]  << " \n";
+	  gain2[e] = n * solver.SpectralApproximationGainDifference2(u, v, vectors, values, sizes[e]);
+	  gain1[e] = n * solver.SpectralApproximationGainDifference1(u, v, vectors, values, sizes[e]);
+	  gain3[e] = n * solver.SpectralApproximationGainDifference3(u, v, vectors, values, sizes[e]); 
+	  reference = n*(-1.0)*laplacianPseudoinverseTraceDifference(lpinv, u, v);
 	}
-	beforeInit = std::chrono::high_resolution_clock::now();
+      }
+    }
+    // take mean
+    for (NetworKit::count e = 0; e < s; e++) {
+      gain1[e] = gain1[e]/seeds;
+      gain2[e] = gain2[e]/seeds;
+      gain3[e] = gain3[e]/seeds;
+    }
+    reference = reference/seeds;
+    std::cout << "  Reference Gain:  " << reference << "\n";
+    std::cout << "  Spectral Gain1:  ";
+    for (NetworKit::count e = 0; e < s; e++)
+      std::cout << gain1[e] << " ";
+    std::cout << "\n";
+    std::cout << "  Spectral Gain2:  ";
+    for (NetworKit::count e = 0; e < s; e++)
+      std::cout << gain2[e] << " ";
+    std::cout << "\n";
+    std::cout << "  Spectral Gain3:  ";
+    for (NetworKit::count e = 0; e < s; e++)
+      std::cout << gain3[e] << " ";
+    std::cout << "\n";
+    std::cout << "  Eigenpairs:  ";
+    for (NetworKit::count e = 0; e < s; e++)
+      std::cout << sizes[e] << " ";
+    std::cout << "\n";
 
-	solver.setup(g, k, count);	
-	solver.run_eigensolver();
-	solver.info_eigensolver();
-	
-	double * vectors = solver.get_eigenpairs();
-	double * values = solver.get_eigenvalues();
+    //std::cout << "  Reference KI:  " << lpinv.trace() * n << "\n";
+    //std::cout << "  Spectral KI:  ";
+    //for (NetworKit::count e = 0; e < s; e++)
+    //  std::cout << solver.SpectralToTalEffectiveResistance(sizes[e]) << " ";
+    //std::cout << "\n";
+  }
 
-	auto t = std::chrono::high_resolution_clock::now();
-	auto duration = t - beforeInit;
 
-	using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-	std::cout << "  Time =  " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-
-	
-	if (verbose) {
-	  assert(values);
-	  std::cout << " eigenvalues are:\n [ ";
-	  for (int i = 0 ; i < count + 1; i++)
-	    std::cout << values[i] << " ";
-	  std::cout << "]\n";
-	  
-	}
+  //std::cout << "  Reference KI:  " << lpinv.trace() * n << "\n";
+  //std::cout << "  Spectral KI:  ";
+  //std::cout << solver.SpectralToTalEffectiveResistance() << " ";
+  //std::cout << "\n";
+  
+  return 0;
+  
 }
-
-
 
 
 
@@ -339,7 +452,8 @@ void testRobustnessStochasticGreedySpectral() {
 	}
 
 	GreedyParams args(G2, 2);
-	RobustnessStochasticGreedySpectral rg2(args);
+	RobustnessStochasticGreedySpectral<SparseLUSolver> rg2(args);
+	//createSpecific<RobustnessRandomAveraged<SparseLUSolver>>()
 	rg2.run();
 	assert(std::abs(rg2.getTotalValue() - 4.351) < 0.01);
 
@@ -356,7 +470,7 @@ void testRobustnessStochasticGreedySpectral() {
 	G3.addEdge(5, 10);
 
 	GreedyParams args2(G3, 4);
-        RobustnessStochasticGreedySpectral rg3(args2);
+        RobustnessStochasticGreedySpectral<SparseLUSolver> rg3(args2);
 	rg3.run();
 	assert(std::abs(rg3.getTotalValue() - 76.789) < 0.01);
 	//rg3.summarize();
@@ -422,7 +536,7 @@ void testJLT(NetworKit::Graph g, std::string instanceFile, int k) {
 
 
 	epsilon = 0.75;
-	int c = std::max(n / std::sqrt(2) / k * std::log(1. / 0.9), 3.);
+	int c = std::max(n / std::sqrt(2) / k * std::log2(1. / 0.9), 3.);
 	jlt_solver2.setup(g, epsilon, c);
     std::uniform_int_distribution<> distrib_c(0, c - 1);
 	std::set<int> node_subset;
@@ -482,7 +596,9 @@ enum class LinAlgType {
 	lamg,
 	dense_ldlt,
 	jlt_lu_sparse,
-	jlt_lamg
+	jlt_lamg,
+	jlt_bi_lu_sparse,
+	jlt_bi_lamg
 };
 
 enum class AlgorithmType {
@@ -491,6 +607,7 @@ enum class AlgorithmType {
 	submodular2,
 	stochastic,
 	stochastic_spectral,
+        exhaustive,
 	stochastic_dyn,
 	trees,
 	random,
@@ -515,9 +632,12 @@ public:
 	int seed;
 	std::string name;
 	unsigned int threads = 1;
+        unsigned int updatePerRound = 1;
+        unsigned int diff = 1; // TODO: change to default value 
         unsigned int ne = 1;
 	std::unique_ptr<GreedyParams> params;
 	HeuristicType heuristic;
+        CandidateSetSize candidatesize;
 	bool always_use_known_columns_as_candidates = false;
 
 	std::vector<NetworKit::Edge> edges;
@@ -556,9 +676,15 @@ public:
 		}
 		else if(alg == AlgorithmType::stochastic_spectral) {
 		        algorithmName = "Stochastic Spectral";
-			//std::cout << "INFO: STARTING POINT FOR STOCHASTIC_SPECTRA []\n";
-			createSpecific<RobustnessStochasticGreedySpectral>();
-		} else {
+			createLinAlgGreedy<RobustnessStochasticGreedySpectral>();
+			//createSpecific<RobustnessStochasticGreedySpectral>();
+		}
+		else if(alg == AlgorithmType::exhaustive) {
+		        algorithmName = "Exhaustive";
+			createSpecific<RobustnessExaustiveSearch>();
+
+		}
+		else {
 			throw std::logic_error("Algorithm not implemented!");
 		}
 	}
@@ -585,6 +711,10 @@ public:
 			createSpecific<Greedy<JLTLUSolver>>();
 		} else if (linalg == LinAlgType::jlt_lamg) {
 			createSpecific<Greedy<JLTLamgSolver>>();
+		} else if (linalg == LinAlgType::jlt_bi_lu_sparse) {
+			createSpecific<Greedy<JLTBiHLUSolver>>();
+		} else if (linalg == LinAlgType::jlt_bi_lamg) {
+			createSpecific<Greedy<JLTLamgSolverBiH>>();
 		} else {
 			throw std::logic_error("Solver not implemented!");
 		}
@@ -613,10 +743,19 @@ public:
 		params->epsilon = epsilon;
 		params->epsilon2 = epsilon2;
 		params->ne = ne;
+		if (updatePerRound < k)
+		  params->updatePerRound = updatePerRound;
+		else
+		  params->updatePerRound = 1;
+
+		params->diff = diff;
 		params->threads = threads;
 		params->heuristic = heuristic;
-		if (linalg == LinAlgType::jlt_lu_sparse || linalg == LinAlgType::jlt_lamg) {
-			params->solverEpsilon = 0.75;
+		params->candidatesize = candidatesize;
+		if (linalg == LinAlgType::jlt_lu_sparse || linalg == LinAlgType::jlt_lamg ||
+		    linalg == LinAlgType::jlt_bi_lu_sparse || linalg == LinAlgType::jlt_bi_lamg) {
+		  //params->solverEpsilon = 0.75;
+		  params->solverEpsilon = 0.55;
 		}
 		params->always_use_known_columns_as_candidates = this->always_use_known_columns_as_candidates;
 
@@ -631,7 +770,7 @@ public:
 		if (params->always_use_known_columns_as_candidates) { std::cout << "True\n"; } else { std::cout << "False\n"; }
 
 
-		if (alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_dyn) {
+		if (alg == AlgorithmType::trees || alg == AlgorithmType::stochastic_dyn || alg == AlgorithmType::stochastic_spectral) {
 			std::string linalgName = "";
 			if (linalg == LinAlgType::cg) {
 				linalgName = "CG";
@@ -653,6 +792,10 @@ public:
 				linalgName = "JLT via Sparse LU";
 			} else if (linalg == LinAlgType::jlt_lamg) {
 				linalgName = "JLT via LAMG";
+			} else if (linalg == LinAlgType::jlt_bi_lu_sparse) {
+				linalgName = "BiH JLT via Sparse LU";
+			} else if (linalg == LinAlgType::jlt_bi_lamg) {
+				linalgName = "BiH JLT via LAMG";
 			}
 
 			if (linalgName != "") {
@@ -723,12 +866,15 @@ public:
 		  // std::cout << "  Reference Value:  " << referenceResultResistance << "\n";
 		  // std::cout << "  Reference Original Value:  " << referenceOriginalResistance << "\n";
 		  // std::cout << "  Reference Gain:  " << referenceOriginalResistance - referenceResultResistance << "\n";
-		  double spectralResultResistance = greedy->getSpectralResultValue();
-		  double spectralOriginalResistance = greedy->getSpectralOriginalResistance();
-		  // std::cout << "  Spectral Value:  " << spectralResultResistance << "\n";
-		  // std::cout << "  Spectral Original Value:  " << spectralOriginalResistance << "\n";
+		   double spectralResultResistance = greedy->getSpectralResultValue();
+		   double spectralOriginalResistance = greedy->getSpectralOriginalResistance();
+		  std::cout << "  Spectral Value:  " << spectralResultResistance << "\n";
+		  std::cout << "  Spectral Original Value:  " << spectralOriginalResistance << "\n";
 		  std::cout << "  Spectral Gain:  " << spectralOriginalResistance - spectralResultResistance << "\n";
 		  std::cout << "  Eigenpairs:  " << (double)(100*ne)/n << "\n";
+		  std::cout << "  Max Eigenvalue:  " << greedy->getMaxEigenvalue() << "\n";
+		  std::cout << "  Diff2:  " << diff << "\n";
+		  std::cout << "  UpdatePerRound:  " << updatePerRound << "\n";
 		}
 
 		if (verbose) {
@@ -833,11 +979,14 @@ int main(int argc, char* argv[])
 		"\t--jlt-lamg\tUse NetworKit LAMG solver in combination with JLT (only with a6)\n"
 		"\t--jlt-lu\tUse Eigen LU solver in combination with JLT (only with a6)\n"
 		"\t-h[0-2]\t\tHeuristics for a6. 0: random, 1: resistance, 2: similarity\n"
+	        "\t-s[0-1]\t\tSize of candidate set for stochastic approaches 0: larger space (n^2-m)/k, 1: nlogn/k\n"
 		"\t--seed\t\tSeed for NetworKit random generators.\n"
 		"\t-in\t\tFirst node of edge list instances\n"
 		"\t-isep\t\tSeparating character of edge list instance file\n"
 		"\t-ic\t\tComment character of edge list instance file\n"
 	        "\t-ne\t\tNumber of eigenpairs to be calculated. \n"
+	        "\t-ur\t\tNumber of rounds to update eigenpairs. \n"
+	        "\t-diff2\t\tSelect one of diff evaluation for spectral approach {0,1,2}. \n"
 	        "\t--loglevel\t\tActivate loging. Levels: TRACE, DEBUG, INFO, WARN, ERROR, FATAL.\n"
 	        "\n";
 
@@ -940,6 +1089,17 @@ int main(int argc, char* argv[])
 			auto arg_ne = nextArg(i);
 			experiment.ne = atoi(arg_ne);
 		}
+		if (arg == "-ur" || arg == "--ur") {
+		        auto arg_ur = nextArg(i);
+			//if (atoi(arg_ur) < k_factor)
+			experiment.updatePerRound = atoi(arg_ur);
+			
+		}
+		if (arg == "-diff" || arg == "--diff") {
+		        auto arg_diff = nextArg(i);
+			experiment.diff = atoi(arg_diff);
+			continue;
+		}
 		
 		if (arg == "--all-columns") {
 			experiment.always_use_known_columns_as_candidates = true;
@@ -977,9 +1137,14 @@ int main(int argc, char* argv[])
 		if (arg == "-a5") { experiment.alg = AlgorithmType::a5; continue; }
 		if (arg == "-a6") { experiment.alg = AlgorithmType::trees; continue; }
 		if (arg == "-a7") { experiment.alg = AlgorithmType::stochastic_spectral; continue; }
+		if (arg == "-a8") { experiment.alg = AlgorithmType::exhaustive; continue; }
 
 		if (arg == "-h1") { experiment.heuristic = HeuristicType::lpinvDiag; }
 		if (arg == "-h2") { experiment.heuristic = HeuristicType::similarity; }
+
+		if (arg == "-s0") { experiment.candidatesize = CandidateSetSize::small; }
+		if (arg == "-s1") { experiment.candidatesize = CandidateSetSize::large; }
+
 
 		if (arg == "-t") { run_tests = true; run_experiments = false; continue; }
 
@@ -1034,6 +1199,12 @@ int main(int argc, char* argv[])
 		if (arg == "--jlt-lamg") {
 			linalg = LinAlgType::jlt_lamg;
 		}
+		if (arg == "--jlt-bi-lu") {
+			linalg = LinAlgType::jlt_bi_lu_sparse;
+		}
+		if (arg == "--jlt-bi-lamg") {
+			linalg = LinAlgType::jlt_bi_lamg;
+		}
 		experiment.linalg = linalg;
 		
 	}
@@ -1063,6 +1234,7 @@ int main(int argc, char* argv[])
 		} else if (hasEnding(instance_filename, "nkb") || hasEnding(instance_filename, "networkit")) {
 			NetworkitBinaryReader reader;
 			try {g = reader.read(instance_filename); }
+			
 			catch(const std::exception& e) { std::cout << "Failed to open or parse networkit binary file " << instance_filename << '\n'; return 1; }
 		} else {
 			try {
@@ -1101,7 +1273,13 @@ int main(int argc, char* argv[])
 
 	if (test_esolve) {
 	  run_experiments = false;
-	  testEigensolver(g,count,true);
+	  std::cout << "Runs: \n";
+	  std::cout << "- Instance: '" << instance_filename << "'\n";
+	  std::cout << "  Nodes: " << g.numberOfNodes() << "\n";
+	  std::cout << "  Edges: " << g.numberOfEdges() << "\n";
+	  std::string algorithmName="Eigensolver";
+	  std::cout << "  Algorithm:  " << "'" << algorithmName << "'" << "\n";
+	  testEigensolver(g,count,true, true);
 	}
 	
 

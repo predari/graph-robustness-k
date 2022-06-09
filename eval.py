@@ -45,8 +45,8 @@ def parse(run, f):
         #     'jlt-test': True
         # }
     else:
-        if 'Gain' in d and d['Gain'] < 0:
-            d['Gain'] *= -1.
+        if 'gain' in d and d['gain'] < 0:
+            d['gain'] *= -1.
         # d = {
         #     'experiment': run.experiment.name,
         #     'instance': run.instance.shortname,
@@ -72,21 +72,12 @@ df = pd.DataFrame(cfg.collect_successful_results(parse))
 def print_df(df):
     print(df.to_string())
 
-#print_df(df)    
-df.drop('Call', inplace=True, axis=1)
-# DROPPING BECAUSE SQ-GREEDY RUNS WITH -v (verbose) SO SUPRESS
-df.drop('AddedEdgeList', inplace=True, axis=1)
-#df.drop('All-Columns', inplace=True, axis=1)
-
-
-    
 print_df(df)
 
-# MARIA {
-# MARIA # jlt_df = df[df.columns & ['JLT-Test']]
-#jlt_df = df[(df['JLT-Test'] == True)]
-#df = df[df['JLT-Test'].isnull()]
-# MARIA }
+
+jlt_df = df[(df['JLT-Test'] == True)]
+df = df[df['JLT-Test'].isnull()]
+
 
 #print(df.groupby('Experiment').agg('mean'))
 
@@ -214,10 +205,7 @@ def analyze_experiment(df, restrictions, instance_names, ks=None, additional_exc
     if not ks:
         ks = set()
 
-#    print(restrictions)    
     restricted_frame = restrict_frame(df, restrictions)
-#    print("Restricted_frame")
-#    print(restricted_frame)
     for instance_name in instance_names:
         instance_frame = project(restricted_frame, "Instance", instance_name)
 
@@ -238,9 +226,7 @@ def analyze_experiment(df, restrictions, instance_names, ks=None, additional_exc
 
             insert(resistances, k, row['Gain'])
             insert(times, k, row['Time'])
- #   print(resistances)
- #   print(times)
- #   print(ks)
+
     return resistances, times, ks
 
 def analyze_multiple_experiments(df, experiment_restriction_list, instance_names, additional_exclusion=None):
@@ -258,7 +244,6 @@ def analyze_multiple_experiments(df, experiment_restriction_list, instance_names
     return result_resistances, result_times, ks
 
 def plot_result_vs_time(df, instance_names, experiment_restriction_list, experiment_names, filename=None, additional_exclusion=None, output_values_text=None):
-
     result_resistances, result_times, ks = analyze_multiple_experiments(df, experiment_restriction_list, instance_names, additional_exclusion)
 
     fig, ax = plt.subplots()
@@ -315,8 +300,8 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
         ax2.set_ylabel('Time')
 
     if reference_restrictions:
-        ax1.set_ylim(0., 6.)
-        ax2.set_ylim(0., 6.)
+        ax1.set_ylim(0., 1.)
+        ax2.set_ylim(0., 1.)
     else:
         pass
 
@@ -399,8 +384,7 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     #ax1.legend()
     #ax2.legend()
     plt.legend(ncol = 1, bbox_to_anchor=(1, 1), loc='lower right')
-    
-    
+
     fig.tight_layout()
     if filename == None:
         filename = "results_aggregated"
@@ -441,23 +425,13 @@ def plot_averaged(df, instance_names, experiment_restriction_list, experiment_na
     plt.close(fig)
 
 
-# MARIA {
-# draw_jlt(jlt_df)
-# for k in [2, 5, 20, 50, 200]:
-#     draw_jlt_comparison(k)
-# MARIA }
 
-# MARIA {
-# large_graphs = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph", "ia-email-EU"]
+draw_jlt(jlt_df)
+for k in [2, 5, 20, 50, 200]:
+    draw_jlt_comparison(k)
 
 
-large_graphs = ["web-spam", "facebook_ego_combined"]
-
-
-#large_graphs = ["facebook_ego_combined", "ca-HepPh","p2p-Gnutella04","p2p-Gnutella09","web-spam", "Wiki-Vote"]#, "inf-power"]
-# MARIA }
-
-
+large_graphs = ["deezer_europe", "opsahl-powergrid", "arxiv-grqc", "facebook_ego_combined", "arxiv-hephth", "arxiv-heph", "ia-email-EU"]
 huge_graphs = ["loc-brightkite", "flickr", "livemocha", "road-usroads", "road-luxembourg-osm"]
 
 
@@ -511,110 +485,33 @@ restr_lpinv_diag = {
 }
 
 
-
-# MARIA {
-restr_submodularMP = {"Threads": 1, "Experiment": "submodular-greedy"}
-
-restr_stochMP = {
-    "Experiment": "stochastic-greedy",
-    "Epsilon": 0.9,
-    "Threads": 1
-}
-
-restr_stochDynMP = {
-    "Experiment": "stochastic-greedy-lamg",
-    "Linalg": "LAMG",
-    "Epsilon": 0.9,
-    "Threads": 1
-}
-
-# restr_stochSpectralMP_Eps1 = {
-#     "Experiment": "stochastic-spectral",
-#     "Epsilon": 0.9,
-#     "Threads": 1
-# }
-
-# restr_stochSpectralMP_Eps2 = {
-#     "Experiment": "stochastic-spectral",
-#     "Epsilon": 0.9,
-#     "Threads": 1
-# }
-
-restr_stochSpectralMP_Eps3 = {
-    "Experiment": "stochastic-spectral",
-    "Epsilon": 0.9,
-    "Threads": 1
-}
-
-# restr_stochSpectralMP_Eps4 = {
-#     "Experiment": "stochastic-spectral",
-#     "Epsilon": 0.9,
-#     "Threads": 1
-# }
-
-
-restr_USTDiagonalMP = {
-    "Experiment": "sq-greedy",
-    "Heuristic": "Lpinv Diagonal",
-    "Linalg": "LAMG",
-    "Epsilon": 0.9,
-    "Epsilon2": 10,
-    "Threads": 1,
-    "All-Columns": False
-}
-
-# MARIA }
-
-
 def exclude_large_k(row, restrictions, instance_name):
     return row['k'] > 20 #and 'Linalg' in restrictions and restrictions['Linalg'] == "JLT via Sparse LU"
-# MARIA {
-plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST-Approx"], "gain_vs_time", None, True)
-plot_result_vs_time(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-", "Main-Resistances-UST-Approx"], "gain_vs_time_small_k", exclude_large_k, True)
 
+plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
+plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time_small_k", exclude_large_k, True)
 
-#plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time", None, True)
-#plot_result_vs_time(df, large_graphs, [ restr_submodular, restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Submodular", "Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], "gain_vs_time_small_k", exclude_large_k, True)
-# MARIA }
-# MARIA {
-#plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
-
-
-plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_5", True)
-
-
-# plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.02", "Main-Resistances-UST"], restr_submodularMP, "results_aggregated_6", True)
-
-# for i in large_graphs:
-#     plot_averaged(df, large_graphs, [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "individual_"+i, True, True, "Submodular-Greedy")
-# for i in large_graphs:
-#     plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps1, restr_stochSpectralMP_Eps2, restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral-1", "Stochastic-Submodular-Spectral-2", "Stochastic-Submodular-Spectral-3", "Stochastic-Submodular-Spectral-4", "Stochastic-Submodular-Spectral-3"], restr_submodularMP, "spectral_"+i, True, True, "Submodular-Greedy")
-
-# for i in large_graphs:
-#     plot_averaged(df, [i], [restr_stochMP, restr_USTDiagonalMP , restr_stochSpectralMP_Eps3, restr_stochSpectralMP_Eps4], ["Stochastic-Submodular", "Main-Resistances-UST", "Stochastic-Submodular-Spectral-0.01", "Stochastic-Submodular-Spectral-0.02"], restr_submodularMP, "individual_"+i, True, True, "Submodular-Greedy")
+plot_averaged(df, large_graphs, [ restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_aggregated_5", True)
 
 for i in large_graphs:
-    plot_averaged(df, [i], [restr_stochMP, restr_stochSpectralMP_Eps3, restr_USTDiagonalMP], ["Stochastic-Submodular", "Stochastic-Submodular-Spectral", "Main-Resistances-UST"], restr_submodularMP, "individual_"+i, True, True, "Submodular-Greedy")
+    plot_averaged(df, [i], [restr_stoch, restr_lpinv_diag, restr_similarity, restr_random, restr_similarity_jlt], ["Stochastic-Submodular", "Main-Resistances-Approx", "Main-Similarity", "Main-Random", "Main-Similarity-JLT"], restr_submodular, "results_"+i, True, True, "Submodular-Greedy")
 
 
-# MARIA }
+
+# Generated Instances
+restr_similarity_all_cols = copy(restr_similarity)
+restr_similarity_all_cols["All-Columns"] = True
 
 
-# MARIA {
-# # Generated Instances
-# restr_similarity_all_cols = copy(restr_similarity)
-# restr_similarity_all_cols["All-Columns"] = True
+ba_instances = ["barabasi_albert_5_10000_3_"+str(i) for i in range(20)]
+er_instances = ["erdos_renyi_10000_0.01_"+str(i) for i in range(20)]
+ws_instances = ["watts_strogatz_10000_20_0.2_"+str(i) for i in range(20)]
+for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
+    plot_averaged(df, instances, [restr_similarity, restr_random, restr_similarity_jlt], ["Main-Similarity", "Main-Random", "Main-Similarity-JLT"], None, "results_"+name, True, False)
 
+for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
+    plot_averaged(df, instances, [restr_similarity_all_cols], ["Main-Similarity-All-Columns"], None, "results_"+name+"_all-columns", True, False)
 
-# ba_instances = ["barabasi_albert_5_10000_3_"+str(i) for i in range(20)]
-# er_instances = ["erdos_renyi_10000_0.01_"+str(i) for i in range(20)]
-# ws_instances = ["watts_strogatz_10000_20_0.2_"+str(i) for i in range(20)]
-# for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
-#     plot_averaged(df, instances, [restr_similarity, restr_random, restr_similarity_jlt], ["Main-Similarity", "Main-Random", "Main-Similarity-JLT"], None, "results_"+name, True, False)
-
-# for instances, name in zip([ba_instances, er_instances, ws_instances], ["barabasi-albert", "erdos-renyi", "watts-strogatz"]):
-#     plot_averaged(df, instances, [restr_similarity_all_cols], ["Main-Similarity-All-Columns"], None, "results_"+name+"_all-columns", True, False)
-# MARIA }
 
 # Huge Instances
 restr_similarity_lamg = {
@@ -642,10 +539,9 @@ restr_similarity_jlt_lamg = {
     "Threads": 12
 }
 
-# MARIA: deactivate plots with huge graphs {
-# for i in huge_graphs:
-#     plot_averaged(df, [i], [restr_similarity_lamg, restr_similarity_lamg_eps99, restr_similarity_jlt_lamg], ["Main-Similarity-LAMG", "Main-Similarity-LAMG-eps0.99", "Main-Similarity-JLT-LAMG"], None, "results_"+i)
-# MARIA }
+for i in huge_graphs:
+    plot_averaged(df, [i], [restr_similarity_lamg, restr_similarity_lamg_eps99, restr_similarity_jlt_lamg], ["Main-Similarity-LAMG", "Main-Similarity-LAMG-eps0.99", "Main-Similarity-JLT-LAMG"], None, "results_"+i)
+
 
 
 
