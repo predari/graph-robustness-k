@@ -21,23 +21,20 @@
 
 #include <omp.h>
 
-//inline bool operator<(const NetworKit::Edge& lhs, const NetworKit::Edge& rhs) {
-//    return lhs.u < rhs.u || lhs.u == rhs.u && lhs.v < rhs.v;
-//}
 
 template <class T>
 class AbstractOptimizer : public NetworKit::Algorithm {
 public:
-    virtual double getResultValue() = 0;
-    virtual double getOriginalValue() = 0;
-    virtual std::vector<T> getResultItems() = 0;
-    virtual bool isValidSolution() = 0;
-    virtual double getReferenceResultValue() { return 0.0; };
-    virtual double getReferenceOriginalResistance() { return 0.0;};
-    virtual double getSpectralResultValue() { return 0.0; };
-    virtual double getSpectralOriginalResistance() { return 0.0;};
-  virtual double getMaxEigenvalue() { return 0.0; };
-  
+        virtual double getResultValue() = 0;
+        virtual double getOriginalValue() = 0;
+        virtual std::vector<T> getResultItems() = 0;
+        virtual bool isValidSolution() = 0;
+        virtual double getReferenceResultValue() { return 0.0; };
+        virtual double getReferenceOriginalResistance() { return 0.0;};
+        virtual double getSpectralResultValue() { return 0.0; };
+        virtual double getSpectralOriginalResistance() { return 0.0;};
+        virtual double getMaxEigenvalue() { return 0.0; };
+        
 };
 
 
@@ -57,7 +54,7 @@ template <class Item>
 class SubmodularGreedy : public AbstractOptimizer<Item> {
 public:
 	virtual void run() override;
-    void set_k(int k) { this->k = k; }
+        void set_k(int k) { this->k = k; }
 	
 	// To obtain results
 	int getResultSize() { return round+1; }
@@ -65,43 +62,43 @@ public:
 	double getTotalValue() { return totalValue; }
 	virtual bool isValidSolution() override { return validSolution; }
   
-  void summarize() {
-    std::cout << "Greedy Results Summary. ";
-    if (!this->hasRun) {
-      std::cout << "Not executed yet!";
-    }
-    std::cout << "Result Size: " << this->getResultSize() << std::endl;
-    if (this->getResultSize() < 1000) {
-      for (auto e: this->getResultItems()) {
-	std::cout << "(" << e.u << ", " << e.v << "), "; 
-      }
-    }
-    std::cout << std::endl;
-    std::cout << "Total Value: " << this->getTotalValue() << std::endl;
-  }
-
+        void summarize() {
+                std::cout << "Greedy Results Summary. ";
+                if (!this->hasRun) {
+                        std::cout << "Not executed yet!";
+                }
+                std::cout << "Result Size: " << this->getResultSize() << std::endl;
+                if (this->getResultSize() < 1000) {
+                        for (auto e: this->getResultItems()) {
+                                std::cout << "(" << e.u << ", " << e.v << "), "; 
+                        }
+                }
+                std::cout << std::endl;
+                std::cout << "Total Value: " << this->getTotalValue() << std::endl;
+        }
+        
 protected:
 	using ItemWrapper=_ItemWrapperType<Item>;
-
+        
    	virtual double objectiveDifference(Item c) = 0;
 	virtual void useItem(Item i) = 0;
 	virtual bool checkSolution() { return this->round == this->k - 1; };
 	virtual bool isItemAcceptable(Item c) { return true; }
 	virtual void initRound() {}
         virtual void addDefaultItems() {};
+        
 
-
-  void addItems(std::vector<Item> items);
-  void resetItems();
-
-
-  std::priority_queue<ItemWrapper> itemQueue;
-  
-  bool validSolution = false;
-  int round=0;
-  std::vector<Item> results;
-  double totalValue = 0.0;
-  int k;
+        void addItems(std::vector<Item> items);
+        void resetItems();
+        
+        
+        std::priority_queue<ItemWrapper> itemQueue;
+        
+        bool validSolution = false;
+        int round=0;
+        std::vector<Item> results;
+        double totalValue = 0.0;
+        int k;
 };
 
 
