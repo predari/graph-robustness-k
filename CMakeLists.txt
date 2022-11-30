@@ -1,26 +1,15 @@
 cmake_minimum_required(VERSION 3.5)
 project (Robustness)
 
-#set (CMAKE_CXX_STANDARD 11)
-#set (CMAKE_CXX_STANDARD_REQUIRED True)
-
-
 find_package(PkgConfig REQUIRED) 
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
-# Use CMake's pkg-config to reference
-# export SLEPC_DIR=/home/maria/Documents/postdoc/soft/slepc
-# export PETSC_DIR=/home/maria/Documents/postdoc/soft/petsc
-## CHOOSE OPT BUILD
-# export PETSC_ARCH=arch-linux-c-opt
-# $SLEPC_DIR/$PETSC_ARCH/lib/pkgconfig/slepc.pc and
-# $PETSC_DIR/$PETSC_ARCH/lib/pkgconfig/PETSc.pc
-# export PKG_CONFIG_PATH=$SLEPC_DIR/$PETSC_ARCH/lib/pkgconfig:$PETSC_DIR/$PETSC_ARCH/lib/pkgconfig/:$PKG_CONFIG_PATH
+
 # IF necessary add paths to PKG_CONFIG_PATH
+# export PKG_CONFIG_PATH=$SLEPC_DIR/$PETSC_ARCH/lib/pkgconfig:$PETSC_DIR/$PETSC_ARCH/lib/pkgconfig/:$PKG_CONFIG_PATH
 pkg_check_modules(PETSC_PKG REQUIRED IMPORTED_TARGET PETSc)
 pkg_check_modules(SLEPC_PKG REQUIRED IMPORTED_TARGET slepc)
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer") #-fast_unwind_on_malloc=0")
 
 include_directories(eigen)
 find_package(OpenMP)
@@ -34,22 +23,11 @@ target_compile_options(networkit PUBLIC -Wno-deprecated-declarations -g -O3 -fno
 target_include_directories(robustness PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(robustness INTERFACE )
 
-## slepc 
-## provide: -DSLEPC_DIR=/home/maria/Documents/postdoc/soft/slepc to CMake
-## provide: -DPETSC_DIR=/home/maria/Documents/postdoc/soft/petsc to CMake
-## /home/maria/Documents/postdoc/soft/slepc/lib/slepc/conf ---- HERE IS THE REQUIRED INCLUDE
-# target_include_directories(robustness BEFORE PUBLIC ${SLEPC_DIR}/lib/slepc/conf)
-# target_include_directories(robustness BEFORE PUBLIC ${SLEPC_DIR}/include)
-##set(SLEPC_LIB ${SLEPC_DIR}/lib)
-
-
-
 
 target_link_libraries(robustness PUBLIC networkit)
 target_link_libraries(robustness PUBLIC OpenMP::OpenMP_CXX)
 # For address sanitizing link to "asan"
 # target_link_libraries(robustness PUBLIC asan)
-
 
 
 
