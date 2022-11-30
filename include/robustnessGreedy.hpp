@@ -23,6 +23,7 @@
 #include <networkit/numerics/LAMG/Lamg.hpp>
 #include <networkit/components/ConnectedComponents.hpp>
 
+#include <networkit/auxiliary/Timer.hpp>
 
 namespace NetworKit {
 inline bool operator<(const NetworKit::Edge& lhs, const NetworKit::Edge& rhs) {
@@ -147,10 +148,6 @@ public:
 
 	  int bestIndex = std::max_element(gain.begin(),gain.end()) - gain.begin();
 	  double best = *std::max_element(gain.begin(), gain.end());
-	  //std::cout << "Gain values:";
-	  //for (std::vector<double>::iterator it = gain.begin() ; it != gain.end(); ++it)
-	  //  std::cout << *it << " ";
-	  //std::cout << "\n";
 	  
 	  updateLaplacianPseudoinverse(this->lpinv, es[bestIndex]);
 	  results.push_back(es[bestIndex]);
@@ -191,7 +188,11 @@ public:
         this->k = params.k;
 
         // Compute pseudoinverse of laplacian
+        Aux::Timer lpinvTimer;
+        lpinvTimer.start();
         this->lpinv = laplacianPseudoinverse(g);
+        lpinvTimer.stop();
+        
         this->totalValue = this->lpinv.trace() * n * (-1.0);
         this->originalResistance = this->totalValue * (-1.);
     }
@@ -229,8 +230,6 @@ private:
     virtual double objectiveDifference(Edge e) override {
         auto i = e.u;
         auto j = e.v;
-	//auto val = laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
-	//DEBUG(" obj = ", n * val , " - obj = ", n * (-1.0) * val );
         return this->n * (-1.0) * laplacianPseudoinverseTraceDifference(this->lpinv, i, j);
     }
 
@@ -448,7 +447,6 @@ public:
 		    count++;
 		}
 		if (count > lim) {
-		  //std::cout << " count = "  << count << " lim = " << lim << "\n";
 		  break;
 		}
             }
@@ -670,42 +668,19 @@ public:
 	this->updatePerRound = params.updatePerRound;
 	this->diff = params.diff;
 	this->candidatesize = params.candidatesize;
-	//INFO("epsilon: " , epsilon);
-	//INFO("numberOfEigenpairs: " , ne);
-	//dolver.setup(g, params.solverEpsilon, n);
-	//dolver.setup(g, 1.0e-6, std::ceil(n * std::sqrt(1. / (double)(k) * std::log(1.0/epsilon))));
+
 	if (this->k > 20)
-	  dolver.setup(g, params.solverEpsilon, std::ceil(n * std::sqrt(1. / (double)(k) * std::log(1.0/epsilon))));
+	  lap_solver.setup(g, params.solverEpsilon, std::ceil(n * std::sqrt(1. / (double)(k) * std::log(1.0/epsilon))));
 	else
-	  dolver.setup(g, params.solverEpsilon, std::ceil(n * std::sqrt(std::log(1.0/epsilon))));
+	  lap_solver.setup(g, params.solverEpsilon, std::ceil(n * std::sqrt(std::log(1.0/epsilon))));
 
-	//Time beforeInit = std::chrono::high_resolution_clock::now();
+
         solver.setup(g, this->k, ne);
-	
-	// auto t = std::chrono::high_resolution_clock::now();
-	// auto duration = t - beforeInit;
-	// using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-	// std::cout << "  Solver Setup Time:    "  << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-	// beforeInit = std::chrono::high_resolution_clock::now();
-	
-	solver.run_eigensolver();
 
-	// t = std::chrono::high_resolution_clock::now();
-	// duration = t - beforeInit;
-	// std::cout << "  Solver Run Time:    "  << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-
-	// double * e_values = solver.get_eigenvalues();
-	// std::cout << " CALLING computeEigenpairs::eigenvalues are to:\n [ ";
-	// for (int i = 0 ; i < ne + 1; i++)
-	//  std::cout << e_values[i] << " ";
-	// std::cout << "]\n";
+        solver.run_eigensolver();
 	this->totalValue = 0.;
         this->originalResistance = totalValue;
-	// ---------------------------------------------------
-	// this->lpinv = laplacianPseudoinverse(g);
-        // this->ReferenceOriginalResistance = this->lpinv.trace() * n ;
 	this->SpectralOriginalResistance = solver.SpectralToTalEffectiveResistance();
-	// ---------------------------------------------------
 
     }
 
@@ -754,113 +729,108 @@ public:
   double getSpectralOriginalResistance() override {
     return this-> SpectralOriginalResistance;
   }
-  // TODO: check that solver has run first. Add hasrun flag.
+
   double getMaxEigenvalue() override {
     return solver.get_max_eigenvalue();
   }
 
 
   void run() override {
-    this->round = 0;
-    //this->totalValue = 0;
-    this->validSolution = false;
-    this->results.clear();
-
-    
-    if (this->items.size() == 0) { addDefaultItems(); }
-    //DEBUG(" N = ",  this->N);
-    bool candidatesLeft = true;
-    std::mt19937 g(Aux::Random::getSeed());
-
-    while (candidatesLeft)
-    {
-      this->initRound();
-
-      std::priority_queue<ItemWrapper> R;
-      unsigned int s = (unsigned int)(1.0 * this->N / k * std::log(1.0/epsilon)) + 1;
-      s = std::min(s, (unsigned int) this->items.size() - round);
-      
-      // Get a random subset of the items of size s.
-      // Do this via selecting individual elements resp via shuffling,
-      //depending on wether s is large or small.
-      // ==========================================================================
-	// Populating R set. What is the difference between small and large s?
-	if (s > this->N/4) { // This is not a theoretically justified estimate
-            std::vector <unsigned int> allIndices = std::vector<unsigned int> (this->N);
-            std::iota(allIndices.begin(), allIndices.end(), 0);
-            std::shuffle(allIndices.begin(), allIndices.end(), g);
-
-            auto itemCount = items.size();
-            for (auto i = 0; i < itemCount; i++)
-            {
-                auto item = this->items[allIndices[i]];
-                if (!item.selected) {
-		    R.push(item);
-                    if (R.size() >= s) {
-                        break;
-                    }
-                }
-            }
-        } else {
-            while (R.size() < s) {
-                std::set<unsigned int> indicesSet;
-                // TODO: Look into making this deterministic
-                unsigned int v = std::rand() % this->N;
-                if (indicesSet.count(v) == 0) {
-                    indicesSet.insert(v);
-                    auto item = this->items[v];
-                    if (!item.selected) {
-                        R.push(item);
-                    }
-                }
-            }
-        }
-	// ============================
-        // Get top updated entry from R
-        ItemWrapper c;
-        while (true) {
-            if (R.empty()) {
-                candidatesLeft = false;
-                break;
-            } else {
-                c = R.top();
-		R.pop();
-            }
-
-            if (this->isItemAcceptable(c.item)) {
-                if (c.lastUpdated == this->round) {
-                    break; // top updated entry found.
-                } else {
-                    auto &item = this->items[c.index];
-                    c.value = this->objectiveDifference(c.item);
-                    item.value = c.value;
-                    c.lastUpdated = this->round;
-                    item.lastUpdated = this->round;
-                    R.push(c);
-                }
-            }
-	    
-	}
-        if (candidatesLeft) {
-            this->results.push_back(c.item);
-	    // TODO: calculated on exact as for the other methods ?
-	    //if (this->candidatesize == CandidateSetSize::small)
-	    this->totalValue += this->objectiveDifferenceExact(c.item);
-	    //else
-	    //this->totalValue += this->objectiveDifference(c.item);
-	    this->useItem(c.item);
-            this->items[c.index].selected = true;
-            
-            if (this->checkSolution())
-	      {
-		this->validSolution = true;
-		break;
-	      } 
-            this->round++;
-        }
-    }
-    this->hasRun = true;
-}
+          
+          this->round = 0;
+          this->validSolution = false;
+          this->results.clear();
+          
+          
+          if (this->items.size() == 0) { addDefaultItems(); }
+          bool candidatesLeft = true;
+          std::mt19937 g(Aux::Random::getSeed());
+          
+          while (candidatesLeft)
+                  {
+                          this->initRound();
+                          
+                          std::priority_queue<ItemWrapper> R;
+                          unsigned int s = (unsigned int)(1.0 * this->N / k * std::log(1.0/epsilon)) + 1;
+                          s = std::min(s, (unsigned int) this->items.size() - round);
+                          
+                          // Get a random subset of the items of size s.
+                          // Do this via selecting individual elements resp via shuffling,
+                          //depending on wether s is large or small.
+                          // ==========================================================================
+                          // Populating R set. What is the difference between small and large s?
+                          if (s > this->N/4) { // This is not a theoretically justified estimate
+                                  std::vector <unsigned int> allIndices = std::vector<unsigned int> (this->N);
+                                  std::iota(allIndices.begin(), allIndices.end(), 0);
+                                  std::shuffle(allIndices.begin(), allIndices.end(), g);
+                                  
+                                  auto itemCount = items.size();
+                                  for (auto i = 0; i < itemCount; i++)
+                                          {
+                                                  auto item = this->items[allIndices[i]];
+                                                  if (!item.selected) {
+                                                          R.push(item);
+                                                          if (R.size() >= s) {
+                                                                  break;
+                                                          }
+                                                  }
+                                          }
+                          } else {
+                                  while (R.size() < s) {
+                                          std::set<unsigned int> indicesSet;
+                                          // TODO: Look into making this deterministic
+                                          unsigned int v = std::rand() % this->N;
+                                          if (indicesSet.count(v) == 0) {
+                                                  indicesSet.insert(v);
+                                                  auto item = this->items[v];
+                                                  if (!item.selected) {
+                                                          R.push(item);
+                                                  }
+                                          }
+                                  }
+                          }
+                          // ============================
+                          // Get top updated entry from R
+                          ItemWrapper c;
+                          while (true) {
+                                  if (R.empty()) {
+                                          candidatesLeft = false;
+                                          break;
+                                  } else {
+                                          c = R.top();
+                                          R.pop();
+                                  }
+                                  
+                                  if (this->isItemAcceptable(c.item)) {
+                                          if (c.lastUpdated == this->round) {
+                                                  break; // top updated entry found.
+                                          } else {
+                                                  auto &item = this->items[c.index];
+                                                  c.value = this->objectiveDifference(c.item);
+                                                  item.value = c.value;
+                                                  c.lastUpdated = this->round;
+                                                  item.lastUpdated = this->round;
+                                                  R.push(c);
+                                          }
+                                  }
+                                  
+                          }
+                          if (candidatesLeft) {
+                                  this->results.push_back(c.item);
+                                  this->totalValue += this->objectiveDifferenceExact(c.item);
+                                  this->useItem(c.item);
+                                  this->items[c.index].selected = true;
+                                  
+                                  if (this->checkSolution())
+                                          {
+                                                  this->validSolution = true;
+                                                  break;
+                                          } 
+                                  this->round++;
+                          }
+                  }
+          this->hasRun = true;
+  }
 
   
 
@@ -875,42 +845,28 @@ private:
   }
 
   virtual double objectiveDifferenceExact(Edge e) {
-    return dolver.totalResistanceDifferenceExact(e.u, e.v);
+    return lap_solver.totalResistanceDifferenceExact(e.u, e.v);
   }
 
   
     virtual void useItem(Edge e) override {      
-      // Time beforeInit = std::chrono::high_resolution_clock::now();
+
       solver.addEdge(e.u, e.v);
-      dolver.addEdge(e.u,e.v);
+      lap_solver.addEdge(e.u,e.v);
       
       if (!(this->round%updatePerRound))
 	updateEigenpairs();
-      // auto t = std::chrono::high_resolution_clock::now();
-      // auto duration = t - beforeInit;
-      // using scnds = std::chrono::duration<float, std::ratio<1, 1>>;
-      // std::cout << "  Solver Update Time:    " << std::chrono::duration_cast<scnds>(duration).count() << "\n";
-      // ---------------------------------------------------
-      // updateLaplacianPseudoinverse(this->lpinv, e);
-      // this->ReferenceTotalValue = this->lpinv.trace() * n;
-      // this->SpectralTotalValue = solver.SpectralToTalEffectiveResistance();
-      // ---------------------------------------------------
     }
   
    void cutOff() {
      ne = ceil(this->epsilon*n);
      assert(ne > 0 && ne <= n);
-     //DEBUG(" RETURN cuOff :: numberOfEigenpairs =  " , ne);
+
     
    }
 
   void updateEigenpairs() {
     solver.update_eigensolver();
-    // double * e_values = solver.get_eigenvalues();
-    // std::cout << " CALLING updateEigenpairs::eigenvalues are updated to:\n [ ";
-    // for (int i = 0 ; i < ne + 1; i++)
-    //  std::cout << e_values[i] << " ";
-    // std::cout << "]\n";
   }
 
   
@@ -923,14 +879,14 @@ private:
   unsigned int updatePerRound = 1;
   unsigned int diff = 1;
   CandidateSetSize candidatesize;
+        
   // ----------------------------- //
-  //Eigen::MatrixXd lpinv;
   double ReferenceTotalValue = 0.0;
   double ReferenceOriginalResistance = 0.0;
   double SpectralTotalValue = 0.0;
   double SpectralOriginalResistance = 0.0;
   //
-  DynamicLaplacianSolver dolver;
+  DynamicLaplacianSolver lap_solver;
 };
 
 
