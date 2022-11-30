@@ -3,12 +3,11 @@
 ## Installation and Building
 
 
-    git clone git@gitlab.informatik.hu-berlin.de:macsy/code-student/goerg-graph-robustness.git
+    git clone https://gitlab.informatik.hu-berlin.de/macsy/code-staff/graph-robustness-k.git
 
-    cd goerg-graph-robustness
+    cd graph-robustness-k
 
 Initialize submodules. Access to the separate NetworKit fork is at https://gitlab.informatik.hu-berlin.de/goergmat/networkit-robustness is required.
-
     git submodule update --init --recursive
 
 Build
