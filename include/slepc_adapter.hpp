@@ -104,7 +104,7 @@ public:
                 EPSSetOperators(eps, A, NULL);
                 EPSSetDeflationSpace(eps, 1, &x);
                 EPSSetInitialSpace(eps, nconv+1, Q);
-                PetscError Code ierr = run_eigensolver();	
+                PetscErrorCode ierr = run_eigensolver();	
                 return ierr;
         }
 
