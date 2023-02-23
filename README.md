@@ -1,11 +1,13 @@
 # Graph Robustness
 
-
+We solve the k-GRIP, short for graph robustness improvement problem, where
+graph effective resistance is used as a robustness indicator measure. 
+Our algorithmic solutions are descripted in the publication 'Faster Greedy Optimization of Resistance-based Graph Robustness' presented in ASONAM 22.
         
 ## Installation and Building
 
 
-    git clone https://gitlab.informatik.hu-berlin.de/macsy/code-staff/graph-robustness-k.git
+    git clone git@github.com:predari/graph-robustness-k.git
 
     cd graph-robustness-k
         
